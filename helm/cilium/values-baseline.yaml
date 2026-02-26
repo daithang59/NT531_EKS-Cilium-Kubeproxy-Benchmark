@@ -1,0 +1,32 @@
+# ============================================================
+# Mode A — Baseline: kube-proxy ON
+# Cilium version: 1.18.x  (pin chart --version 1.18.7)
+# EKS Kubernetes: 1.34 (hoặc 1.33)
+# ============================================================
+
+# Cilium 1.14+ dùng boolean thay vì "disabled"/"strict"
+kubeProxyReplacement: false
+
+# EKS-specific: dùng ENI mode để tương thích VPC CNI chaining
+# (nếu chạy Cilium standalone trên EKS, bật routing-mode native)
+eks:
+  enabled: true             # tự nhận diện EKS endpoints
+
+ipam:
+  mode: "eni"               # hoặc "kubernetes" tuỳ setup
+
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+
+prometheus:
+  enabled: false
+operator:
+  prometheus:
+    enabled: false
+
+# image tag được quyết định bởi chart version (--version 1.18.7)
+# Không cần override image.tag trừ khi muốn build custom.

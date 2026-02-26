@@ -1,0 +1,35 @@
+# ============================================================
+# Mode B — eBPF kube-proxy replacement (kube-proxy-free)
+# Cilium version: 1.18.x  (pin chart --version 1.18.7)
+# EKS Kubernetes: 1.34 (hoặc 1.33)
+# ============================================================
+
+# Cilium 1.14+ dùng boolean thay vì "disabled"/"strict"
+kubeProxyReplacement: true
+
+# k8sServiceHost & k8sServicePort cần thiết khi disable kube-proxy
+# Lấy từ: aws eks describe-cluster --name <name> --query cluster.endpoint
+k8sServiceHost: ""           # ← điền EKS API endpoint (hostname only)
+k8sServicePort: "443"
+
+eks:
+  enabled: true
+
+ipam:
+  mode: "eni"
+
+hubble:
+  enabled: true
+  relay:
+    enabled: true
+  ui:
+    enabled: true
+
+prometheus:
+  enabled: false
+operator:
+  prometheus:
+    enabled: false
+
+# image tag được quyết định bởi chart version (--version 1.18.7)
+# Không cần override image.tag trừ khi muốn build custom.

@@ -1,0 +1,17 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-fortio-to-echo
+  namespace: netperf
+spec:
+  endpointSelector:
+    matchLabels:
+      app: echo
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: fortio
+      toPorts:
+        - ports:
+            - port: "5678"
+              protocol: TCP

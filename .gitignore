@@ -1,0 +1,22 @@
+# results artifacts
+results/**
+!results/.gitkeep
+
+# local kubeconfig / credentials
+kubeconfig*
+*.pem
+*.key
+
+# terraform
+terraform/.terraform/
+terraform/*.tfstate*
+terraform/*.tfplan
+terraform/**/.terraform.lock.hcl
+
+# editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# logs
+*.log
