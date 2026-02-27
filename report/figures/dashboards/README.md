@@ -6,10 +6,12 @@ Thư mục này chứa **screenshots từ Grafana dashboards** được chụp t
 
 | Loại dashboard | Mô tả | Ví dụ tên file |
 |----------------|-------|-----------------|
-| Network Latency | Biểu đồ latency theo thời gian (p50, p90, p95, p99) | `latency_kubeproxy_s1_L2.png` |
-| Throughput | Biểu đồ RPS (requests per second) | `throughput_ebpfkpr_s1_L3.png` |
-| Node Resources | CPU, Memory usage của từng node | `cpu_usage_kubeproxy_s1.png` |
-| Cilium Metrics | Forward/drop counts, policy verdicts, BPF map ops | `cilium_drops_ebpfkpr_s3.png` |
+| Network Latency | Biểu đồ latency theo thời gian (p50, p90, p95, p99) | `latency_modeA_S1_L2.png` |
+| Throughput | Biểu đồ RPS (requests per second) | `throughput_modeB_S1_L3.png` |
+| Node Resources | CPU, Memory usage của từng node | `cpu_usage_modeA_S1.png` |
+| Cilium Metrics | Forward/drop counts, policy verdicts, BPF map ops | `cilium_drops_modeB_S3.png` |
+
+> Naming convention: `<metric>_mode<A|B>_<S1|S2|S3>_<L1|L2|L3>.png` — khớp với `results/` naming.
 
 ## Cách chụp
 

@@ -27,10 +27,12 @@ Chứa screenshots Grafana dashboards trong quá trình benchmark:
 <mode>_<scenario>_<metric>_<load>.png
 
 Ví dụ:
-  kubeproxy_s1_latency_L2.png
-  ebpfkpr_s3_throughput_L3.png
+  modeA_S1_latency_L2.png
+  modeB_S3_throughput_L3.png
   comparison_p99_all_loads.png
 ```
+
+> Naming dùng `modeA`/`modeB` và `S1`/`S2`/`S3` để khớp với convention trong `results/`.
 
 ## Workflow
 

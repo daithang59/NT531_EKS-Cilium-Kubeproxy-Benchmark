@@ -1,39 +1,42 @@
 # vpc/ — Module tạo VPC cho EKS
 
-Module này chịu trách nhiệm tạo **Amazon VPC** với đầy đủ thành phần mạng cần thiết cho EKS cluster.
+Module này tạo **Amazon VPC** với đầy đủ thành phần mạng cần thiết cho EKS cluster.
 
-## Thành phần cần triển khai
+## Thành phần đã triển khai
 
 | Tài nguyên | Mô tả |
 |------------|-------|
-| VPC | Virtual Private Cloud với CIDR block (ví dụ: `10.0.0.0/16`) |
-| Public Subnets | Ít nhất 2 subnet ở 2 AZ khác nhau — dùng cho Load Balancer, NAT Gateway |
-| Private Subnets | Ít nhất 2 subnet ở 2 AZ — nơi chạy EKS worker nodes |
-| Internet Gateway | Cho phép public subnet truy cập internet |
-| NAT Gateway | Cho phép private subnet gọi ra internet (pull image, gọi AWS API) |
-| Route Tables | Định tuyến traffic cho public/private subnets |
+| VPC | `10.0.0.0/16` — Virtual Private Cloud |
+| Public Subnets | 2 subnet (`10.0.1.0/24`, `10.0.2.0/24`) ở 2 AZ — cho NAT Gateway |
+| Private Subnets | 2 subnet (`10.0.10.0/24`, `10.0.11.0/24`) ở 2 AZ — cho EKS worker nodes |
+| Internet Gateway | Public subnets truy cập internet |
+| NAT Gateway | Single NAT GW — private subnets gọi ra internet (pull image, AWS API) |
+| Route Tables | Tự động tạo cho public/private subnets |
+| EKS Subnet Tags | `kubernetes.io/cluster/<name>`, `kubernetes.io/role/elb`, `kubernetes.io/role/internal-elb` |
 
-## Gợi ý sử dụng module cộng đồng
+## Implementation
 
-```hcl
-module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.0"
+Sử dụng community module `terraform-aws-modules/vpc/aws ~> 5.0`.
 
-  name = "${var.project_name}-vpc"
-  cidr = "10.0.0.0/16"
+### Files
 
-  azs             = ["ap-southeast-1a", "ap-southeast-1b"]
-  public_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]
-  private_subnets = ["10.0.10.0/24", "10.0.11.0/24"]
+| File | Mô tả |
+|------|-------|
+| `main.tf` | VPC module call, AZ auto-discovery, subnet tags |
+| `variables.tf` | `project_name`, `vpc_cidr`, `public_subnet_cidrs`, `private_subnet_cidrs` |
+| `outputs.tf` | `vpc_id`, `private_subnet_ids`, `public_subnet_ids`, `vpc_cidr_block` |
 
-  enable_nat_gateway = true
-  single_nat_gateway = true   # tiết kiệm chi phí cho benchmark
-}
-```
+### Input Variables
+
+| Variable | Default | Mô tả |
+|----------|---------|-------|
+| `project_name` | — | Tên project, dùng cho naming |
+| `vpc_cidr` | `10.0.0.0/16` | CIDR block cho VPC |
+| `public_subnet_cidrs` | `["10.0.1.0/24", "10.0.2.0/24"]` | CIDRs public subnets |
+| `private_subnet_cidrs` | `["10.0.10.0/24", "10.0.11.0/24"]` | CIDRs private subnets |
 
 ## Lưu ý
 
-- EKS yêu cầu subnet phải có tag `kubernetes.io/cluster/<cluster-name>` để tự động discover.
-- Dùng `single_nat_gateway = true` để giảm chi phí (chỉ cần 1 NAT cho benchmark).
-- Private subnet cần tag `kubernetes.io/role/internal-elb = 1` nếu dùng internal Load Balancer.
+- `single_nat_gateway = true` để tiết kiệm chi phí (chỉ cần 1 NAT cho benchmark).
+- AZs được auto-discover từ region (lấy 2 AZ đầu tiên).
+- Subnet tags cho EKS được tự động gán.

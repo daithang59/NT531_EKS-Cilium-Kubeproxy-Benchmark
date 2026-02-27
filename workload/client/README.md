@@ -34,9 +34,10 @@ kubectl exec -n netperf $FORTIO_POD -- \
 
 | Tham số | Ý nghĩa | Giá trị mặc định (trong scripts) |
 |---------|---------|----------------------------------|
-| `-qps` | Số request/giây mục tiêu | L1=50, L2=200, L3=500 |
-| `-c` | Số kết nối đồng thời | 16 |
-| `-t` | Thời gian chạy test | 30s |
+| `-qps` | Số request/giây mục tiêu | L1=100, L2=500, L3=1000 |
+| `-c` | Số kết nối đồng thời | L1=8, L2=32, L3=64 |
+| `-t` | Thời gian chạy test | 120s (measurement), 30s (warmup) |
+| `-keepalive` | HTTP keepalive | `true` (S1/S3), `false` (S2 — connection churn) |
 | `-n` | Số request (thay vì thời gian) | Không dùng |
 
 ## Lưu ý
