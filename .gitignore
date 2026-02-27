@@ -1,6 +1,8 @@
-# results artifacts
+# results artifacts (keep README and template, ignore benchmark data)
 results/**
 !results/.gitkeep
+!results/README.md
+!results/metadata.template.json.txt
 
 # local kubeconfig / credentials
 kubeconfig*
