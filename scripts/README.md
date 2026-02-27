@@ -1,57 +1,75 @@
 # scripts/ — Automation scripts cho benchmark
 
 Thư mục này chứa toàn bộ shell scripts dùng để **chạy benchmark tự động** trên cluster EKS.
+Mọi script tuân theo **Results Contract** (xem `results/README.md`).
 
 ## Cấu trúc
 
 | File | Mô tả |
 |------|-------|
-| `common.sh` | Thư viện dùng chung: biến cấu hình (namespace, mode, QPS, duration…), các hàm helper (`fortio_pod`, `run_fortio`, `write_metadata`, `collect_kubectl_state`…). Được `source` bởi các script `run_s*.sh`. |
-| `run_s1.sh` | Chạy **Scenario 1** — Baseline service datapath. Lặp qua 3 load level (L1/L2/L3), mỗi level chạy N lần (REPEATS). Ghi kết quả vào `results/`. |
-| `run_s2.sh` | Chạy **Scenario 2** — High load + connection churn. Hiện tại là skeleton (tái sử dụng S1), sẽ mở rộng thêm logic churn sau. |
-| `run_s3.sh` | Chạy **Scenario 3** — Policy OFF → ON. Xóa CiliumNetworkPolicy, đo (phase=off), apply lại policy, đo (phase=on). So sánh impact của network policy. |
-| `collect_hubble.sh` | Thu thập Hubble flow logs từ namespace benchmark. Yêu cầu Hubble CLI đã cài. |
-| `collect_meta.sh` | Thu thập metadata cluster: thời gian, cilium status, kubectl state. |
+| `common.sh` | Thư viện dùng chung: validation, fail-fast pre-checks, Fortio execution, evidence collection (`collect_meta`, `collect_cilium_hubble`), metadata.json + checklist.txt generation. Được `source` bởi `run_s*.sh`. |
+| `run_s1.sh` | **Scenario 1 — Service Baseline.** Steady-state load qua ClusterIP. |
+| `run_s2.sh` | **Scenario 2 — High-load + Connection Churn.** Multi-phase: ramp-up → sustained → burst × 3 → cool-down. |
+| `run_s3.sh` | **Scenario 3 — NetworkPolicy Overhead (off → on).** Phase OFF (policy deleted) → Phase ON (policy applied). |
+| `collect_meta.sh` | Standalone kubectl evidence collector (`kubectl_get_all.txt`, `kubectl_top_nodes.txt`, `events.txt`). |
+| `collect_hubble.sh` | Standalone Cilium/Hubble evidence collector (`cilium_status.txt`, `hubble_status.txt`, `hubble_flows.jsonl`). |
 
 ## Cách sử dụng
 
-### Biến môi trường quan trọng
+### Biến môi trường
 
-```bash
-export MODE="kubeproxy"       # kubeproxy | ebpfkpr — chọn mode đang test
-export NS="netperf"           # namespace chứa workload
-export REPEATS=3              # số lần lặp mỗi (scenario, load)
-export WARMUP_SEC=10          # thời gian warm-up trước mỗi lần đo
-export DURATION_SEC=30        # thời gian đo chính thức
-export L1_QPS=50              # QPS cho load level L1 (light)
-export L2_QPS=200             # QPS cho load level L2 (medium)
-export L3_QPS=500             # QPS cho load level L3 (heavy)
-```
+| Variable | Mặc định | Mô tả |
+|----------|---------|-------|
+| `MODE` | `A` | `A` = kube-proxy baseline, `B` = Cilium eBPF KPR |
+| `LOAD` | `L1` | `L1` (light), `L2` (medium), `L3` (high) |
+| `REPEAT` | `3` | Số lần lặp mỗi (scenario × load) |
+| `OUTDIR` | _(auto)_ | Override output directory (bỏ qua auto-creation) |
+| `NS` | `netperf` | Namespace chứa workload |
+| `WARMUP_SEC` | `30` | Thời gian warm-up trước mỗi lần đo |
+| `DURATION_SEC` | `120` | Thời gian đo chính thức |
+| `REST_BETWEEN_RUNS` | `30` | Nghỉ giữa các runs |
+| `L1_QPS` / `L2_QPS` / `L3_QPS` | `100` / `500` / `1000` | QPS cho mỗi load level |
+| `L1_CONNS` / `L2_CONNS` / `L3_CONNS` | `8` / `32` / `64` | Concurrent connections |
+| `L1_THREADS` / `L2_THREADS` / `L3_THREADS` | `2` / `4` / `8` | Fortio threads |
 
 ### Chạy benchmark
 
 ```bash
-# Scenario 1
-./scripts/run_s1.sh
+# S1 — Mode A, Load L1, 3 repeats
+MODE=A LOAD=L1 REPEAT=3 ./scripts/run_s1.sh
 
-# Scenario 3 (policy toggle)
-./scripts/run_s3.sh
+# S2 — Mode B, Load L3, 5 repeats
+MODE=B LOAD=L3 REPEAT=5 ./scripts/run_s2.sh
+
+# S3 — Mode B, Load L2, policy toggle
+MODE=B LOAD=L2 REPEAT=3 ./scripts/run_s3.sh
 ```
 
-### Output
+### Fail-fast checks
 
-Kết quả được ghi theo cấu trúc:
+Trước khi chạy, scripts tự động kiểm tra:
+1. `kubectl` context hoạt động
+2. Tất cả nodes `Ready`
+3. Pod `echo` và `fortio` đang `Running` trong namespace
+4. (Mode B) `cilium status` khả dụng
+
+### Output (theo Results Contract)
+
 ```
 results/
-  mode=kubeproxy/
-    scenario=s1/
+  mode=A_kube-proxy/
+    scenario=S1/
       load=L1/
-        run=01/
-          metadata.json      # thông số chạy
-          bench.log           # output Fortio
-          cluster_state.txt   # kubectl snapshot
-          hubble.log          # Hubble flows (nếu có)
-          grafana/            # screenshots (thủ công)
+        run=R1_2026-02-27T14-30-00+07-00/
+          bench.log            # Fortio output
+          metadata.json        # Run configuration
+          checklist.txt        # Runner/Checker verification
+          kubectl_get_all.txt  # kubectl get all -A
+          kubectl_top_nodes.txt
+          events.txt
+          cilium_status.txt    # (Mode B / S3 only)
+          hubble_status.txt    # (Mode B / S3 only)
+          hubble_flows.jsonl   # (Mode B / S3 only)
 ```
 
 ## Lưu ý
@@ -59,3 +77,4 @@ results/
 - Trên Linux/WSL, nhớ `chmod +x scripts/*.sh` trước khi chạy.
 - `common.sh` không chạy độc lập — nó chỉ được `source` bởi các script khác.
 - Tất cả scripts đều dùng `set -euo pipefail` để fail-fast khi có lỗi.
+- `collect_meta.sh` và `collect_hubble.sh` có thể chạy độc lập với `<outdir>` argument.

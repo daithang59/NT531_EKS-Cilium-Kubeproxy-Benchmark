@@ -1,47 +1,71 @@
 #!/usr/bin/env bash
+# ==============================================================================
+# run_s3.sh — Scenario 3: NetworkPolicy Overhead (off → on)
+# ==============================================================================
+# Measures the overhead of enabling NetworkPolicy enforcement.
+#
+# Phase 1 (policy OFF): delete policies → run benchmark (baseline for policy cost)
+# Phase 2 (policy ON):  apply policies → run benchmark (measure enforcement overhead)
+#
+# Evidence goal: show that p95/p99 increases when policy is ON, and hubble flows
+# confirm FORWARDED/DROPPED verdicts proving enforcement.
+#
+# Usage:
+#   MODE=B LOAD=L2 REPEAT=3 ./scripts/run_s3.sh
+#
+# Environment variables: same as run_s1.sh
+# ==============================================================================
 set -euo pipefail
+
+export SCENARIO="S3"
 source "$(dirname "$0")/common.sh"
 
-SCENARIO="s3"
+preflight_checks
 
-# Phase OFF: remove policy
-kubectl -n "${NS}" delete -f workload/policies/ --ignore-not-found=true
+echo ""
+echo "=========================================="
+echo " S3 — NetworkPolicy Overhead (off → on)"
+echo " MODE=${MODE_LABEL}  LOAD=${LOAD}  REPEAT=${REPEAT}"
+echo "=========================================="
+echo ""
 
-for LOAD in L1 L2 L3; do
-  case "${LOAD}" in
-    L1) QPS="${L1_QPS}" ;;
-    L2) QPS="${L2_QPS}" ;;
-    L3) QPS="${L3_QPS}" ;;
-  esac
+# ---------- Phase OFF: remove policies ----------------------------------------
+echo "────────────────────────────────────"
+echo " Phase OFF — removing NetworkPolicy"
+echo "────────────────────────────────────"
+kubectl -n "${NS}" delete -f "${REPO_ROOT}/workload/policies/" --ignore-not-found=true
+sleep 5  # settle
 
-  for i in $(seq -w 1 "${REPEATS}"); do
-    OUTDIR="results/mode=${MODE}/scenario=${SCENARIO}/phase=off/load=${LOAD}/run=${i}"
-    ensure_dirs "${OUTDIR}"
-    write_metadata "${OUTDIR}"
-    collect_kubectl_state "${OUTDIR}"
-    run_fortio "${QPS}" "${OUTDIR}"
-    ./scripts/collect_hubble.sh "${OUTDIR}" || true
-  done
+for i in $(seq 1 "${REPEAT}"); do
+  # Override OUTDIR to include phase
+  export OUTDIR="${REPO_ROOT}/results/mode=${MODE_LABEL}/scenario=${SCENARIO}/load=${LOAD}/phase=off/run=R${i}_$(ts_dir)"
+  execute_run "${i}"
+
+  if [[ "${i}" -lt "${REPEAT}" ]]; then
+    echo "[INFO] Resting ${REST_BETWEEN_RUNS}s..."
+    sleep "${REST_BETWEEN_RUNS}"
+  fi
 done
+unset OUTDIR
 
-# Phase ON: apply policy back
-kubectl apply -f workload/policies/
+# ---------- Phase ON: apply policies -----------------------------------------
+echo ""
+echo "────────────────────────────────────"
+echo " Phase ON — applying NetworkPolicy"
+echo "────────────────────────────────────"
+kubectl apply -f "${REPO_ROOT}/workload/policies/"
+sleep 10  # let policy propagate
 
-for LOAD in L1 L2 L3; do
-  case "${LOAD}" in
-    L1) QPS="${L1_QPS}" ;;
-    L2) QPS="${L2_QPS}" ;;
-    L3) QPS="${L3_QPS}" ;;
-  esac
+for i in $(seq 1 "${REPEAT}"); do
+  export OUTDIR="${REPO_ROOT}/results/mode=${MODE_LABEL}/scenario=${SCENARIO}/load=${LOAD}/phase=on/run=R${i}_$(ts_dir)"
+  execute_run "${i}"
 
-  for i in $(seq -w 1 "${REPEATS}"); do
-    OUTDIR="results/mode=${MODE}/scenario=${SCENARIO}/phase=on/load=${LOAD}/run=${i}"
-    ensure_dirs "${OUTDIR}"
-    write_metadata "${OUTDIR}"
-    collect_kubectl_state "${OUTDIR}"
-    run_fortio "${QPS}" "${OUTDIR}"
-    ./scripts/collect_hubble.sh "${OUTDIR}" || true
-  done
+  if [[ "${i}" -lt "${REPEAT}" ]]; then
+    echo "[INFO] Resting ${REST_BETWEEN_RUNS}s..."
+    sleep "${REST_BETWEEN_RUNS}"
+  fi
 done
+unset OUTDIR
 
-echo "[DONE] S3 completed."
+echo ""
+echo "[DONE] S3 completed — ${REPEAT} run(s) × 2 phases for MODE=${MODE_LABEL} LOAD=${LOAD}"
