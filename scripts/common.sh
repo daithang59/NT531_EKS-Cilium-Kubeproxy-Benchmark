@@ -278,7 +278,7 @@ collect_cilium_hubble() {
   if command -v hubble &>/dev/null; then
     hubble status > "${outdir}/hubble_status.txt" 2>&1 || echo "hubble status failed" > "${outdir}/hubble_status.txt"
     echo "[INFO] hubble_status.txt written"
-  elif kubectl -n kube-system exec ds/cilium -- hubble status > "${outdir}/hubble_status.txt" 2>&1; then
+  elif kubectl -n kube-system exec ds/cilium -- cilium hubble status > "${outdir}/hubble_status.txt" 2>&1; then
     echo "[INFO] hubble_status.txt written (via cilium pod)"
   else
     echo "hubble not available" > "${outdir}/hubble_status.txt"
@@ -289,7 +289,7 @@ collect_cilium_hubble() {
   if command -v hubble &>/dev/null; then
     hubble observe --namespace "${NS}" --last 5000 -o jsonpb > "${outdir}/hubble_flows.jsonl" 2>&1 || true
     echo "[INFO] hubble_flows.jsonl written"
-  elif kubectl -n kube-system exec ds/cilium -- hubble observe --namespace "${NS}" --last 5000 -o jsonpb > "${outdir}/hubble_flows.jsonl" 2>&1; then
+  elif kubectl -n kube-system exec ds/cilium -- cilium hubble observe --namespace "${NS}" --last 5000 -o jsonpb > "${outdir}/hubble_flows.jsonl" 2>&1; then
     echo "[INFO] hubble_flows.jsonl written (via cilium pod)"
   else
     echo "[WARN] hubble observe failed — hubble_flows.jsonl may be empty"

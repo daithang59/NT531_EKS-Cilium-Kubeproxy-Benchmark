@@ -9,8 +9,10 @@ kubeProxyReplacement: true
 
 # k8sServiceHost & k8sServicePort cần thiết khi disable kube-proxy
 # Lấy từ: aws eks describe-cluster --name <name> --query cluster.endpoint
+# ⚠ CHỈ hostname, KHÔNG có https:// và KHÔNG có path
+#   Ví dụ: XXXXXXXX.gr7.ap-southeast-1.eks.amazonaws.com
 k8sServiceHost: ""           # ← điền EKS API endpoint (hostname only)
-k8sServicePort: "443"
+k8sServicePort: 443
 
 eks:
   enabled: true

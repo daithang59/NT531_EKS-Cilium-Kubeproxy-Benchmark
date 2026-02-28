@@ -44,7 +44,7 @@ fi
 echo "[collect_hubble] hubble status"
 if command -v hubble &>/dev/null; then
   hubble status > "${OUTDIR}/hubble_status.txt" 2>&1 || echo "hubble status failed" > "${OUTDIR}/hubble_status.txt"
-elif kubectl -n kube-system exec ds/cilium -- hubble status > "${OUTDIR}/hubble_status.txt" 2>&1; then
+elif kubectl -n kube-system exec ds/cilium -- cilium hubble status > "${OUTDIR}/hubble_status.txt" 2>&1; then
   :
 else
   echo "hubble not available" > "${OUTDIR}/hubble_status.txt"
@@ -55,7 +55,7 @@ fi
 echo "[collect_hubble] hubble observe (last 5000 flows, namespace=${NS})"
 if command -v hubble &>/dev/null; then
   hubble observe --namespace "${NS}" --last 5000 -o jsonpb > "${OUTDIR}/hubble_flows.jsonl" 2>&1 || true
-elif kubectl -n kube-system exec ds/cilium -- hubble observe --namespace "${NS}" --last 5000 -o jsonpb > "${OUTDIR}/hubble_flows.jsonl" 2>&1; then
+elif kubectl -n kube-system exec ds/cilium -- cilium hubble observe --namespace "${NS}" --last 5000 -o jsonpb > "${OUTDIR}/hubble_flows.jsonl" 2>&1; then
   :
 else
   echo "hubble observe not available" > "${OUTDIR}/hubble_flows.jsonl"
