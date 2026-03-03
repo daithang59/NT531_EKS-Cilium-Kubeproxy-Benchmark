@@ -79,9 +79,14 @@ kube-proxy vẫn chạy bình thường, Cilium chỉ là CNI.
    # Phải thấy: KubeProxyReplacement: True
    ```
 
-### (Optional) NetworkPolicy cho S3
+### NetworkPolicy (S3)
+> **Lưu ý:** Script `run_s3.sh` **tự động** xóa và apply policies — không cần thao tác thủ công.
+> Nếu muốn test thủ công trước:
 ```bash
-kubectl apply -f workload/policies/01-cilium-policy-allow-fortio-to-echo.yaml
+# Apply toàn bộ policies (allow + deny)
+kubectl apply -f workload/policies/
+# Xóa
+kubectl -n netperf delete -f workload/policies/ --ignore-not-found=true
 ```
 
 ---
@@ -135,15 +140,46 @@ done
 
 ### 5.1 Nơi lưu results
 Mọi artifacts tự động tạo theo Results Contract:
+
+**S1 (steady-state):**
 ```
 results/
   mode=A_kube-proxy/
     scenario=S1/
       load=L1/
         run=R1_2026-02-27T14-30-00+07-00/
-          bench.log, metadata.json, checklist.txt,
-          kubectl_get_all.txt, kubectl_top_nodes.txt, events.txt
-          (Mode B) cilium_status.txt, hubble_status.txt, hubble_flows.jsonl
+          bench.log             # Fortio output (latency, RPS, errors)
+          metadata.json         # Run config (từ template)
+          checklist.txt         # Runner/Checker validation
+          kubectl_get_all.txt   # kubectl get all -A
+          kubectl_top_nodes.txt # kubectl top nodes
+          events.txt            # kubectl get events
+          cilium_status.txt     # (Mode B / S3)
+          hubble_status.txt     # (Mode B / S3)
+          hubble_flows.jsonl    # (Mode B / S3)
+```
+
+**S2 (multi-phase) — thêm per-phase logs:**
+```
+results/mode=…/scenario=S2/load=…/run=R1_…/
+  bench.log                    # Combined tất cả phases
+  bench_phase1_rampup.log      # Phase 1: ramp-up 50% QPS
+  bench_phase2_sustained.log   # Phase 2: sustained 100% QPS
+  bench_phase3_bursts.log      # Phase 3: burst ×3 150% QPS
+  bench_phase4_cooldown.log    # Phase 4: cool-down 50% QPS
+  metadata.json, checklist.txt, kubectl_*.txt, events.txt, …
+```
+
+**S3 (policy toggle) — tách theo phase:**
+```
+results/mode=…/scenario=S3/load=…/
+  phase=off/
+    run=R1_…/                  # Benchmark KHI KHÔNG có policy
+      bench.log, metadata.json, checklist.txt, …
+  phase=on/
+    run=R1_…/                  # Benchmark KHI CÓ policy
+      bench.log, metadata.json, checklist.txt, …
+      cilium_status.txt, hubble_flows.jsonl
 ```
 
 ### 5.2 Tiêu chí 1 run hợp lệ
@@ -174,7 +210,7 @@ Nếu phát hiện bất thường (timeout, error rate cao, pod restart), ghi v
 - [ ] **KHÔNG** scale nodegroup
 - [ ] **KHÔNG** redeploy/upgrade Cilium
 - [ ] **KHÔNG** chạy heavy background tasks
-- [ ] Nghỉ ≥ 30s giữa các runs (script tự động)
+- [ ] Nghỉ ≥ 60s giữa các runs (script tự động, default `REST_BETWEEN_RUNS=60`)
 
 ### After run
 - [ ] Verify `results/` folders đã tạo đầy đủ
