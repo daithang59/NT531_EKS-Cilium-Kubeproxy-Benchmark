@@ -13,6 +13,9 @@ spec:
       labels:
         app: echo
     spec:
+      # Pin to benchmark nodes (plan §4.5: nodeSelector/affinity)
+      nodeSelector:
+        role: benchmark
       containers:
         - name: echo
           image: hashicorp/http-echo:1.0
@@ -20,3 +23,11 @@ spec:
             - "-text=ok"
           ports:
             - containerPort: 5678
+          # Resource limits to avoid CPU throttling (plan §2.3)
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"

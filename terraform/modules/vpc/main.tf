@@ -2,9 +2,12 @@
 # VPC Module — Creates VPC + subnets for EKS benchmark cluster
 # ==============================================================================
 # - VPC 10.0.0.0/16
-# - 2 public subnets + 2 private subnets across 2 AZs
+# - 2 public + 2 private subnets across 2 AZs (EKS control plane needs ≥2 AZs)
 # - Internet Gateway, single NAT Gateway (cost-optimised)
 # - EKS-required subnet tags
+# NOTE: Plan §2.3 requires 1 AZ to reduce inter-AZ noise for benchmark.
+#       We keep 2 AZs for EKS compatibility but pin all worker nodes
+#       to the FIRST AZ via node group subnet_ids in the EKS module.
 # ==============================================================================
 
 data "aws_availability_zones" "available" {
@@ -12,6 +15,7 @@ data "aws_availability_zones" "available" {
 }
 
 locals {
+  # 2 AZs for EKS control plane; workers pinned to first AZ (plan §2.3)
   azs = slice(data.aws_availability_zones.available.names, 0, 2)
 }
 

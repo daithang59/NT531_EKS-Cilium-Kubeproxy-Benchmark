@@ -15,7 +15,12 @@ variable "vpc_id" {
 }
 
 variable "private_subnet_ids" {
-  description = "List of private subnet IDs for the EKS cluster"
+  description = "List of private subnet IDs for the EKS cluster (all AZs)"
+  type        = list(string)
+}
+
+variable "benchmark_subnet_ids" {
+  description = "Subnet IDs for benchmark node group — typically first-AZ-only to reduce inter-AZ noise (plan §2.3)"
   type        = list(string)
 }
 

@@ -1,0 +1,13 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: deny-all-to-echo
+  namespace: netperf
+spec:
+  # Default-deny ingress to echo server
+  # Only traffic explicitly allowed by 01-allow-fortio-to-echo passes.
+  # This proves that enforcement is active (plan §4.2 S3: "deny case").
+  endpointSelector:
+    matchLabels:
+      app: echo
+  ingress: []

@@ -13,9 +13,20 @@ spec:
       labels:
         app: fortio
     spec:
+      # Pin to benchmark nodes (plan §4.5: nodeSelector/affinity)
+      nodeSelector:
+        role: benchmark
       containers:
         - name: fortio
-          image: fortio/fortio:latest
+          image: fortio/fortio:1.74.0  # pin version for reproducibility (plan §4.5)
           args: ["server"]  # keep pod alive; we will exec fortio load inside
           ports:
             - containerPort: 8080
+          # Resource limits to avoid CPU throttling (plan §2.3)
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "512Mi"

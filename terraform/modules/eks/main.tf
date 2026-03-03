@@ -34,6 +34,9 @@ module "eks" {
       desired_size = var.node_count
       max_size     = var.node_count
 
+      # Pin workers to first AZ only to reduce inter-AZ noise (plan §2.3)
+      subnet_ids = var.benchmark_subnet_ids
+
       # Use latest Amazon Linux 2023 EKS AMI
       ami_type = "AL2023_x86_64_STANDARD"
 

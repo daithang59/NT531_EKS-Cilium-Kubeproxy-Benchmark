@@ -1,2 +1,50 @@
-# Placeholder for kube-prometheus-stack values
-# Fill later if you deploy monitoring stack via Helm.
+# ==============================================================================
+# kube-prometheus-stack Helm values (plan §3.1, §6.1)
+# ==============================================================================
+# Install: helm install monitoring prometheus-community/kube-prometheus-stack \
+#          -n monitoring --create-namespace -f values.yaml
+
+# Grafana
+grafana:
+  enabled: true
+  adminPassword: "benchmarkAdmin"   # Change in production
+  service:
+    type: ClusterIP
+  persistence:
+    enabled: false                  # Benchmark environment, no persistent storage needed
+
+# Prometheus
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    # Scrape cilium-agent metrics
+    additionalScrapeConfigs:
+      - job_name: "cilium-agent"
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_k8s_app]
+            regex: cilium
+            action: keep
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+            regex: "9962"
+            action: keep
+    resources:
+      requests:
+        cpu: "250m"
+        memory: "512Mi"
+      limits:
+        cpu: "500m"
+        memory: "1Gi"
+
+# Node exporter (optional per plan §6.1)
+nodeExporter:
+  enabled: true
+
+# Alert manager — disabled for benchmark
+alertmanager:
+  enabled: false
+
+# kube-state-metrics
+kubeStateMetrics:
+  enabled: true

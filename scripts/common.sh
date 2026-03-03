@@ -33,8 +33,8 @@ REPEAT="${REPEAT:-3}"
 
 # Timing
 WARMUP_SEC="${WARMUP_SEC:-30}"
-DURATION_SEC="${DURATION_SEC:-120}"
-REST_BETWEEN_RUNS="${REST_BETWEEN_RUNS:-30}"
+DURATION_SEC="${DURATION_SEC:-180}"
+REST_BETWEEN_RUNS="${REST_BETWEEN_RUNS:-60}"
 
 # ---- Load-level profiles (Fortio params) -------------------------------------
 # L1 — Light: low concurrency, moderate QPS
