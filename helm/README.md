@@ -11,7 +11,7 @@ helm/
     values-ebpfkpr.yaml      # Values cho Mode B: eBPF kube-proxy replacement
     README.md
   monitoring/
-    values.yaml              # Values cho kube-prometheus-stack (placeholder)
+    values.yaml              # Values cho kube-prometheus-stack (Grafana + Prometheus + node-exporter)
     dashboards/              # Grafana dashboard JSON exports
       .gitkeep
     README.md
@@ -30,7 +30,7 @@ Chứa 2 bộ Helm values tương ứng 2 mode datapath cần so sánh:
 
 > **Lưu ý Cilium 1.14+**: `kubeProxyReplacement` dùng **boolean** (`true`/`false`) thay vì chuỗi (`"strict"`/`"disabled"`).
 
-Cả 2 đều bật **Hubble** (observability) với relay + UI.
+Cả 2 đều bật **Hubble** (observability) với relay + UI và **Prometheus metrics** (thu thập CPU/mem của cilium-agent).
 
 **Cách dùng:**
 
@@ -46,10 +46,18 @@ helm upgrade --install cilium cilium/cilium -n kube-system \
 
 ### `monitoring/`
 
-Placeholder để cài monitoring stack (ví dụ: kube-prometheus-stack).
+Đã cấu hình đầy đủ **kube-prometheus-stack**:
 
-- `values.yaml` — Helm values cho Prometheus + Grafana (điền sau khi chọn stack).
+- `values.yaml` — Helm values: Grafana (ClusterIP), Prometheus (7d retention, cilium-agent scrape config), node-exporter, kube-state-metrics.
 - `dashboards/` — Nơi lưu JSON export của Grafana dashboards (network perf, Cilium metrics…).
+
+**Cách dùng:**
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+  -n monitoring --create-namespace \
+  -f helm/monitoring/values.yaml
+```
 
 ## Lưu ý
 

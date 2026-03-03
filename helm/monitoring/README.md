@@ -6,7 +6,7 @@ Thư mục này chứa cấu hình để triển khai **monitoring stack** lên 
 
 | File / Thư mục | Mô tả |
 |----------------|-------|
-| `values.yaml` | Helm values cho monitoring stack (ví dụ: kube-prometheus-stack). Hiện là placeholder — điền sau khi chọn stack cụ thể. |
+| `values.yaml` | Helm values cho kube-prometheus-stack: Grafana (ClusterIP), Prometheus (7d retention, cilium-agent scrape config), node-exporter, kube-state-metrics. |
 | `dashboards/` | Nơi lưu file JSON export của Grafana dashboards (network performance, Cilium metrics, node resources…). |
 
 ## Lựa chọn stack giám sát

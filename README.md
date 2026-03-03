@@ -42,7 +42,7 @@ thesis-cilium-eks-benchmark/
 │   ├── outputs.tf                     #   Output values (cluster endpoint, kubeconfig command)
 │   ├── envs/dev/terraform.tfvars      #   Biến cho môi trường dev
 │   └── modules/
-│       ├── vpc/                       #   VPC module (10.0.0.0/16, 2 public + 2 private subnets)
+│       ├── vpc/                       #   VPC module (10.0.0.0/16, 2 AZs; workers pinned to 1st AZ)
 │       │   ├── main.tf, variables.tf, outputs.tf
 │       └── eks/                       #   EKS module (t3.large × 3, managed node group)
 │           ├── main.tf, variables.tf, outputs.tf
@@ -58,12 +58,13 @@ thesis-cilium-eks-benchmark/
 ├── workload/                          # Kubernetes manifests cho benchmark
 │   ├── server/
 │   │   ├── 01-namespace.yaml          #   Namespace "netperf"
-│   │   ├── 02-echo-deploy.yaml        #   hashicorp/http-echo:1.0
+│   │   ├── 02-echo-deploy.yaml        #   hashicorp/http-echo:1.0 (resource limits + nodeSelector)
 │   │   └── 03-echo-svc.yaml           #   ClusterIP port 80 → 5678
 │   ├── client/
-│   │   └── 01-fortio-deploy.yaml      #   fortio/fortio (load generator)
+│   │   └── 01-fortio-deploy.yaml      #   fortio/fortio:1.74.0 (resource limits + nodeSelector)
 │   └── policies/
-│       └── 01-cilium-policy-allow-fortio-to-echo.yaml
+│       ├── 01-cilium-policy-allow-fortio-to-echo.yaml
+│       └── 02-cilium-policy-deny-other.yaml  # Default-deny ingress (S3)
 │
 ├── scripts/                           # Shell scripts tự động hóa benchmark
 │   ├── common.sh                      #   Thư viện dùng chung (validation, Fortio, evidence)
@@ -196,8 +197,9 @@ results/
 | `MODE` | `A` | `A` = kube-proxy, `B` = Cilium eBPF KPR |
 | `LOAD` | `L1` | `L1` (light), `L2` (medium), `L3` (high) |
 | `REPEAT` | `3` | Số lần lặp mỗi (scenario × load) |
-| `DURATION_SEC` | `120` | Thời gian đo chính thức (giây) |
+| `DURATION_SEC` | `180` | Thời gian đo chính thức (giây) — tối thiểu 3 phút |
 | `WARMUP_SEC` | `30` | Thời gian warm-up (giây) |
+| `REST_BETWEEN_RUNS` | `60` | Nghỉ giữa các runs (giây) |
 
 Xem tất cả biến: `scripts/README.md`
 
@@ -205,7 +207,11 @@ Xem tất cả biến: `scripts/README.md`
 
 ## Notes
 
-- **Không autoscale** nodegroup trong lúc đo (tránh nhiễu).
-- Mỗi case chạy **≥ 3 runs**, nghỉ 30s giữa các runs.
+- **Không autoscale** nodegroup trong lúc đo — `min=desired=max=3` (tránh nhiễu).
+- **Workers pinned 1 AZ** — tất cả benchmark nodes nằm trên cùng 1 AZ để giảm nhiễu liên AZ (plan §2.3).
+- **Resource limits** đã set cho cả Fortio và echo pods (tránh CPU throttling — plan §2.3).
+- **nodeSelector `role: benchmark`** trên cả 2 workload pods (plan §4.5).
+- Mỗi case chạy **≥ 3 runs**, nghỉ **60s** giữa các runs.
+- Measurement duration: **180s** (3 phút) — plan §4.3.
 - Scripts fail-fast nếu kubectl context sai hoặc pods chưa Ready.
 - Trên Linux/WSL: `chmod +x scripts/*.sh` trước khi chạy.

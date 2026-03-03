@@ -26,8 +26,8 @@ Mọi script tuân theo **Results Contract** (xem `results/README.md`).
 | `OUTDIR` | _(auto)_ | Override output directory (bỏ qua auto-creation) |
 | `NS` | `netperf` | Namespace chứa workload |
 | `WARMUP_SEC` | `30` | Thời gian warm-up trước mỗi lần đo |
-| `DURATION_SEC` | `120` | Thời gian đo chính thức |
-| `REST_BETWEEN_RUNS` | `30` | Nghỉ giữa các runs |
+| `DURATION_SEC` | `180` | Thời gian đo chính thức (3 phút — plan §4.3) |
+| `REST_BETWEEN_RUNS` | `60` | Nghỉ giữa các runs (plan: 60–120s) |
 | `L1_QPS` / `L2_QPS` / `L3_QPS` | `100` / `500` / `1000` | QPS cho mỗi load level |
 | `L1_CONNS` / `L2_CONNS` / `L3_CONNS` | `8` / `32` / `64` | Concurrent connections |
 | `L1_THREADS` / `L2_THREADS` / `L3_THREADS` | `2` / `4` / `8` | Fortio threads |
