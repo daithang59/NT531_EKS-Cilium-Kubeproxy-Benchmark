@@ -7,7 +7,7 @@ Thư mục này chứa các Kubernetes manifest để triển khai **echo server
 | File | Mô tả |
 |------|-------|
 | `01-namespace.yaml` | Tạo namespace `netperf` — không gian riêng cho toàn bộ workload benchmark |
-| `02-echo-deploy.yaml` | Deployment: `hashicorp/http-echo:1.0`, 1 replica, port `5678`, resource limits (CPU 250m/500m, mem 128Mi/256Mi), nodeSelector `role: benchmark` |
+| `02-echo-deploy.yaml` | Deployment cho echo server: image `hashicorp/http-echo:1.0`, 1 replica, lắng nghe trên port `5678`, trả về text `"ok"` |
 | `03-echo-svc.yaml` | Service ClusterIP: expose echo server qua port `80`, forward tới targetPort `5678` |
 
 ## Cách triển khai
@@ -24,9 +24,7 @@ kubectl get all -n netperf
 
 - **Image:** `hashicorp/http-echo:1.0` — HTTP server tĩnh, siêu nhẹ, không logic xử lý nặng → phù hợp đo network overhead thuần túy.
 - **Replicas:** 1 (cố định) — giữ đơn giản để so sánh giữa 2 mode công bằng.
-- **Service:** ClusterIP (không expose ra ngoài) — Fortio client gọi qua địa chỉ `echo.netperf.svc.cluster.local`.
-- **Resource limits:** CPU 250m/500m, memory 128Mi/256Mi (plan §2.3 — tránh CPU throttling).
-- **nodeSelector:** `role: benchmark` (plan §4.5 — pin pod lên benchmark nodes).
+- **Service:** ClusterIP (không expose ra ngoài) — Fortio client gọi qua địa chỉ `echo-svc.netperf.svc.cluster.local`.
 
 ## Lưu ý
 

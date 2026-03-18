@@ -50,7 +50,7 @@
   - có requests/limits (để tránh noisy scheduling)
 - `client`: pod chạy Fortio
 - Service type: **ClusterIP**
-- Namespace: `netperf`
+- Namespace: `workload-bench`
 
 ---
 
@@ -149,7 +149,7 @@ Mỗi tổ hợp: **(Mode × Scenario × Load level)** chạy theo pipeline:
 2. **Warm-up**
    - chạy 30–60s warm-up (không ghi số liệu chính thức)
 3. **Measurement**
-    - duration cố định: **180s** (3 phút) — `DURATION_SEC=180`
+   - duration cố định (ví dụ 120s)
    - ghi output Fortio/k6 (latency quantiles, RPS, errors)
 4. **Repeat**
    - lặp **≥ 3 runs**

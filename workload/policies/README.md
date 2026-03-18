@@ -7,7 +7,6 @@ Thư mục này chứa các **CiliumNetworkPolicy** dùng để kiểm soát tra
 | File | Mô tả |
 |------|-------|
 | `01-cilium-policy-allow-fortio-to-echo.yaml` | Cho phép ingress traffic từ pod `app=fortio` tới pod `app=echo` trên port `5678/TCP` |
-| `02-cilium-policy-deny-other.yaml` | Default-deny ingress cho echo server — chứng minh enforcement hoạt động (plan §4.2: deny case) |
 
 ## Chi tiết policy
 
@@ -19,10 +18,7 @@ Thư mục này chứa các **CiliumNetworkPolicy** dùng để kiểm soát tra
     toPorts: 5678/TCP                # Trên port HTTP của echo
 ```
 
-**Ý nghĩa:** Khi cả 2 policies được apply:
-- `02-deny-other`: Block toàn bộ ingress tới echo server (default-deny).
-- `01-allow-fortio`: Mở ngoại lệ chỉ cho Fortio trên port 5678/TCP.
-- Mọi traffic khác sẽ bị chặn — Hubble flows ghi nhận DROPPED verdict, chứng minh enforcement.
+**Ý nghĩa:** Khi policy được apply, chỉ có Fortio mới gọi được tới echo server. Mọi traffic khác (nếu có) sẽ bị chặn theo nguyên tắc **default deny** của CiliumNetworkPolicy.
 
 ## Vai trò trong benchmark
 
