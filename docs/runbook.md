@@ -9,7 +9,7 @@
 
 ### 1.1 Infrastructure
 - EKS cluster đã tạo (xem `terraform/README.md`)
-- 3 nodes `t3.large`, cùng AZ, `min=desired=max=3`
+- 3 nodes `m5.large`, cùng AZ, `min=desired=max=3` (non-burstable)
 - `kubectl` context trỏ đúng cluster:
   ```bash
   aws eks update-kubeconfig --name <cluster-name> --region ap-southeast-1
@@ -20,7 +20,77 @@
 - `kubectl` (>= 1.28)
 - `bash` (>= 4.0, trên WSL/Linux)
 - `aws` CLI (đã authenticated)
+- `python3` (>= 3.8 — cần cho scripts phân tích)
+- `bc` (cho calibrate.sh)
 - (Mode B) `hubble` CLI (optional — script sẽ fallback qua cilium pod exec)
+
+---
+
+## 1bis. Calibration (bắt buộc chạy TRƯỚC bước 2)
+
+> **Tại sao cần calibration?** Để xác định L1/L2/L3 bằng dữ liệu thực tế trên hạ tầng của bạn, thay vì dùng giá trị mặc định. T3.large burstable nên calibration càng quan trọng.
+
+### 1bis.1 Chạy Calibration Sweep
+
+```bash
+# Deploy workload trước (xem 2.1–2.2 bên dưới)
+kubectl apply -f workload/server/
+kubectl apply -f workload/client/
+
+# Chạy calibration trên Mode A trước
+MODE=A REPEAT=2 ./scripts/calibrate.sh
+
+# (Tùy chọn) Lặp lại trên Mode B để kiểm tra consistency
+MODE=B REPEAT=2 ./scripts/calibrate.sh
+```
+
+### 1bis.2 Xem kết quả Calibration
+
+Script xuất file tại:
+```
+results/calibration/mode=A_kube-proxy/calibration_<ts>.txt
+results/calibration/mode=A_kube-proxy/calibration_<ts>.csv
+```
+
+Mở file `.txt`, xem phần **"RECOMMENDED LOAD LEVELS"**:
+```
+ Recommended L1 (Light):
+   QPS=80  p99=1.23ms  err=0.0000%
+   Suggested CONNS=6
+
+ Recommended L2 (Medium):
+   QPS=400  p99=8.45ms  err=0.0012%
+   Suggested CONNS=32
+
+ Recommended L3 (High):
+   QPS=900  p99=22.30ms  err=1.234%
+   Suggested CONNS=72
+```
+
+### 1bis.3 Đóng băng tham số
+
+Cập nhật `scripts/common.sh` với giá trị từ calibration:
+```bash
+# L1 — Light: stable, near-zero errors
+L1_QPS=80
+L1_CONNS=6
+L1_THREADS=2
+
+# L2 — Medium: visible tail, no saturation
+L2_QPS=400
+L2_CONNS=32
+L2_THREADS=4
+
+# L3 — High: near saturation
+L3_QPS=900
+L3_CONNS=72
+L3_THREADS=8
+```
+
+### 1bis.4 Lưu Calibration Report
+- Copy file `calibration_<ts>.txt` và `calibration_<ts>.csv` vào `report/appendix/`
+- Tạo biểu đồ p99 vs QPS từ CSV (dùng Python/matplotlib hoặc Excel)
+- Dán vào luận văn phần Calibration Results
 
 ---
 

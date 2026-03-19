@@ -2,7 +2,7 @@
 # EKS Module — Creates EKS cluster + Managed Node Group for benchmark
 # ==============================================================================
 # - EKS cluster with specified Kubernetes version
-# - Managed Node Group: t3.large × 3, min=desired=max=3 (no autoscaling)
+# - Managed Node Group: m5.large × 3, min=desired=max=3 (no autoscaling)
 # - OIDC provider for IAM Roles for Service Accounts (IRSA)
 # - Cluster endpoint: private + public access (configurable)
 # ==============================================================================

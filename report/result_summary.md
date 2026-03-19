@@ -10,7 +10,7 @@
 |---|---|
 | EKS cluster | `...` |
 | Kubernetes version | `...` |
-| Node instance | `t3.large x 3` |
+| Node instance | `m5.large x 3` (non-burstable) |
 | Node AMI / Kernel | `...` |
 | Mode A kube-proxy | `iptables/ipvs`, version `...` |
 | Mode B Cilium | version `...`, kube-proxy replacement `...` |
@@ -116,7 +116,7 @@
 ---
 
 ## 7) Threats to Validity (ghi trong report)
-- t3 burstable CPU credit → ảnh hưởng tail latency (cách giảm: lặp runs, nghỉ giữa runs, theo dõi CPU/softirq)
-- noisy neighbor cloud → dùng median + min/max
-- observability overhead → giữ tương đương giữa 2 mode, chỉ khác datapath
+- ~~t3 burstable~~ → **Đã thay bằng m5.large (non-burstable)** — loại bỏ CPU credit exhaustion
+- noisy neighbor cloud → dùng CI 95% + Welch's t-test (p < 0.05)
+- observability overhead → ghi rõ Hubble chỉ có ở Mode B; xem xét test thêm Mode B tắt Hubble
 - 1 AZ giảm nhiễu nhưng không đại diện cross-AZ

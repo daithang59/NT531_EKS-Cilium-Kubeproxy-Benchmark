@@ -27,7 +27,7 @@ variable "benchmark_subnet_ids" {
 variable "instance_type" {
   description = "EC2 instance type for worker nodes"
   type        = string
-  default     = "t3.large"
+  default     = "m5.large"
 }
 
 variable "node_count" {

@@ -6,6 +6,6 @@ kubernetes_version = "1.34"      # fallback: "1.33" nếu region/account chưa c
 cilium_version     = "1.18.7"    # latest patch of 1.18.x
 
 # --- Node group ---
-instance_type          = "t3.large"
+instance_type          = "m5.large"
 node_count             = 3       # min = desired = max = 3 (no autoscaling)
 endpoint_public_access = true

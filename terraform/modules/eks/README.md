@@ -7,7 +7,7 @@ Module này tạo **Amazon EKS cluster** và **managed node group** để chạy
 | Tài nguyên | Mô tả |
 |------------|-------|
 | EKS Cluster | Kubernetes control plane, version configurable (default `1.34`) |
-| Managed Node Group | `t3.large` × 3, autoscaling tắt (min=desired=max) |
+| Managed Node Group | `m5.large` × 3, autoscaling tắt (min=desired=max) |
 | IAM Roles | Tự động tạo bởi module (cluster + node group) |
 | Security Groups | Control plane ↔ worker nodes communication |
 | OIDC Provider | Cho IAM Roles for Service Accounts (IRSA) |
@@ -33,14 +33,14 @@ Sử dụng community module `terraform-aws-modules/eks/aws ~> 20.0`.
 | `kubernetes_version` | `1.34` | K8s version |
 | `vpc_id` | — | VPC ID từ VPC module |
 | `private_subnet_ids` | — | Private subnet IDs từ VPC module |
-| `instance_type` | `t3.large` | EC2 instance type |
+| `instance_type` | `m5.large` | EC2 instance type (non-burstable, 2 vCPU, 8 GiB RAM) |
 | `node_count` | `3` | Số node (min=desired=max) |
 | `endpoint_public_access` | `true` | Public API endpoint |
 
 ## Cấu hình quan trọng cho benchmark
 
 - **Autoscaling tắt:** `min_size = max_size = desired_size` → số node cố định, tránh nhiễu.
-- **Instance type `t3.large`:** 2 vCPU, 8 GiB RAM — burstable, cần theo dõi CPU credit.
+- **Instance type `m5.large`:** 2 vCPU, 8 GiB RAM — **non-burstable**, CPU ổn định 100% xuyên suốt, không có credit exhaustion.
 - **3 nodes:** Scheduler phân bố pods trên nhiều node.
 - **Addons:** CoreDNS + kube-proxy + vpc-cni cài tự động, Cilium cài riêng qua Helm.
 

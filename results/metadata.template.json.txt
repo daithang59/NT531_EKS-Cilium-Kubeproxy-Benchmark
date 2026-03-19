@@ -46,7 +46,7 @@
     },
     "nodes": {
       "node_group_name": "",
-      "instance_type": "t3.large",
+      "instance_type": "m5.large",
       "node_count": 3,
       "autoscaling": {
         "enabled": false,
