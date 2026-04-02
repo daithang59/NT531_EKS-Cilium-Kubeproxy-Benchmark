@@ -11,14 +11,17 @@ kubeProxyReplacement: true
 # Lấy từ: aws eks describe-cluster --name <name> --query cluster.endpoint
 # ⚠ CHỈ hostname, KHÔNG có https:// và KHÔNG có path
 #   Ví dụ: XXXXXXXX.gr7.ap-southeast-1.eks.amazonaws.com
-k8sServiceHost: ""           # ← điền EKS API endpoint (hostname only)
+k8sServiceHost: "B88E2F0D7BF3540B6F96C0B935607D0A.gr7.ap-southeast-1.eks.amazonaws.com"           # ← điền EKS API endpoint (hostname only)
 k8sServicePort: 443
 
 eks:
   enabled: true
 
 ipam:
-  mode: "eni"
+  mode: "kubernetes"
+
+# ENI mode requires native routing on EKS
+routingMode: "native"
 
 hubble:
   enabled: true

@@ -158,6 +158,7 @@ thesis-cilium-eks-benchmark/
 - **terraform** (>= 1.5)
 - **bash** (>= 4.0, trên WSL/Linux)
 - (optional) `jq`, `hubble` CLI
+- **IAM principal** cần có EKS Access Entry + Policy Association để truy cập cluster (xem Section 2 trong Quick Start)
 
 ---
 
@@ -172,15 +173,50 @@ terraform plan -var-file=envs/dev/terraform.tfvars
 terraform apply -var-file=envs/dev/terraform.tfvars
 ```
 
-### 2) Configure kubeconfig
+### 2) ⚠️ Cấu hình EKS Access
+
+> Sau khi `terraform apply`, `kubectl` **không tự chạy được ngay**.
+> `aws eks update-kubeconfig` thành công chỉ tạo kubeconfig — **không có nghĩa principal đã có quyền**.
+> Phải tạo **EKS Access Entry + Policy Association** cho IAM principal.
+> **Nếu bỏ qua, `kubectl get nodes` sẽ bị `Unauthorized`.**
 
 ```bash
-# Lấy command từ terraform output
-$(terraform output -raw kubeconfig_command)
+# Xác nhận IAM identity
+aws sts get-caller-identity
+# → Ghi lại ARN — đây là <IAM_PRINCIPAL_ARN>
+
+# Tạo access entry + gắn policy (thay <IAM_PRINCIPAL_ARN> bằng ARN từ lệnh trên)
+aws eks create-access-entry \
+  --cluster-name nt531 \
+  --region ap-southeast-1 \
+  --principal-arn <IAM_PRINCIPAL_ARN>
+
+aws eks associate-access-policy \
+  --cluster-name nt531 \
+  --region ap-southeast-1 \
+  --principal-arn <IAM_PRINCIPAL_ARN> \
+  --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
+  --access-scope type=cluster
+```
+
+**Verify:**
+
+```bash
+aws eks update-kubeconfig --name nt531 --region ap-southeast-1
 kubectl get nodes   # 3 nodes Ready
 ```
 
-### 3) Install Cilium (chọn Mode)
+Chi tiết: [docs/runbook.md — Section 2: EKS Access Configuration](docs/runbook.md#2-eks-access-configuration)
+
+### 3) Configure kubeconfig
+
+```bash
+# Sau khi đã cấu hình access ở bước 2
+aws eks update-kubeconfig --name nt531 --region ap-southeast-1
+kubectl get nodes   # 3 nodes Ready
+```
+
+### 4) Install Cilium (chọn Mode)
 
 ```bash
 helm repo add cilium https://helm.cilium.io && helm repo update
@@ -202,7 +238,7 @@ helm upgrade --install cilium cilium/cilium \
   -f helm/cilium/values-ebpfkpr.yaml
 ```
 
-### 4) Deploy workload
+### 5) Deploy workload
 
 ```bash
 kubectl apply -f workload/server/
@@ -211,7 +247,7 @@ kubectl apply -f workload/client/
 kubectl -n netperf get pods   # echo + fortio Running
 ```
 
-### 5) Run benchmarks
+### 6) Run benchmarks
 
 ```bash
 # S1 — Mode A, Load L1, 3 lần lặp
@@ -270,6 +306,7 @@ Xem tất cả biến: `scripts/README.md`
 
 ## Notes
 
+- **EKS Access Entries** được cấu hình bằng AWS CLI thủ công, không qua Terraform (xem Section 2 Quick Start). Mỗi IAM principal cần truy cập cluster đều phải có access entry + policy association.
 - **Không autoscale** nodegroup trong lúc đo — `min=desired=max=3` (tránh nhiễu).
 - **Workers pinned 1 AZ** — tất cả benchmark nodes nằm trên cùng 1 AZ để giảm nhiễu liên AZ (plan §2.3).
 - **Resource limits** đã set cho cả Fortio và echo pods (tránh CPU throttling — plan §2.3).
