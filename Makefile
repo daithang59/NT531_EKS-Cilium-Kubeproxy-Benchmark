@@ -29,5 +29,5 @@ pipeline:
 	@if [ -z "$(MODE)" ]; then echo "MODE must be set, e.g. MODE=A"; exit 1; fi
 	@if [ -z "$(LOAD)" ]; then echo "LOAD must be set, e.g. LOAD=L1"; exit 1; fi
 	@echo "=== Benchmark pipeline: MODE=$(MODE) LOAD=$(LOAD) REPEAT=$(REPEAT) ==="
-	./scripts/run_s1.sh
+	MODE=$(MODE) LOAD=$(LOAD) REPEAT=$(REPEAT) ./scripts/run_s1.sh
 	python3 scripts/analyze_results.py
