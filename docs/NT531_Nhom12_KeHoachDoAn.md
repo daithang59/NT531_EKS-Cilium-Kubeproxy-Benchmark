@@ -222,6 +222,11 @@ namespace benchmark.
 Config drift
 Pin version bằng IaC/Helm; lưu
 values/manifests + commit hash trong artifacts.
+kube-proxy và eBPF chạy song song khi chuyển
+Mode A → Mode B (NAT table conflict)
+Chuyển mode: PHẢI tắt kube-proxy DaemonSet
+trước khi bật kubeProxyReplacement=true.
+Xem runbook §3.
 
 - Công cụ và cấu hình đề xuất
 ## 6.1. Stack

@@ -3,15 +3,26 @@
 # Cilium version: 1.18.x  (pin chart --version 1.18.7)
 # EKS Kubernetes: 1.34 (hoặc 1.33)
 # ============================================================
-
-# Cilium 1.14+ dùng boolean thay vì "disabled"/"strict"
+#
+# ⚠️ TRƯỚC KHI CÀI MODE B:
+# 1. Tắt kube-proxy DaemonSet:
+#      kubectl delete daemonset kube-proxy -n kube-system
+# 2. Đợi ~30s cho tất cả pods terminated
+# Chạy song song kube-proxy + eBPF → NAT table conflict → benchmark sai.
+#
+# kubeProxyReplacement: true  (= strict mode)
+#   eBPF thay thế hoàn toàn kube-proxy. BẮT BUỘC tắt kube-proxy trước.
+#
+# k8sServiceHost: Lấy từ Terraform output hoặc:
+#   aws eks describe-cluster --name nt531-netperf --region ap-southeast-1 \
+#     --query cluster.endpoint --output text
+#   → Chỉ lấy phần hostname, KHÔNG có https:// và KHÔNG có path.
+#
 kubeProxyReplacement: true
 
-# k8sServiceHost & k8sServicePort cần thiết khi disable kube-proxy
-# Lấy từ: aws eks describe-cluster --name <name> --query cluster.endpoint
-# ⚠ CHỈ hostname, KHÔNG có https:// và KHÔNG có path
-#   Ví dụ: XXXXXXXX.gr7.ap-southeast-1.eks.amazonaws.com
-k8sServiceHost: ""           # ← điền EKS API endpoint (hostname only)
+# ← ĐIỀN EKS API endpoint ở đây (hostname only)
+# Ví dụ: ABCD1234EFGHIJKL.gr7.ap-southeast-1.eks.amazonaws.com
+k8sServiceHost: ""
 k8sServicePort: 443
 
 eks:

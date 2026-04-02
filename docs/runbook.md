@@ -135,18 +135,46 @@ helm upgrade --install cilium cilium/cilium \
 kube-proxy vẫn chạy bình thường, Cilium chỉ là CNI.
 
 ### Mode B — Cilium eBPF kube-proxy replacement
-1. Sửa `helm/cilium/values-ebpfkpr.yaml`: điền `k8sServiceHost` = EKS API endpoint
-2. Deploy:
+
+> ⚠️ **QUAN TRỌNG — Chuyển Mode A → Mode B:**
+> Khi bật `kubeProxyReplacement: true`, Cilium eBPF thay thế **hoàn toàn** kube-proxy cho Service routing.
+> **Phải tắt kube-proxy DaemonSet TRƯỚC.**
+> Nếu kube-proxy và eBPF chạy song song → cả hai cùng thao túng NAT tables → connection drops → benchmark kết quả sai.
+
+**Các bước chuyển Mode A → Mode B:**
+
+1. Gỡ workload cũ:
+   ```bash
+   kubectl delete -f workload/server/
+   kubectl delete -f workload/client/
+   ```
+2. Gỡ Cilium Mode A:
+   ```bash
+   helm uninstall cilium -n kube-system
+   ```
+3. **Tắt kube-proxy DaemonSet:** ← BẮT BUỘC
+   ```bash
+   kubectl delete daemonset kube-proxy -n kube-system
+   ```
+4. Đợi ~30 giây cho kube-proxy pods terminated trên tất cả nodes
+5. Sửa `helm/cilium/values-ebpfkpr.yaml`: điền `k8sServiceHost` = EKS API endpoint
+6. Cài Cilium Mode B:
    ```bash
    helm upgrade --install cilium cilium/cilium \
      --namespace kube-system \
      --version 1.18.7 \
      -f helm/cilium/values-ebpfkpr.yaml
    ```
-3. Verify:
+7. Verify:
    ```bash
    kubectl -n kube-system exec ds/cilium -- cilium status
    # Phải thấy: KubeProxyReplacement: True
+   ```
+8. Redeploy workload:
+   ```bash
+   kubectl apply -f workload/server/
+   kubectl apply -f workload/client/
+   kubectl -n benchmark get pods   # đợi echo + fortio Running
    ```
 
 ### NetworkPolicy (S3)
