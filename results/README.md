@@ -66,7 +66,7 @@ results/
 ## Pre-run
 - [ ] kubectl context active and correct cluster
 - [ ] All nodes Ready (kubectl get nodes)
-- [ ] Workload pods Running (echo + fortio in namespace netperf)
+- [ ] Workload pods Running (echo + fortio in namespace benchmark)
 - [ ] Service reachable from fortio pod
 
 ## Configuration

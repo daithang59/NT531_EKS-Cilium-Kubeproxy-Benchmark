@@ -110,15 +110,15 @@ kubectl apply -f workload/client/01-fortio-deploy.yaml
 
 ### 2.3 Verify
 ```bash
-kubectl -n netperf get pods          # echo + fortio phải Running
-kubectl -n netperf get svc echo      # ClusterIP, port 80 → 5678
+kubectl -n benchmark get pods          # echo + fortio phải Running
+kubectl -n benchmark get svc echo      # ClusterIP, port 80 → 5678
 ```
 
 ### 2.4 Test connectivity
 ```bash
-FORTIO_POD=$(kubectl -n netperf get pod -l app=fortio -o jsonpath='{.items[0].metadata.name}')
-kubectl -n netperf exec "${FORTIO_POD}" -- \
-  fortio load -qps 10 -c 1 -t 5s http://echo.netperf.svc.cluster.local/
+FORTIO_POD=$(kubectl -n benchmark get pod -l app=fortio -o jsonpath='{.items[0].metadata.name}')
+kubectl -n benchmark exec "${FORTIO_POD}" -- \
+  fortio load -qps 10 -c 1 -t 5s http://echo.benchmark.svc.cluster.local/
 ```
 
 ---
@@ -156,7 +156,7 @@ kube-proxy vẫn chạy bình thường, Cilium chỉ là CNI.
 # Apply toàn bộ policies (allow + deny)
 kubectl apply -f workload/policies/
 # Xóa
-kubectl -n netperf delete -f workload/policies/ --ignore-not-found=true
+kubectl -n benchmark delete -f workload/policies/ --ignore-not-found=true
 ```
 
 ---

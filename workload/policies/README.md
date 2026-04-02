@@ -38,7 +38,7 @@ kubectl apply -f workload/policies/
 kubectl delete -f workload/policies/
 
 # Kiểm tra policy đã apply
-kubectl get cnp -n netperf
+kubectl get cnp -n benchmark
 ```
 
 ## Lưu ý

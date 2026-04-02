@@ -7,7 +7,7 @@ Thư mục này chứa toàn bộ **Kubernetes manifest** dùng để triển kh
 ```
 workload/
 ├── server/                          # Ứng dụng echo server (backend)
-│   ├── 01-namespace.yaml            #   Tạo namespace "netperf"
+│   ├── 01-namespace.yaml            #   Tạo namespace "benchmark"
 │   ├── 02-echo-deploy.yaml          #   Deployment: hashicorp/http-echo
 │   └── 03-echo-svc.yaml             #   Service ClusterIP: port 80 → 5678
 ├── client/                          # Ứng dụng Fortio (load generator)
@@ -21,7 +21,7 @@ workload/
 ### Server — Echo
 - **Image:** `hashicorp/http-echo:1.0`
 - **Chức năng:** HTTP server đơn giản, trả về text `"ok"` trên port `5678`.
-- **Service:** ClusterIP, map port `80` → `5678`. Client gọi tới `echo-svc.netperf.svc.cluster.local`.
+- **Service:** ClusterIP, map port `80` → `5678`. Client gọi tới `echo-svc.benchmark.svc.cluster.local`.
 
 ### Client — Fortio
 - **Image:** `fortio/fortio:latest`
@@ -45,7 +45,7 @@ kubectl apply -f workload/client/
 kubectl apply -f workload/policies/
 
 # Kiểm tra pods
-kubectl get pods -n netperf
+kubectl get pods -n benchmark
 ```
 
 ## Lưu ý

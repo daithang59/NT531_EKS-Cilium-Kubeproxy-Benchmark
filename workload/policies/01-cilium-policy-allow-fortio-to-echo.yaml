@@ -2,7 +2,7 @@ apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
   name: allow-fortio-to-echo
-  namespace: netperf
+  namespace: benchmark
 spec:
   endpointSelector:
     matchLabels:

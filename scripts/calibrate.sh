@@ -21,7 +21,7 @@ set -euo pipefail
 
 # ---- Minimal source of common.sh (only defaults / helpers, no preflight) ----
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-NS="${NS:-netperf}"
+NS="${NS:-benchmark}"
 MODE="${MODE:-A}"
 REPEAT="${REPEAT:-2}"
 

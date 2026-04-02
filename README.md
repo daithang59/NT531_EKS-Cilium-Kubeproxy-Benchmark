@@ -39,8 +39,8 @@ Hệ thống benchmark được triển khai trên **AWS EKS** với kiến trú
 - Worker nodes được **pin vào 1 AZ duy nhất** để giảm nhiễu latency cross-AZ trong quá trình đo.
 - Node group cố định `min = desired = max = 3`, **không autoscale** trong lúc benchmark.
 
-**Workload benchmark (namespace `netperf`):**
-- **Echo server** (`hashicorp/http-echo:1.0`) — HTTP echo backend, expose qua **ClusterIP Service** (`echo.netperf:80 → 5678`).
+**Workload benchmark (namespace `benchmark`):**
+- **Echo server** (`hashicorp/http-echo:1.0`) — HTTP echo backend, expose qua **ClusterIP Service** (`echo.benchmark:80 → 5678`).
 - **Fortio client** (`fortio/fortio:1.74.0`) — load generator chạy trong cluster, gửi request đến echo qua Service.
 - Cả 2 pods đều có `nodeSelector: role: benchmark` và resource requests/limits để đảm bảo tính công bằng.
 
@@ -65,8 +65,8 @@ Hệ thống benchmark được triển khai trên **AWS EKS** với kiến trú
 │                                                                     │
 │  ┌──────────────┐                           ┌──────────────┐        │
 │  │  Fortio Pod   │──── ClusterIP Service ───▶│  Echo Pod    │        │
-│  │  (client)     │     echo.netperf:80       │  (server)    │        │
-│  │  ns: netperf  │                           │  ns: netperf │        │
+│  │  (client)     │     echo.benchmark:80       │  (server)    │        │
+│  │  ns: benchmark│                           │  ns: benchmark│        │
 │  └──────────────┘                           └──────────────┘        │
 │         │                                          │                │
 │         ▼                                          ▼                │
@@ -120,7 +120,7 @@ thesis-cilium-eks-benchmark/
 │
 ├── workload/                          # Kubernetes manifests cho benchmark
 │   ├── server/
-│   │   ├── 01-namespace.yaml          #   Namespace "netperf"
+│   │   ├── 01-namespace.yaml          #   Namespace "benchmark"
 │   │   ├── 02-echo-deploy.yaml        #   hashicorp/http-echo:1.0 (resource limits + nodeSelector)
 │   │   └── 03-echo-svc.yaml           #   ClusterIP port 80 → 5678
 │   ├── client/
@@ -208,7 +208,7 @@ helm upgrade --install cilium cilium/cilium \
 kubectl apply -f workload/server/
 kubectl apply -f workload/client/
 # Verify
-kubectl -n netperf get pods   # echo + fortio Running
+kubectl -n benchmark get pods   # echo + fortio Running
 ```
 
 ### 5) Run benchmarks

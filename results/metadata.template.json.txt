@@ -66,13 +66,13 @@
       "version": ""
     },
     "cilium": {
-      "enabled": false,
-      "version": "",
-      "kube_proxy_replacement": "disabled",
+      "enabled": true,
+      "version": "1.18.7",
+      "kube_proxy_replacement": "partial",
       "tunnel": "",
       "routing_mode": "",
       "hubble": {
-        "enabled": false,
+        "enabled": true,
         "version": "",
         "metrics": [],
         "sampling": ""
@@ -95,29 +95,29 @@
   },
 
   "workload": {
-    "namespace": "workload-bench",
+    "namespace": "benchmark",
     "server": {
-      "name": "echo-server",
-      "image": "",
-      "replicas": 2,
+      "name": "echo",
+      "image": "hashicorp/http-echo:1.0",
+      "replicas": 1,
       "resources": {
-        "requests": { "cpu": "", "memory": "" },
-        "limits": { "cpu": "", "memory": "" }
+        "requests": { "cpu": "250m", "memory": "128Mi" },
+        "limits": { "cpu": "500m", "memory": "256Mi" }
       }
     },
     "client": {
-      "name": "fortio-client",
-      "image": "",
+      "name": "fortio",
+      "image": "fortio/fortio:1.74.0",
       "resources": {
-        "requests": { "cpu": "", "memory": "" },
-        "limits": { "cpu": "", "memory": "" }
+        "requests": { "cpu": "500m", "memory": "256Mi" },
+        "limits": { "cpu": "1000m", "memory": "512Mi" }
       }
     },
     "service": {
-      "name": "echo-svc",
+      "name": "echo",
       "type": "ClusterIP",
       "port": 80,
-      "target_port": 8080
+      "target_port": 5678
     },
     "policy": {
       "enabled": false,
