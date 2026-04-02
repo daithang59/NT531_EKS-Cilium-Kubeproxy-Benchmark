@@ -96,9 +96,9 @@ nodes.  Thu  thập  metrics bằng  Prometheus/Grafana  và  luồng  mạng  b
 (Cilium).
 3.1. Thành phần
 - EKS Control Plane (managed): điều phối Kubernetes API.
-- Managed  Node  Group  (workers):  chạy  pod  benchmark  client,  server,  cilium-agent,
-(kube-proxy ở Mode A).
-- Cilium CNI: datapath eBPF; Hubble để quan sát flow.
+- Managed  Node  Group  (workers):  chạy  pod  benchmark  client,  server,  cilium-agent.
+  Cilium CNI có mặt ở  cả  hai  mode;  kube-proxy  chỉ  hoạt  động  ở  Mode  A.
+- Hubble  để  quan  sát  flow  (Mode  B  đầy  đủ;  Mode  A  không  có).
 - Prometheus + Grafana: thu thập và hiển thị metrics (CPU, mem, network).
 - Fortio (benchmark): tạo tải HTTP, xuất thống kê latency distribution và RPS.
 3.2. Hai chế độ so sánh

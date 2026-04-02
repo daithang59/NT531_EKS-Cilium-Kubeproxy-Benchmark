@@ -39,8 +39,8 @@
 > Lưu ý: dùng m5.large (non-burstable) để loại bỏ CPU credit exhaustion như một biến nhiễu.
 
 ### 3.2 Thành phần trong cluster
-- **Mode A (Baseline)**: kube-proxy mặc định EKS (iptables/ipvs tùy cấu hình)
-- **Mode B (eBPF)**: Cilium kube-proxy replacement (kube-proxy-free) + Hubble
+- **Mode A (Baseline)**: Cilium CNI với kube-proxy datapath (iptables); kube-proxy xử lý Service routing
+- **Mode B (eBPF)**: Cilium CNI với eBPF kube-proxy replacement; kube-proxy bị tắt; Hubble để quan sát flow
 - Observability: Prometheus + Grafana (kube-prometheus-stack hoặc tương đương)
 - Benchmark tool: Fortio (in-cluster) *(có thể thay bằng k6 nếu bạn chọn k6)*
 

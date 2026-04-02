@@ -59,10 +59,11 @@ helm upgrade --install cilium cilium/cilium -n kube-system --version 1.18.7 \
   -f helm/cilium/values-baseline.yaml
 
 # Mode B — eBPF KPR
-# ⚠️ PHẢI tắt kube-proxy DaemonSet trước khi cài!
-# Xem docs/runbook.md §3 để biết các bước chuyển mode A→B đầy đủ.
+# ⚠️ PHẢI tắt kube-proxy DaemonSet trước, rồi upgrade Cilium in-place.
+# Không cần gỡ và cài lại Cilium — chỉ upgrade values.
 # Chạy song song kube-proxy + eBPF → NAT table conflict → kết quả benchmark sai.
-helm upgrade --install cilium cilium/cilium -n kube-system --version 1.18.7 \
+# Xem docs/runbook.md §3 để biết các bước đầy đủ.
+helm upgrade cilium cilium/cilium -n kube-system --version 1.18.7 \
   -f helm/cilium/values-ebpfkpr.yaml
 ```
 

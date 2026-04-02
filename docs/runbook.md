@@ -1,7 +1,7 @@
 # Runbook — Benchmark Execution Guide
 
 > Hướng dẫn từng bước chạy benchmark so sánh
-> **Mode A (kube-proxy)** vs **Mode B (Cilium eBPF kube-proxy replacement)**.
+> **Mode A (Cilium CNI + kube-proxy)** vs **Mode B (Cilium CNI + eBPF kube-proxy replacement)**.
 
 ---
 
@@ -139,42 +139,34 @@ kube-proxy vẫn chạy bình thường, Cilium chỉ là CNI.
 > ⚠️ **QUAN TRỌNG — Chuyển Mode A → Mode B:**
 > Khi bật `kubeProxyReplacement: true`, Cilium eBPF thay thế **hoàn toàn** kube-proxy cho Service routing.
 > **Phải tắt kube-proxy DaemonSet TRƯỚC.**
-> Nếu kube-proxy và eBPF chạy song song → cả hai cùng thao túng NAT tables → connection drops → benchmark kết quả sai.
+> Chạy song song → cả hai cùng thao túng NAT tables → connection drops → benchmark kết quả sai.
+>
+> Lưu ý: Cilium có mặt ở cả 2 mode → chỉ cần **upgrade in-place**, không cần gỡ và cài lại.
 
 **Các bước chuyển Mode A → Mode B:**
 
-1. Gỡ workload cũ:
-   ```bash
-   kubectl delete -f workload/server/
-   kubectl delete -f workload/client/
-   ```
-2. Gỡ Cilium Mode A:
-   ```bash
-   helm uninstall cilium -n kube-system
-   ```
-3. **Tắt kube-proxy DaemonSet:** ← BẮT BUỘC
+1. Sửa `helm/cilium/values-ebpfkpr.yaml`: điền `k8sServiceHost` = EKS API endpoint
+2. **Tắt kube-proxy DaemonSet:** ← BẮT BUỘC
    ```bash
    kubectl delete daemonset kube-proxy -n kube-system
    ```
-4. Đợi ~30 giây cho kube-proxy pods terminated trên tất cả nodes
-5. Sửa `helm/cilium/values-ebpfkpr.yaml`: điền `k8sServiceHost` = EKS API endpoint
-6. Cài Cilium Mode B:
+3. Đợi ~30 giây cho kube-proxy pods terminated trên tất cả nodes
+4. Upgrade Cilium in-place (không gỡ):
    ```bash
-   helm upgrade --install cilium cilium/cilium \
+   helm upgrade cilium cilium/cilium \
      --namespace kube-system \
      --version 1.18.7 \
      -f helm/cilium/values-ebpfkpr.yaml
    ```
-7. Verify:
+5. Verify:
    ```bash
    kubectl -n kube-system exec ds/cilium -- cilium status
    # Phải thấy: KubeProxyReplacement: True
    ```
-8. Redeploy workload:
+6. Restart workload pods (để nhận datapath mới):
    ```bash
-   kubectl apply -f workload/server/
-   kubectl apply -f workload/client/
-   kubectl -n benchmark get pods   # đợi echo + fortio Running
+   kubectl delete pods -n benchmark --all
+   # Đợi: kubectl -n benchmark get pods (Running)
    ```
 
 ### NetworkPolicy (S3)
