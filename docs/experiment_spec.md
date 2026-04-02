@@ -33,10 +33,10 @@
 - Platform: **AWS EKS**
 - AZ: **1 AZ** (giảm nhiễu cross-AZ; ghi rõ vì sao trong Threats to validity)
 - Node group: **Managed Node Group**, cố định **min=desired=max=3**, không autoscale khi đo
-- Instance type: **t3.large (2 vCPU, 8GB RAM)** đồng nhất giữa các node
+- Instance type: **m5.large (2 vCPU, 8GB RAM)** đồng nhất giữa các node — non-burstable, CPU ổn định
 - Không chạy workload ngoài scope benchmark trong lúc đo
 
-> Lưu ý: t3.large là burstable → cần theo dõi dấu hiệu cạn CPU credit/tail latency méo.
+> Lưu ý: dùng m5.large (non-burstable) để loại bỏ CPU credit exhaustion như một biến nhiễu.
 
 ### 3.2 Thành phần trong cluster
 - **Mode A (Baseline)**: kube-proxy mặc định EKS (iptables/ipvs tùy cấu hình)
@@ -50,7 +50,7 @@
   - có requests/limits (để tránh noisy scheduling)
 - `client`: pod chạy Fortio
 - Service type: **ClusterIP**
-- Namespace: `netperf`
+- Namespace: `workload-bench`
 
 ---
 
@@ -129,13 +129,33 @@ Mục đích: đo overhead khi bật policy enforcement và chứng minh enforce
 
 ### 7.2 Calibration (bắt buộc làm trước khi chạy chính thức)
 Mục tiêu: chọn L1/L2/L3 bằng dữ liệu (tránh "chọn cảm tính").
-- Chạy sweep tăng dần load (QPS hoặc concurrency) trên **cùng 1 mode** (thường làm trên Mode A trước)
-- Ghi lại: QPS/concurrency vs p99 vs error rate
-- Chốt 3 điểm L1/L2/L3 và **đóng băng tham số** cho toàn bộ thí nghiệm
+
+**Cách thực hiện (dùng script tự động):**
+```bash
+# Chạy calibration sweep trên Mode A (baseline) trước
+MODE=A REPEAT=2 ./scripts/calibrate.sh
+
+# Sau khi xem bảng khuyến nghị, cập nhật common.sh:
+#   L1_QPS=<gợi ý>   L1_CONNS=<gợi ý>
+#   L2_QPS=<gợi ý>   L2_CONNS=<gợi ý>
+#   L3_QPS=<gợi ý>   L3_CONNS=<gợi ý>
+```
+
+Script `calibrate.sh` tự động:
+- Sweep QPS từ thấp → cao (50→1500 theo mặc định, tùy chỉnh được)
+- Đo p50/p90/p99/p999/error rate tại mỗi điểm
+- Đưa ra khuyến nghị L1/L2/L3 dựa trên tiêu chí:
+  - **L1:** error < 0.1% AND p99 < 5ms → ổn định, tail thấp
+  - **L2:** error < 1% AND p99 < 20ms → tail visible nhưng chưa bão hòa
+  - **L3:** error < 5% → gần ngưỡng bão hòa
+- Xuất file `results/calibration/mode=A_kube-proxy/calibration_<ts>.csv` và `.txt`
+
+Output calibration cần đưa vào **report/appendix/**: bảng số và biểu đồ p99 vs QPS.
 
 **Deliverable calibration**
-- 1 hình nhỏ: (load → p99) hoặc (load → error rate)
-- Bảng tham số L1/L2/L3 (c, q, duration, payload…)
+- 1 hình: load (QPS) → p99 latency
+- 1 hình: load (QPS) → error rate
+- Bảng tham số L1/L2/L3 (QPS, conns, threads, duration)
 
 ---
 
@@ -149,7 +169,7 @@ Mỗi tổ hợp: **(Mode × Scenario × Load level)** chạy theo pipeline:
 2. **Warm-up**
    - chạy 30–60s warm-up (không ghi số liệu chính thức)
 3. **Measurement**
-    - duration cố định: **180s** (3 phút) — `DURATION_SEC=180`
+   - duration cố định (ví dụ 120s)
    - ghi output Fortio/k6 (latency quantiles, RPS, errors)
 4. **Repeat**
    - lặp **≥ 3 runs**
@@ -179,6 +199,39 @@ Mỗi tổ hợp: **(Mode × Scenario × Load level)** chạy theo pipeline:
 - Với mỗi (Mode, Scenario, Load):
   - lấy **median** của p50/p95/p99, RPS, error rate từ ≥3 runs
   - ghi thêm **min–max** (hoặc std) để thể hiện biến động
+- **Confidence interval (CI):** dùng Student's t-distribution cho mỗi metric, báo cáo **95% CI** (mean ± CI)
+- **Không chỉ dùng mean/median đơn lẻ** — CI cho biết độ tin cậy của kết quả
+
+### 10.2 Kiểm định thống kê (Statistical Testing)
+**Bắt buộc** trước khi kết luận A tốt hơn B hoặc ngược lại:
+
+**Welch's t-test** (two-tailed, α = 0.05):
+- So sánh từng metric (p50/p90/p99/error rate) giữa Mode A và Mode B
+- p-value < 0.05 → chênh lệch có **ý nghĩa thống kê**
+- p-value ≥ 0.05 → chênh lệch **không có ý nghĩa**, không nên kết luận
+
+**Công thức tính:**
+- t = (μ_A − μ_B) / √(σ²_A/n_A + σ²_B/n_B)
+- df = Welch-Satterthwaite approximation
+- p-value từ t-distribution (two-tailed)
+
+**Dùng script phân tích tự động:**
+```bash
+python3 scripts/analyze_results.py
+# Output:
+#   - Bảng tổng hợp: median, mean ± 95% CI, stdev cho mỗi (mode × scenario × load)
+#   - Bảng so sánh A vs B: Δ%, p-value, significance (✓/✗)
+#   - CSV: aggregated_summary.csv, comparison_AB.csv
+```
+
+### 10.3 Cách đọc kết quả so sánh
+| Δ% p99 | p-value | Kết luận |
+|--------|---------|----------|
+| B nhanh hơn A 5%, thu hẹp CI | < 0.05 | **Chắc chắn** — Mode B cải thiện p99 |
+| B nhanh hơn A 2%, CI rộng | < 0.05 | **Có xu hướng** — cần thêm runs |
+| B nhanh hơn A 1%, CI chồng lấn | > 0.05 | **Không rõ ràng** — nhiễu cao |
+| B chậm hơn A | < 0.05 | Mode B có overhead cao hơn đáng kể |
+
 
 ### 10.2 So sánh A vs B
 - Tính chênh lệch:
@@ -206,20 +259,25 @@ Tạo 1 bảng (1 trang) trong report/appendix:
 ---
 
 ## 12) Threats to Validity (nguy cơ sai lệch) + cách giảm thiểu
-- **Burstable instances (t3.large):** CPU credit có thể làm tail latency méo
-  - giảm: duration hợp lý, nghỉ giữa runs, theo dõi CPU/softirq, ghi chú bất thường
+- ~~**Burstable instances (t3.large):**~~ — **Đã thay bằng m5.large (non-burstable)** → loại bỏ CPU credit exhaustion hoàn toàn
 - **Noisy neighbor trên AWS:** nền cloud có biến động
-  - giảm: lặp ≥3, dùng median + min/max, chạy xen kẽ A/B theo phiên
-- **Observability overhead:** Prom/Grafana/Hubble tạo overhead
-  - giảm: giữ monitoring stack tương đương giữa 2 mode; chỉ khác datapath
+  - Giảm: lặp ≥3, dùng CI thay vì chỉ mean, chạy xen kẽ A/B theo phiên
+  - **Statistical testing (Welch's t-test) là cách chống bắt bẻ hiệu quả nhất** — chỉ kết luận khi p < 0.05
+- **Observability overhead:** Hubble chỉ có ở Mode B → Mode B chịu thêm overhead observability
+  - Ghi nhận rõ: Hubble tạo thêm work cho cilium-agent
+  - Nên test thêm Mode B **tắt Hubble** để có so sánh công bằng ở S1/S2 (hoặc ghi rõ trong kết luận là Hubble = on cho cả 2 mode trong deployment thực tế)
 - **1 AZ vs 2 AZ:** chọn 1 AZ giảm nhiễu nhưng không đại diện cross-AZ
-  - ghi rõ giới hạn phạm vi và lý do lựa chọn
+  - Ghi rõ giới hạn phạm vi và lý do lựa chọn
+- **Calibration chưa làm:** dùng QPS mặc định không đúng với hạ tầng thực tế → L2 có thể đã bão hòa, L3 gãy hoàn toàn → kết quả S2/S3 không đáng tin
+  - **Giải pháp: chạy `calibrate.sh` trước mọi benchmark chính thức**
 
 ---
 
 ## 13) Definition of Done (đủ điều kiện chốt report)
 Bạn coi như "done" khi có:
-- Calibration L1/L2/L3 + 1 hình minh họa
-- Bảng tổng hợp A vs B cho S1/S2/S3 (p50/p95/p99/RPS/errors)
-- Evidence: dashboard + (Mode B) hubble flows cho S3
-- Appendix versions/config + Threats to validity rõ ràng
+- ✅ **Calibration** L1/L2/L3 đã làm + bảng số + hình p99 vs QPS → lưu ở report/appendix/
+- ✅ **Bảng tổng hợp** cho S1/S2/S3: median, mean ± 95% CI, stdev (dùng `analyze_results.py`)
+- ✅ **Bảng so sánh A vs B**: Δ%, p-value, ✓/✗ significance (Welch's t-test)
+- ✅ **Kết luận chỉ rút ra khi p < 0.05** — nếu p ≥ 0.05, ghi "không có ý nghĩa thống kê"
+- ✅ Evidence: dashboard + (Mode B) hubble flows cho S3
+- ✅ Appendix: versions/config + Threats to validity rõ ràng (bao gồm Hubble overhead note)

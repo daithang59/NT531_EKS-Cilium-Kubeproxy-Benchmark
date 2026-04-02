@@ -1,12 +1,10 @@
 # ==============================================================================
-# EKS Module — nt531 benchmark cluster
-# Module: terraform-aws-modules/eks/aws ~> 20.0
-#
-# Auth design:
-#   - Cluster creator → không tạo access entry (enable_cluster_creator_admin_permissions = false)
-#   - IAM user kubectl → access entry đã tồn tại trên AWS, quản lý ngoài Terraform (state rm)
-#   - Node IAM role  → EKS tự tạo access entry cho managed node groups
-#     khi dùng API_AND_CONFIG_MAP.
+# EKS Module — Creates EKS cluster + Managed Node Group for benchmark
+# ==============================================================================
+# - EKS cluster with specified Kubernetes version
+# - Managed Node Group: m5.large × 3, min=desired=max=3 (no autoscaling)
+# - OIDC provider for IAM Roles for Service Accounts (IRSA)
+# - Cluster endpoint: private + public access (configurable)
 # ==============================================================================
 
 module "eks" {

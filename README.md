@@ -35,12 +35,12 @@ Hệ thống benchmark được triển khai trên **AWS EKS** với kiến trú
 
 **Hạ tầng AWS:**
 - **VPC** `10.0.0.0/16` với 2 Availability Zones (AZs), mỗi AZ có 1 public subnet + 1 private subnet.
-- **EKS Cluster** (Kubernetes 1.34) với Managed Node Group gồm **3 worker nodes** `t3.large` (2 vCPU, 8GB RAM).
+- **EKS Cluster** (Kubernetes 1.34) với Managed Node Group gồm **3 worker nodes** `m5.large` (2 vCPU, 8GB RAM, non-burstable).
 - Worker nodes được **pin vào 1 AZ duy nhất** để giảm nhiễu latency cross-AZ trong quá trình đo.
 - Node group cố định `min = desired = max = 3`, **không autoscale** trong lúc benchmark.
 
-**Workload benchmark (namespace `netperf`):**
-- **Echo server** (`hashicorp/http-echo:1.0`) — HTTP echo backend, expose qua **ClusterIP Service** (`echo.netperf:80 → 5678`).
+**Workload benchmark (namespace `benchmark`):**
+- **Echo server** (`hashicorp/http-echo:1.0`) — HTTP echo backend, expose qua **ClusterIP Service** (`echo.benchmark:80 → 5678`).
 - **Fortio client** (`fortio/fortio:1.74.0`) — load generator chạy trong cluster, gửi request đến echo qua Service.
 - Cả 2 pods đều có `nodeSelector: role: benchmark` và resource requests/limits để đảm bảo tính công bằng.
 
@@ -61,12 +61,12 @@ Hệ thống benchmark được triển khai trên **AWS EKS** với kiến trú
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        AWS EKS Cluster (1 AZ)                       │
-│                     Kubernetes 1.34 · 3× t3.large                   │
+│                     Kubernetes 1.34 · 3× m5.large                   │
 │                                                                     │
 │  ┌──────────────┐                           ┌──────────────┐        │
 │  │  Fortio Pod   │──── ClusterIP Service ───▶│  Echo Pod    │        │
-│  │  (client)     │     echo.netperf:80       │  (server)    │        │
-│  │  ns: netperf  │                           │  ns: netperf │        │
+│  │  (client)     │     echo.benchmark:80       │  (server)    │        │
+│  │  ns: benchmark│                           │  ns: benchmark│        │
 │  └──────────────┘                           └──────────────┘        │
 │         │                                          │                │
 │         ▼                                          ▼                │
@@ -107,7 +107,7 @@ thesis-cilium-eks-benchmark/
 │   └── modules/
 │       ├── vpc/                       #   VPC module (10.0.0.0/16, 2 AZs; workers pinned to 1st AZ)
 │       │   ├── main.tf, variables.tf, outputs.tf
-│       └── eks/                       #   EKS module (t3.large × 3, managed node group)
+│       └── eks/                       #   EKS module (m5.large × 3, managed node group)
 │           ├── main.tf, variables.tf, outputs.tf
 │
 ├── helm/                              # Helm values cho CNI + monitoring
@@ -120,7 +120,7 @@ thesis-cilium-eks-benchmark/
 │
 ├── workload/                          # Kubernetes manifests cho benchmark
 │   ├── server/
-│   │   ├── 01-namespace.yaml          #   Namespace "netperf"
+│   │   ├── 01-namespace.yaml          #   Namespace "benchmark"
 │   │   ├── 02-echo-deploy.yaml        #   hashicorp/http-echo:1.0 (resource limits + nodeSelector)
 │   │   └── 03-echo-svc.yaml           #   ClusterIP port 80 → 5678
 │   ├── client/
@@ -244,7 +244,7 @@ helm upgrade --install cilium cilium/cilium \
 kubectl apply -f workload/server/
 kubectl apply -f workload/client/
 # Verify
-kubectl -n netperf get pods   # echo + fortio Running
+kubectl -n benchmark get pods   # echo + fortio Running
 ```
 
 ### 6) Run benchmarks

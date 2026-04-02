@@ -24,7 +24,7 @@ Mọi script tuân theo **Results Contract** (xem `results/README.md`).
 | `LOAD` | `L1` | `L1` (light), `L2` (medium), `L3` (high) |
 | `REPEAT` | `3` | Số lần lặp mỗi (scenario × load) |
 | `OUTDIR` | _(auto)_ | Override output directory (bỏ qua auto-creation) |
-| `NS` | `netperf` | Namespace chứa workload |
+| `NS` | `benchmark` | Namespace chứa workload |
 | `WARMUP_SEC` | `30` | Thời gian warm-up trước mỗi lần đo |
 | `DURATION_SEC` | `180` | Thời gian đo chính thức (3 phút — plan §4.3) |
 | `REST_BETWEEN_RUNS` | `60` | Nghỉ giữa các runs (plan: 60–120s) |

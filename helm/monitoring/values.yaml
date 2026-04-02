@@ -17,18 +17,28 @@ grafana:
 prometheus:
   prometheusSpec:
     retention: 7d
-    # Scrape cilium-agent metrics
+    # Scrape cilium-agent metrics (port 9091, kube-system namespace)
+    # Cilium DaemonSet pods have label k8s-app=cilium in namespace kube-system
     additionalScrapeConfigs:
       - job_name: "cilium-agent"
         kubernetes_sd_configs:
           - role: pod
+            namespaces:
+              names:
+                - kube-system
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_k8s_app]
             regex: cilium
             action: keep
-          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
-            regex: "9962"
+          - source_labels: [__meta_kubernetes_pod_container_port_number]
+            regex: "9091"
             action: keep
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
     resources:
       requests:
         cpu: "250m"

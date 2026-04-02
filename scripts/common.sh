@@ -17,7 +17,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # ======================== Tunables / Env Vars =================================
-NS="${NS:-netperf}"
+NS="${NS:-benchmark}"
 
 # MODE: A = kube-proxy baseline | B = Cilium eBPF kube-proxy replacement
 MODE="${MODE:-A}"

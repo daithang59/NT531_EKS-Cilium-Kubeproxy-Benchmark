@@ -9,13 +9,156 @@
 
 ### 1.1 Infrastructure
 - EKS cluster đã tạo (xem `terraform/README.md`)
-- 3 nodes `t3.large`, cùng AZ, `min=desired=max=3`
+- 3 nodes `m5.large`, cùng AZ, `min=desired=max=3` (non-burstable)
+- `kubectl` context trỏ đúng cluster:
+  ```bash
+  aws eks update-kubeconfig --name <cluster-name> --region ap-southeast-1
+  kubectl get nodes   # tất cả phải Ready
+  ```
 
 ### 1.2 Tools cần có trên máy Runner
 - `kubectl` (>= 1.28)
 - `bash` (>= 4.0, trên WSL/Linux)
 - `aws` CLI (đã authenticated)
+- `python3` (>= 3.8 — cần cho scripts phân tích)
+- `bc` (cho calibrate.sh)
 - (Mode B) `hubble` CLI (optional — script sẽ fallback qua cilium pod exec)
+
+---
+
+## 1bis. Calibration (bắt buộc chạy TRƯỚC bước 2)
+
+> **Tại sao cần calibration?** Để xác định L1/L2/L3 bằng dữ liệu thực tế trên hạ tầng của bạn, thay vì dùng giá trị mặc định. T3.large burstable nên calibration càng quan trọng.
+
+### 1bis.1 Chạy Calibration Sweep
+
+```bash
+# Deploy workload trước (xem 2.1–2.2 bên dưới)
+kubectl apply -f workload/server/
+kubectl apply -f workload/client/
+
+# Chạy calibration trên Mode A trước
+MODE=A REPEAT=2 ./scripts/calibrate.sh
+
+# (Tùy chọn) Lặp lại trên Mode B để kiểm tra consistency
+MODE=B REPEAT=2 ./scripts/calibrate.sh
+```
+
+### 1bis.2 Xem kết quả Calibration
+
+Script xuất file tại:
+```
+results/calibration/mode=A_kube-proxy/calibration_<ts>.txt
+results/calibration/mode=A_kube-proxy/calibration_<ts>.csv
+```
+
+Mở file `.txt`, xem phần **"RECOMMENDED LOAD LEVELS"**:
+```
+ Recommended L1 (Light):
+   QPS=80  p99=1.23ms  err=0.0000%
+   Suggested CONNS=6
+
+ Recommended L2 (Medium):
+   QPS=400  p99=8.45ms  err=0.0012%
+   Suggested CONNS=32
+
+ Recommended L3 (High):
+   QPS=900  p99=22.30ms  err=1.234%
+   Suggested CONNS=72
+```
+
+### 1bis.3 Đóng băng tham số
+
+Cập nhật `scripts/common.sh` với giá trị từ calibration:
+```bash
+# L1 — Light: stable, near-zero errors
+L1_QPS=80
+L1_CONNS=6
+L1_THREADS=2
+
+# L2 — Medium: visible tail, no saturation
+L2_QPS=400
+L2_CONNS=32
+L2_THREADS=4
+
+# L3 — High: near saturation
+L3_QPS=900
+L3_CONNS=72
+L3_THREADS=8
+```
+
+### 1bis.4 Lưu Calibration Report
+- Copy file `calibration_<ts>.txt` và `calibration_<ts>.csv` vào `report/appendix/`
+- Tạo biểu đồ p99 vs QPS từ CSV (dùng Python/matplotlib hoặc Excel)
+- Dán vào luận văn phần Calibration Results
+
+---
+
+## 1bis. Calibration (bắt buộc chạy TRƯỚC bước 2)
+
+> **Tại sao cần calibration?** Để xác định L1/L2/L3 bằng dữ liệu thực tế trên hạ tầng của bạn, thay vì dùng giá trị mặc định. T3.large burstable nên calibration càng quan trọng.
+
+### 1bis.1 Chạy Calibration Sweep
+
+```bash
+# Deploy workload trước (xem 2.1–2.2 bên dưới)
+kubectl apply -f workload/server/
+kubectl apply -f workload/client/
+
+# Chạy calibration trên Mode A trước
+MODE=A REPEAT=2 ./scripts/calibrate.sh
+
+# (Tùy chọn) Lặp lại trên Mode B để kiểm tra consistency
+MODE=B REPEAT=2 ./scripts/calibrate.sh
+```
+
+### 1bis.2 Xem kết quả Calibration
+
+Script xuất file tại:
+```
+results/calibration/mode=A_kube-proxy/calibration_<ts>.txt
+results/calibration/mode=A_kube-proxy/calibration_<ts>.csv
+```
+
+Mở file `.txt`, xem phần **"RECOMMENDED LOAD LEVELS"**:
+```
+ Recommended L1 (Light):
+   QPS=80  p99=1.23ms  err=0.0000%
+   Suggested CONNS=6
+
+ Recommended L2 (Medium):
+   QPS=400  p99=8.45ms  err=0.0012%
+   Suggested CONNS=32
+
+ Recommended L3 (High):
+   QPS=900  p99=22.30ms  err=1.234%
+   Suggested CONNS=72
+```
+
+### 1bis.3 Đóng băng tham số
+
+Cập nhật `scripts/common.sh` với giá trị từ calibration:
+```bash
+# L1 — Light: stable, near-zero errors
+L1_QPS=80
+L1_CONNS=6
+L1_THREADS=2
+
+# L2 — Medium: visible tail, no saturation
+L2_QPS=400
+L2_CONNS=32
+L2_THREADS=4
+
+# L3 — High: near saturation
+L3_QPS=900
+L3_CONNS=72
+L3_THREADS=8
+```
+
+### 1bis.4 Lưu Calibration Report
+- Copy file `calibration_<ts>.txt` và `calibration_<ts>.csv` vào `report/appendix/`
+- Tạo biểu đồ p99 vs QPS từ CSV (dùng Python/matplotlib hoặc Excel)
+- Dán vào luận văn phần Calibration Results
 
 ---
 
@@ -224,15 +367,15 @@ kubectl apply -f workload/client/01-fortio-deploy.yaml
 
 ### 3.3 Verify
 ```bash
-kubectl -n netperf get pods          # echo + fortio phải Running
-kubectl -n netperf get svc echo      # ClusterIP, port 80 → 5678
+kubectl -n benchmark get pods          # echo + fortio phải Running
+kubectl -n benchmark get svc echo      # ClusterIP, port 80 → 5678
 ```
 
 ### 3.4 Test connectivity
 ```bash
-FORTIO_POD=$(kubectl -n netperf get pod -l app=fortio -o jsonpath='{.items[0].metadata.name}')
-kubectl -n netperf exec "${FORTIO_POD}" -- \
-  fortio load -qps 10 -c 1 -t 5s http://echo.netperf.svc.cluster.local/
+FORTIO_POD=$(kubectl -n benchmark get pod -l app=fortio -o jsonpath='{.items[0].metadata.name}')
+kubectl -n benchmark exec "${FORTIO_POD}" -- \
+  fortio load -qps 10 -c 1 -t 5s http://echo.benchmark.svc.cluster.local/
 ```
 
 ---
@@ -270,7 +413,7 @@ kube-proxy vẫn chạy bình thường, Cilium chỉ là CNI.
 # Apply toàn bộ policies (allow + deny)
 kubectl apply -f workload/policies/
 # Xóa
-kubectl -n netperf delete -f workload/policies/ --ignore-not-found=true
+kubectl -n benchmark delete -f workload/policies/ --ignore-not-found=true
 ```
 
 ---
@@ -414,3 +557,191 @@ Nếu phát hiện bất thường (timeout, error rate cao, pod restart), ghi v
 
 > Giá trị mặc định. Điều chỉnh qua env vars sau khi calibration.
 > Xem `docs/experiment_spec.md` § 7 về quy trình Calibration.
+
+
+## 9. EKS Access Configuration
+
+> **⚠️ Quan trọng:** Sau khi `terraform apply` xong, `kubectl` **không tự động chạy được**.
+> `aws eks update-kubeconfig` thành công chỉ tạo kubeconfig — không có nghĩa principal đã có quyền trên cluster.
+> Phải tạo **EKS Access Entry + Policy Association** cho IAM principal.
+> Nếu bỏ qua, `kubectl get nodes` sẽ bị:
+> `error: You must be logged in to the server (Unauthorized)`.
+
+---
+
+### A. Verify EKS Access After Terraform
+
+Luôn chạy **tất cả** theo thứ tự để biết chính xác vấn đề ở đâu:
+
+```bash
+# 1. Xác nhận IAM identity đang dùng
+aws sts get-caller-identity
+# → Ghi lại ARN — đây là <IAM_PRINCIPAL_ARN> cần kiểm tra
+
+# 2. Verify authentication mode
+aws eks describe-cluster \
+  --name nt531 \
+  --region ap-southeast-1 \
+  --query 'cluster.accessConfig.authenticationMode'
+# → "API_AND_CONFIG_MAP"
+
+# 3. Verify token lấy được
+aws eks get-token --cluster-name nt531 --region ap-southeast-1
+# → Lấy được token ≠ principal có quyền cluster
+
+# 4. List all access entries trên cluster
+aws eks list-access-entries \
+  --cluster-name nt531 \
+  --region ap-southeast-1 \
+  --output json --no-cli-pager
+# → principal ARN cần có trong danh sách
+
+# 5. Cấu hình kubeconfig
+aws eks update-kubeconfig --name nt531 --region ap-southeast-1
+
+# 6. Test kubectl — sẽ fail nếu principal chưa có access entry
+kubectl get nodes
+# → "Unauthorized" nếu principal chưa được cấp quyền
+```
+
+---
+
+### B. If kubectl Unauthorized
+
+Nếu `kubectl` fail ở bước 6, kiểm tra chi tiết principal đó:
+
+```bash
+# Lấy ARN từ bước 1
+# Thay <IAM_PRINCIPAL_ARN> bằng ARN từ aws sts get-caller-identity
+# Ví dụ: arn:aws:iam::372546842352:user/my-user
+
+# Kiểm tra principal có access entry không
+aws eks describe-access-entry \
+  --cluster-name nt531 \
+  --region ap-southeast-1 \
+  --principal-arn <IAM_PRINCIPAL_ARN>
+# → ResourceNotFoundException → principal chưa có access entry
+
+# Kiểm tra principal có policy gắn không
+aws eks list-associated-access-policies \
+  --cluster-name nt531 \
+  --region ap-southeast-1 \
+  --principal-arn <IAM_PRINCIPAL_ARN> \
+  --output json --no-cli-pager
+# → ResourceNotFoundException → chưa có policy gắn
+```
+
+---
+
+### C. Grant Access for the Current IAM Principal
+
+Nếu principal hiện tại **chưa có** access entry hoặc **chưa có** policy association:
+
+```bash
+# Thay <IAM_PRINCIPAL_ARN> bằng ARN từ aws sts get-caller-identity
+# Ví dụ: arn:aws:iam::372546842352:user/my-user
+
+# Bước 1: Tạo access entry
+aws eks create-access-entry \
+  --cluster-name nt531 \
+  --region ap-southeast-1 \
+  --principal-arn <IAM_PRINCIPAL_ARN>
+
+# Bước 2: Gắn policy cluster admin
+aws eks associate-access-policy \
+  --cluster-name nt531 \
+  --region ap-southeast-1 \
+  --principal-arn <IAM_PRINCIPAL_ARN> \
+  --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
+  --access-scope type=cluster
+```
+
+**Verify:**
+
+```bash
+aws eks describe-access-entry \
+  --cluster-name nt531 \
+  --region ap-southeast-1 \
+  --principal-arn <IAM_PRINCIPAL_ARN>
+# → principalArn + type = STANDARD
+
+aws eks list-associated-access-policies \
+  --cluster-name nt531 \
+  --region ap-southeast-1 \
+  --principal-arn <IAM_PRINCIPAL_ARN> \
+  --output json --no-cli-pager
+# → associatedAccessPolicies[].policyArn = AmazonEKSClusterAdminPolicy
+```
+
+**Dùng kubectl:**
+
+```bash
+aws eks update-kubeconfig --name nt531 --region ap-southeast-1
+kubectl get nodes                   # 3 nodes STATUS=Ready
+kubectl get pods -n kube-system   # core-dns, kube-proxy Running
+```
+
+---
+
+### D. Grant Access for Another IAM Principal / Teammate
+
+Khi một teammate (IAM user hoặc IAM role khác) cần truy cập cluster:
+
+**Bước 1 — Admin hiện tại** tạo access entry cho teammate:
+
+```bash
+# Thay <OTHER_IAM_PRINCIPAL_ARN> bằng ARN của teammate
+# Ví dụ: arn:aws:iam::372546842352:user/teammate-name
+#          arn:aws:iam::372546842352:role/teammate-role
+
+aws eks create-access-entry \
+  --cluster-name nt531 \
+  --region ap-southeast-1 \
+  --principal-arn <OTHER_IAM_PRINCIPAL_ARN>
+
+aws eks associate-access-policy \
+  --cluster-name nt531 \
+  --region ap-southeast-1 \
+  --principal-arn <OTHER_IAM_PRINCIPAL_ARN> \
+  --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
+  --access-scope type=cluster
+```
+
+**Bước 2 — Teammate xác nhận credentials** trên máy của teammate:
+
+```bash
+# Trên máy/terminal của teammate:
+aws sts get-caller-identity
+# → Phải là <OTHER_IAM_PRINCIPAL_ARN> — không nhầm với user khác
+
+aws eks update-kubeconfig --name nt531 --region ap-southeast-1
+kubectl get nodes                   # phải thành công
+```
+
+**Verify:**
+
+```bash
+aws eks describe-access-entry \
+  --cluster-name nt531 \
+  --region ap-southeast-1 \
+  --principal-arn <OTHER_IAM_PRINCIPAL_ARN>
+
+aws eks list-associated-access-policies \
+  --cluster-name nt531 \
+  --region ap-southeast-1 \
+  --principal-arn <OTHER_IAM_PRINCIPAL_ARN> \
+  --output json --no-cli-pager
+```
+
+---
+
+### E. Troubleshooting Unauthorized
+
+| Dấu hiệu | Lệnh kiểm tra |
+|-----------|----------------|
+| `kubectl` Unauthorized dù `update-kubeconfig` thành công | `aws eks list-access-entries` — principal ARN có trong danh sách? |
+| Principal có trong danh sách nhưng vẫn lỗi | `aws eks list-associated-access-policies --principal-arn <IAM_PRINCIPAL_ARN>` — có policy không? |
+| `aws eks get-token` chạy được nhưng `kubectl` vẫn lỗi | Token ≠ quyền. Kiểm tra access entry + policy association. |
+| Principal không có trong `list-access-entries` | Tạo access entry theo §C hoặc §D. |
+| Teammate dùng nhầm credentials | Trên máy teammate: `aws sts get-caller-identity` — phải đúng principal được cấp quyền. |
+| Mới tạo access entry nhưng vẫn lỗi | Đợi 1-2 phút cho AWS propagate. Thử lại. |

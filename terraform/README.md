@@ -26,7 +26,7 @@ terraform/
 ## Architecture
 
 - **VPC**: `10.0.0.0/16`, 2 public + 2 private subnets across 2 AZs, single NAT Gateway
-- **EKS**: Managed Node Group with `t3.large` × 3, `min=desired=max=3` (no autoscaling)
+- **EKS**: Managed Node Group with `m5.large` × 3, `min=desired=max=3` (no autoscaling)
 - **Worker AZ pinning**: Node group uses `benchmark_subnet_ids` (first AZ only) to reduce inter-AZ noise (plan §2.3)
 - **Addons**: CoreDNS, kube-proxy, VPC CNI (installed via EKS addons)
 - **Cilium**: NOT installed by Terraform — installed manually via Helm (see `docs/runbook.md`)
@@ -60,7 +60,7 @@ kubectl get nodes   # 3 nodes Ready
 | `region` | — | AWS region triển khai |
 | `kubernetes_version` | `"1.34"` | Phiên bản Kubernetes cho EKS cluster |
 | `cilium_version` | `"1.18.7"` | Phiên bản Cilium Helm chart (cho reference) |
-| `instance_type` | `"t3.large"` | EC2 instance type cho worker nodes |
+| `instance_type` | `"m5.large"` | EC2 instance type cho worker nodes (non-burstable, 2 vCPU, 8 GiB RAM) |
 | `node_count` | `3` | Số node (min=desired=max, no autoscaling) |
 | `endpoint_public_access` | `true` | Cho phép truy cập EKS API endpoint public |
 

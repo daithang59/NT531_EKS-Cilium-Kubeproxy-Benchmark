@@ -7,7 +7,7 @@
 # script exists for ad-hoc/standalone use.
 #
 # Usage:
-#   MODE=B NS=netperf ./scripts/collect_hubble.sh <outdir>
+#   MODE=B NS=benchmark ./scripts/collect_hubble.sh <outdir>
 #
 # Behavior:
 #   - Mode A + non-S3: writes "skipped" and exits 0
@@ -19,7 +19,7 @@ set -euo pipefail
 OUTDIR="${1:?Usage: collect_hubble.sh <outdir>}"
 MODE="${MODE:-A}"
 SCENARIO="${SCENARIO:-S1}"
-NS="${NS:-netperf}"
+NS="${NS:-benchmark}"
 
 mkdir -p "${OUTDIR}"
 
