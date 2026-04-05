@@ -12,7 +12,7 @@
 - 3 nodes `m5.large`, cùng AZ, `min=desired=max=3` (non-burstable)
 - `kubectl` context trỏ đúng cluster:
   ```bash
-  aws eks update-kubeconfig --name <cluster-name> --region ap-southeast-1
+  aws eks update-kubeconfig --name nt531-bm --region ap-southeast-1
   kubectl get nodes   # tất cả phải Ready
   ```
 
@@ -136,13 +136,22 @@ kubectl -n benchmark exec "${FORTIO_POD}" -- \
 ## 3. Chọn Mode (A hoặc B)
 
 ### Mode A — kube-proxy baseline
+
+> ⚠️ **Yêu cầu trước khi cài:** EKS Terraform phải KHÔNG có `vpc-cni` trong `cluster_addons`. Nếu không — Cilium sẽ crash với lỗi `"Cannot specify IPAM mode eni in tunnel mode"` hoặc `"required IPv4 PodCIDR not available"`.
+
 ```bash
-helm upgrade --install cilium cilium/cilium \
-  --namespace kube-system \
-  --version 1.18.7 \
-  -f helm/cilium/values-baseline.yaml
+# Tạo namespace cần thiết:
+kubectl create namespace cilium-secrets
+
+# Cài Cilium (Mode A):
+helm install cilium cilium/cilium -n kube-system --version 1.18.7 -f helm/cilium/values-baseline.yaml
+
+# Verify:
+kubectl exec -n kube-system ds/cilium -- cilium status
+kubectl get ds -n kube-system kube-proxy
 ```
-kube-proxy vẫn chạy bình thường, Cilium chỉ là CNI.
+
+Xác nhận: `KubeProxyReplacement: False`, `IPAM: cluster-pool`, `kube-proxy 3/3 Running`.
 
 ### Mode B — Cilium eBPF kube-proxy replacement
 

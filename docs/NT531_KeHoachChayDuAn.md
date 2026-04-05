@@ -254,14 +254,21 @@ Truy cập http://localhost:3000
 
 ### Phase 4 — Cilium Mode A: kube-proxy Baseline (10 phút)
 
+> ⚠️ **Lưu ý trước khi cài:** EKS dùng VPC CNI làm CNI mặc định. Phải tắt `vpc-cni` addon trong Terraform trước (xem `terraform/modules/eks/main.tf`). Nếu không — Cilium sẽ crash với lỗi `"Cannot specify IPAM mode eni in tunnel mode"` hoặc `"required IPv4 PodCIDR not available"`.
+
 ```bash
-helm upgrade --install cilium cilium/cilium -n kube-system --version 1.18.7 -f helm/cilium/values-baseline.yaml --wait && \
-kubectl rollout status ds/cilium -n kube-system -w && \
-kubectl exec -n kube-system ds/cilium -- cilium status && \
-kubectl get ds -n kube-system kube-proxy
+kubectl create namespace cilium-secrets && \
+helm install cilium cilium/cilium -n kube-system --version 1.18.7 -f helm/cilium/values-baseline.yaml && \
+kubectl get pods -n kube-system -l k8s-app=cilium --watch
+# Đợi tất cả cilium pods READY 1/1
+# Bấm Ctrl+C khi done
 ```
 
-> Kỳ vọng: `KubeProxyReplacement = Disabled`, `Kube-proxy = Enabled`, kube-proxy DaemonSet vẫn Running.
+```bash
+kubectl exec -n kube-system ds/cilium -- cilium status && kubectl get ds -n kube-system kube-proxy
+```
+
+> Kỳ vọng: `KubeProxyReplacement = False`, `IPAM: cluster-pool 10.96.0.0/24`, `kube-proxy DaemonSet 3/3 Running`.
 
 #### ✅ Checklist Phase 4
 
@@ -403,14 +410,14 @@ find results/mode=A_kube-proxy/scenario=S2 -name "bench_phase1_rampup.log" | wc 
 
 ```bash
 aws eks describe-cluster --name nt531-bm --region ap-southeast-1 --query cluster.endpoint --output text
-# Output: https://ABCDE...eks.amazonaws.com
+# Output: https://ABCDE...eks.amazonaws.com → ghi lại phần hostname
 ```
 
 #### 8.2 Cập nhật `helm/cilium/values-ebpfkpr.yaml`
 
 ```yaml
-k8sServiceHost: "ABCDE1234567890ABCD1234567890.sk1.ap-southeast-1.eks.amazonaws.com"
-# Lưu ý: KHÔNG có https://
+k8sServiceHost: "ABCD1234EFGHIJKL.gr7.ap-southeast-1.eks.amazonaws.com"
+# Lưu ý: KHÔNG có https:// và KHÔNG có path
 ```
 
 #### 8.3 XÓA kube-proxy (BẮT BUỘC trước bước 8.4)
