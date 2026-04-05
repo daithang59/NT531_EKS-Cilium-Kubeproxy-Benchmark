@@ -8,78 +8,33 @@ Tệp này cung cấp hướng dẫn cho Claude Code (claude.ai/code) khi làm v
 - **Mode A (Baseline):** Cilium CNI + kube-proxy (iptables DNAT/SNAT)
 - **Mode B (eBPF KPR):** Cilium CNI với `kubeProxyReplacement: true`, thay thế hoàn toàn kube-proxy bằng eBPF socket-level redirect
 
-Workload chính: Fortio (load generator) → HTTP echo server qua ClusterIP Service, đo qua 3 kịch bản (S1 steady-state, S2 high-load + churn, S3 policy overhead) ở 3 mức tải (L1/L2/L3).
+Workload chính: Fortio (load generator) → HTTP echo server qua ClusterIP Service.
+Scenarios: S1 (steady-state), S2 (stress + churn), S3 (policy overhead — **chỉ Mode B**).
+Load levels: L1, L2, L3 (được xác định qua calibration).
 
 ---
 
 ## Các lệnh thường dùng
 
-### Calibration (chạy TRƯỚC benchmark chính thức)
-
-```bash
-# 1) Deploy workload trước
-kubectl apply -f workload/server/
-kubectl apply -f workload/client/
-
-# 2) Load config và chạy calibration sweep trên Mode A
-cp .env.example .env
-set -a && source .env && set +a
-MODE=A REPEAT=2 ./scripts/calibrate.sh
-
-# 3) Xem kết quả → cập nhật L1_QPS/L2_QPS/L3_QPS trong common.sh
-# 4) Lưu report vào report/appendix/
-```
-
-### Chạy Benchmark (dùng .env)
-
-```bash
-# Copy template → .env, điền giá trị
-cp .env.example .env
-
-# Load config (interactive menu):
-source config/load-env.sh
-
-# Hoặc chạy trực tiếp:
-MODE=A LOAD=L1 REPEAT=3 ./scripts/run_s1.sh
-
-# Load config xong thì script tự đọc MODE/LOAD/REPEAT từ env
-```
-
-### Phân tích thống kê (sau khi có kết quả)
-
-```bash
-python3 scripts/analyze_results.py
-# Xuất: bảng tổng hợp (median, mean ± 95% CI), bảng so sánh A vs B (Δ%, p-value, ✓ sig)
-# CSV: results_analysis/aggregated_summary.csv, comparison_AB.csv
-```
-
 ### Terraform (Hạ tầng)
 
 ```bash
 cd terraform
-
 terraform init
 terraform plan -var-file=envs/dev/terraform.tfvars
 terraform apply -var-file=envs/dev/terraform.tfvars
-
-# Format
-make fmt          # chạy: terraform -chdir=terraform fmt -recursive
+make fmt
 ```
 
 ### Cài đặt Cilium
 
 ```bash
-helm repo add cilium https://helm.cilium.io && helm repo update
-
 # Mode A — kube-proxy baseline
 helm upgrade --install cilium cilium/cilium -n kube-system --version 1.18.7 \
   -f helm/cilium/values-baseline.yaml
 
 # Mode B — eBPF KPR
-# ⚠️ PHẢI tắt kube-proxy DaemonSet trước, rồi upgrade Cilium in-place.
-# Không cần gỡ và cài lại Cilium — chỉ upgrade values.
-# Chạy song song kube-proxy + eBPF → NAT table conflict → kết quả benchmark sai.
-# Xem docs/runbook.md §3 để biết các bước đầy đủ.
+# ⚠️ PHẢI tắt kube-proxy trước, rồi upgrade Cilium in-place.
 helm upgrade cilium cilium/cilium -n kube-system --version 1.18.7 \
   -f helm/cilium/values-ebpfkpr.yaml
 ```
@@ -87,22 +42,51 @@ helm upgrade cilium cilium/cilium -n kube-system --version 1.18.7 \
 ### Triển khai Workload
 
 ```bash
-kubectl apply -f workload/server/      # namespace + echo server + ClusterIP service
-kubectl apply -f workload/client/       # fortio load generator
-kubectl -n benchmark get pods            # kiểm tra echo + fortio đang Running
+kubectl apply -f workload/server/
+kubectl apply -f workload/client/
+kubectl -n benchmark get pods
+```
+
+### Calibration (chạy TRƯỚC benchmark chính thức)
+
+```bash
+MODE=A REPEAT=2 ./scripts/calibrate.sh
+# Xem kết quả → cập nhật L1_QPS/L2_QPS/L3_QPS trong common.sh
 ```
 
 ### Chạy Benchmark
 
 ```bash
-# Các biến: MODE (A|B), LOAD (L1|L2|L3), REPEAT (mặc định 3)
-MODE=A LOAD=L1 REPEAT=3 ./scripts/run_s1.sh
-MODE=B LOAD=L2 REPEAT=3 ./scripts/run_s2.sh
-MODE=B LOAD=L2 REPEAT=3 ./scripts/run_s3.sh
+# Mode A — S1, S2
+MODE=A LOAD=L1 ./scripts/run_s1.sh
+MODE=A LOAD=L2 ./scripts/run_s1.sh
+MODE=A LOAD=L3 ./scripts/run_s1.sh
+MODE=A LOAD=L2 ./scripts/run_s2.sh
+MODE=A LOAD=L3 ./scripts/run_s2.sh
 
-# Thu thập evidence độc lập
-./scripts/collect_meta.sh <outdir>
-./scripts/collect_hubble.sh <outdir>
+# Mode B — S1, S2, S3
+MODE=B LOAD=L1 ./scripts/run_s1.sh
+MODE=B LOAD=L2 ./scripts/run_s1.sh
+MODE=B LOAD=L3 ./scripts/run_s1.sh
+MODE=B LOAD=L2 ./scripts/run_s2.sh
+MODE=B LOAD=L3 ./scripts/run_s2.sh
+MODE=B LOAD=L2 ./scripts/run_s3.sh
+MODE=B LOAD=L3 ./scripts/run_s3.sh
+```
+
+### Phân tích thống kê
+
+```bash
+python3 scripts/analyze_results.py
+# Xuất: aggregated_summary.csv, comparison_AB.csv (Δ%, p-value, ✓ sig)
+```
+
+### Thu thập evidence độc lập
+
+```bash
+./scripts/collect_meta.sh results/mode=A_kube-proxy/
+./scripts/collect_meta.sh results/mode=B_cilium-ebpfkpr/
+./scripts/collect_hubble.sh results/mode=B_cilium-ebpfkpr/
 ```
 
 ---
@@ -114,18 +98,17 @@ MODE=B LOAD=L2 REPEAT=3 ./scripts/run_s3.sh
 - `terraform/modules/vpc/` — Module VPC (10.0.0.0/16, 2 AZs, public/private subnets, NAT Gateway)
 - `terraform/modules/eks/` — Module EKS (managed node group, m5.large × 3, workers ghim vào 1 AZ, non-burstable)
 - Cilium KHÔNG cài qua Terraform — luôn cài qua Helm sau khi cluster đã lên
-- Workers ghim vào 1 AZ để loại bỏ biến động latency cross-AZ
 
 ### Helm Values (Các mode datapath)
 - `helm/cilium/values-baseline.yaml` — Mode A: `kubeProxyReplacement: false`
-- `helm/cilium/values-ebpfkpr.yaml` — Mode B: `kubeProxyReplacement: true`, cần điền `k8sServiceHost` bằng EKS API endpoint
+- `helm/cilium/values-ebpfkpr.yaml` — Mode B: `kubeProxyReplacement: true`, cần điền `k8sServiceHost` = EKS API endpoint hostname (không có https://)
 - `helm/monitoring/values.yaml` — kube-prometheus-stack (Prometheus + Grafana + node-exporter)
 
 ### Scripts
 - `scripts/common.sh` — Thư viện dùng chung, được source bởi tất cả `run_*.sh`; xử lý pre-checks, Fortio execution, thu thập evidence, tạo metadata. **Không chạy độc lập.**
 - `scripts/run_s1.sh` — S1: đo tải steady-state
 - `scripts/run_s2.sh` — S2: test stress 4 phase (ramp-up → sustained → burst ×3 → cool-down)
-- `scripts/run_s3.sh` — S3: toggle NetworkPolicy OFF → ON, đo overhead enforcement
+- `scripts/run_s3.sh` — S3: toggle NetworkPolicy OFF → ON, đo overhead enforcement (chỉ Mode B)
 - `scripts/collect_meta.sh` / `scripts/collect_hubble.sh` — Thu thập evidence độc lập
 - `scripts/calibrate.sh` — Calibration sweep: tăng dần QPS để xác định L1/L2/L3 bằng dữ liệu
 - `scripts/analyze_results.py` — Phân tích thống kê: CI (t-distribution), Welch's t-test A vs B
@@ -176,8 +159,9 @@ S3 chia output thành 2 thư mục con: `phase=off/` và `phase=on/`.
 
 - **Workers ghim vào 1 AZ** — loại bỏ biến động latency cross-AZ. Cấu hình qua `benchmark_subnet_ids` trong EKS module, chỉ dùng subnets của AZ đầu tiên.
 - **m5.large (non-burstable)** — CPU ổn định 100% xuyên suốt, không có credit exhaustion, loại bỏ 1 biến nhiễu khỏi benchmark.
-- **Chuyển Mode A → B cần gỡ Cilium trước** — kube-proxy phải được xóa trước khi bật `kubeProxyReplacement: true`. Xem `docs/runbook.md`.
+- **S3 chỉ chạy ở Mode B** — S3 đo policy enforcement overhead, Hubble chỉ có ở Mode B. Mode A không cần S3.
+- **S2 không chạy L1** — L1 × S2 burst QPS 150 vẫn quá thấp, không stress được conntrack.
+- **Chuyển Mode A → B cần gỡ kube-proxy trước** — kube-proxy phải được xóa trước khi bật `kubeProxyReplacement: true`. Xem `docs/runbook.md` §3.
 - **Hubble chỉ có ở Mode B** — Hubble flows cung cấp bằng chứng verdict FORWARDED/DROPPED cho phân tích policy enforcement ở S3.
 - **Load levels phải calibrate** — chạy `calibrate.sh` trước benchmark chính thức; cập nhật `L1_QPS/L2_QPS/L3_QPS` trong `common.sh` với giá trị thực tế.
 - **Có Hubble overhead chưa kiểm soát ở Mode B** — Mode B bật Hubble (observability) trong khi Mode A không có tương đương. Điều này có thể làm Mode B chậm hơn một chút ở S1/S2. Ghi nhận trong Threats to Validity.
-

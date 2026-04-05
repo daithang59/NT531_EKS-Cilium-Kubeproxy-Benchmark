@@ -24,25 +24,15 @@
 - `bc` (cho calibrate.sh)
 - (Mode B) `hubble` CLI (optional — script sẽ fallback qua cilium pod exec)
 
-### 1.3 Benchmark Environment Config
+### 1.3 Benchmark Environment
 
-Benchmark sử dụng `.env` để quản lý biến môi trường. Cách dùng:
+Truyền biến trực tiếp bằng lệnh. Biến:
 
-```bash
-# 1) Copy template → tạo .env thực
-cp .env.example .env
-
-# 2) Load config (biến MODE, LOAD, REPEAT được export)
-set -a && source .env && set +a
-
-# 3) Hoặc dùng interactive menu:
-source config/load-env.sh
-
-# 4) Hoặc truyền trực tiếp khi chạy:
-MODE=B LOAD=L2 REPEAT=3 ./scripts/run_s1.sh
-```
-
-> **Lưu ý**: `.env` được gitignore. Không commit credentials/config thực.
+| Biến | Giá trị | Mô tả |
+|------|---------|--------|
+| `MODE` | `A` hoặc `B` | Mode đang test |
+| `LOAD` | `L1`, `L2`, `L3` | Load level |
+| `REPEAT` | `3` (khuyến nghị ≥ 3) | Số lần lặp |
 
 ---
 
@@ -203,49 +193,53 @@ kubectl -n benchmark delete -f workload/policies/ --ignore-not-found=true
 
 ## 4. Chạy Benchmark
 
-### 4.1 Environment variables
-
-| Variable | Giá trị | Mô tả |
-|----------|---------|-------|
-| `MODE` | `A` hoặc `B` | Mode đang test |
-| `LOAD` | `L1`, `L2`, `L3` | Load level |
-| `REPEAT` | `3` (khuyến nghị ≥ 3) | Số lần lặp |
-
 ### 4.2 Scenario S1 — Service Baseline
-```bash
-# Load .env config trước, rồi chạy:
-cp .env.example .env
-set -a && source .env && set +a
 
-MODE=A LOAD=L1 REPEAT=3 ./scripts/run_s1.sh
-MODE=A LOAD=L2 REPEAT=3 ./scripts/run_s1.sh
-MODE=A LOAD=L3 REPEAT=3 ./scripts/run_s1.sh
+```bash
+MODE=A LOAD=L1 ./scripts/run_s1.sh
+MODE=A LOAD=L2 ./scripts/run_s1.sh
+MODE=A LOAD=L3 ./scripts/run_s1.sh
 ```
-Lặp lại toàn bộ với `MODE=B`.
+
+Lặp lại với `MODE=B`.
 
 ### 4.3 Scenario S2 — High-load + Connection Churn
-```bash
-MODE=A LOAD=L2 REPEAT=3 ./scripts/run_s2.sh
-MODE=A LOAD=L3 REPEAT=3 ./scripts/run_s2.sh
-```
-S2 gồm 4 phase: ramp-up → sustained high → burst ×3 → cool-down.
-Keepalive tắt → mỗi request mở TCP connection mới (churn).
 
-### 4.4 Scenario S3 — NetworkPolicy Overhead
 ```bash
-MODE=B LOAD=L2 REPEAT=3 ./scripts/run_s3.sh
+MODE=A LOAD=L2 ./scripts/run_s2.sh
+MODE=A LOAD=L3 ./scripts/run_s2.sh
+```
+S2 gồm 4 phase: ramp-up → sustained → burst ×3 → cool-down.
+Keepalive tắt → mỗi request mở TCP connection mới (churn).
+L1 không chạy S2 vì QPS quá thấp không stress được conntrack.
+
+### 4.4 Scenario S3 — NetworkPolicy Overhead (Mode B)
+
+```bash
+MODE=B LOAD=L2 ./scripts/run_s3.sh
+MODE=B LOAD=L3 ./scripts/run_s3.sh
 ```
 Script tự động: xóa policy → đo (phase=off) → apply policy → đo (phase=on).
+S3 chỉ chạy ở Mode B. Mode A không cần.
 
-### 4.5 Chạy toàn bộ ma trận (ví dụ)
+### 4.5 Tổng hợp
+
 ```bash
-for mode in A B; do
-  for load in L1 L2 L3; do
-    MODE=${mode} LOAD=${load} REPEAT=3 ./scripts/run_s1.sh
-    MODE=${mode} LOAD=${load} REPEAT=3 ./scripts/run_s2.sh
-  done
-  MODE=${mode} LOAD=L2 REPEAT=3 ./scripts/run_s3.sh
-done
+# Mode A — S1, S2
+MODE=A LOAD=L1 ./scripts/run_s1.sh
+MODE=A LOAD=L2 ./scripts/run_s1.sh
+MODE=A LOAD=L3 ./scripts/run_s1.sh
+MODE=A LOAD=L2 ./scripts/run_s2.sh
+MODE=A LOAD=L3 ./scripts/run_s2.sh
+
+# Mode B — S1, S2, S3
+MODE=B LOAD=L1 ./scripts/run_s1.sh
+MODE=B LOAD=L2 ./scripts/run_s1.sh
+MODE=B LOAD=L3 ./scripts/run_s1.sh
+MODE=B LOAD=L2 ./scripts/run_s2.sh
+MODE=B LOAD=L3 ./scripts/run_s2.sh
+MODE=B LOAD=L2 ./scripts/run_s3.sh
+MODE=B LOAD=L3 ./scripts/run_s3.sh
 ```
 
 ---

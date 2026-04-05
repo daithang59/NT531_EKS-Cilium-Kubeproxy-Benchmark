@@ -214,17 +214,24 @@ kubectl -n benchmark get pods   # echo + fortio Running
 ### 5) Run benchmarks
 
 ```bash
-# S1 — Mode A, Load L1, 3 lần lặp
-MODE=A LOAD=L1 REPEAT=3 ./scripts/run_s1.sh
+# Mode A — S1, S2
+MODE=A LOAD=L1 ./scripts/run_s1.sh
+MODE=A LOAD=L2 ./scripts/run_s1.sh
+MODE=A LOAD=L3 ./scripts/run_s1.sh
+MODE=A LOAD=L2 ./scripts/run_s2.sh
+MODE=A LOAD=L3 ./scripts/run_s2.sh
 
-# S2 — Mode B, Load L2, 3 lần lặp
-MODE=B LOAD=L2 REPEAT=3 ./scripts/run_s2.sh
-
-# S3 — Mode B, Load L2, policy toggle
-MODE=B LOAD=L2 REPEAT=3 ./scripts/run_s3.sh
+# Mode B — S1, S2, S3
+MODE=B LOAD=L1 ./scripts/run_s1.sh
+MODE=B LOAD=L2 ./scripts/run_s1.sh
+MODE=B LOAD=L3 ./scripts/run_s1.sh
+MODE=B LOAD=L2 ./scripts/run_s2.sh
+MODE=B LOAD=L3 ./scripts/run_s2.sh
+MODE=B LOAD=L2 ./scripts/run_s3.sh
+MODE=B LOAD=L3 ./scripts/run_s3.sh
 ```
 
-> Chi tiết đầy đủ: `docs/runbook.md`
+> Chi tiết: `docs/runbook.md`
 
 ---
 

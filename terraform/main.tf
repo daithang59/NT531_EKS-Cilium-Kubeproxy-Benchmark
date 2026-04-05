@@ -35,7 +35,7 @@ module "eks" {
   kubernetes_version     = var.kubernetes_version
   vpc_id                 = module.vpc.vpc_id
   private_subnet_ids     = module.vpc.private_subnet_ids
-  benchmark_subnet_ids   = module.vpc.first_az_private_subnet_ids  # pin workers to 1 AZ (plan §2.3)
+  benchmark_subnet_ids   = module.vpc.first_az_private_subnet_ids # pin workers to 1 AZ (plan §2.3)
   instance_type          = var.instance_type
   node_count             = var.node_count
   endpoint_public_access = var.endpoint_public_access

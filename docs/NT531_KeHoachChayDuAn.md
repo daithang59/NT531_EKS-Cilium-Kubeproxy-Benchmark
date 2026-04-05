@@ -28,13 +28,14 @@
 |----------|-------|---------|-----------------|---------|
 | S1 | L1, L2, L3 | 3 | **9 runs** | steady-state |
 | S2 | L2, L3 | 3 | **6 runs** | stress + churn (4 phases), bỏ L1 vì L1 × S2 QPS quá thấp không stress được conntrack |
-| S3 | L2, L3 | 3 × 2 phases | **12 runs** | policy OFF + ON |
+| S3 | L2, L3 | 3 × 2 phases | **12 runs** | policy OFF + ON — **chỉ Mode B** (Mode A không cần) |
 
 - **S1**: 3 load × 3 repeat = **9 runs** per mode
-- **S2**: 2 load × 3 repeat = **6 runs** per mode (L1 bỏ: burst QPS 150 vẫn quá thấp, không đủ để phơi bày khác biệt iptables vs eBPF)
-- **S3**: 2 load × 3 repeat × 2 phases = **12 runs** per mode
-- **Tổng mỗi mode**: 9 + 6 + 12 = **27 runs thực tế**
-- **Tổng cả 2 modes**: **54 runs thực tế**
+- **S2**: 2 load × 3 repeat = **6 runs** per mode
+- **S3**: 2 load × 3 repeat × 2 phases = **12 runs** — **chỉ Mode B**
+- **Mode A**: 9 + 6 = **15 runs thực tế**
+- **Mode B**: 9 + 6 + 12 = **27 runs thực tế**
+- **Tổng cả 2 modes**: **42 runs thực tế**
 
 ---
 
@@ -79,6 +80,84 @@ IAMFullAccess
 AWSCloudFormationFullAccess
 AmazonEKSServiceRolePolicy
 ```
+
+### 1.2.1 Bổ sung permission IAM tối thiểu (cập nhật mới)
+
+> Trong thực tế triển khai đã gặp lỗi `AccessDeniedException` tại `eks:CreateCluster`.
+> Vì vậy cần xác nhận user/role chạy Terraform có đủ quyền bên dưới, ngoài các managed policy.
+
+**Quyền bắt buộc để tạo EKS cluster bằng Terraform:**
+- `eks:CreateCluster`
+- `eks:DescribeCluster`, `eks:ListClusters`, `eks:ListUpdates`, `eks:DescribeUpdate`
+- `eks:UpdateClusterConfig`, `eks:UpdateClusterVersion`, `eks:DeleteCluster`
+- `eks:CreateNodegroup`, `eks:DescribeNodegroup`, `eks:ListNodegroups`
+- `eks:UpdateNodegroupConfig`, `eks:UpdateNodegroupVersion`, `eks:DeleteNodegroup`
+- `eks:DescribeAddonVersions`, `eks:ListAddons`, `eks:DescribeAddon`
+- `eks:CreateAddon`, `eks:UpdateAddon`, `eks:DeleteAddon`
+- `eks:CreateAccessEntry`, `eks:DescribeAccessEntry`, `eks:ListAccessEntries`
+- `eks:UpdateAccessEntry`, `eks:DeleteAccessEntry`
+- `eks:AssociateAccessPolicy`, `eks:DisassociateAccessPolicy`, `eks:ListAssociatedAccessPolicies`
+- `eks:TagResource`, `eks:UntagResource`
+- `iam:PassRole` cho các IAM role do Terraform tạo cho EKS
+
+**Inline policy mẫu (tối thiểu, có thể dán trực tiếp vào IAM user/role):**
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EKSClusterLifecycle",
+      "Effect": "Allow",
+      "Action": [
+        "eks:CreateCluster",
+        "eks:DescribeCluster",
+        "eks:ListClusters",
+        "eks:ListUpdates",
+        "eks:DescribeUpdate",
+        "eks:UpdateClusterConfig",
+        "eks:UpdateClusterVersion",
+        "eks:DeleteCluster",
+        "eks:CreateNodegroup",
+        "eks:DescribeNodegroup",
+        "eks:ListNodegroups",
+        "eks:UpdateNodegroupConfig",
+        "eks:UpdateNodegroupVersion",
+        "eks:DeleteNodegroup",
+        "eks:DescribeAddonVersions",
+        "eks:ListAddons",
+        "eks:DescribeAddon",
+        "eks:CreateAddon",
+        "eks:UpdateAddon",
+        "eks:DeleteAddon",
+        "eks:CreateAccessEntry",
+        "eks:DescribeAccessEntry",
+        "eks:ListAccessEntries",
+        "eks:UpdateAccessEntry",
+        "eks:DeleteAccessEntry",
+        "eks:AssociateAccessPolicy",
+        "eks:DisassociateAccessPolicy",
+        "eks:ListAssociatedAccessPolicies",
+        "eks:TagResource",
+        "eks:UntagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PassRoleForEKS",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::<ACCOUNT_ID>:role/nt531-bm*"
+    }
+  ]
+}
+```
+
+> Thay `<ACCOUNT_ID>` bằng AWS Account ID thực tế. Nếu đổi `project_name`, cập nhật lại prefix role tương ứng.
+
+**Quyền chỉ cần khi bật lại các tính năng đã tắt trong Terraform:**
+- Khi bật CloudWatch control-plane logs: cần `logs:CreateLogGroup` (và thường thêm `logs:PutRetentionPolicy`, `logs:TagResource`)
+- Khi bật EKS secrets encryption bằng KMS key mới: cần `kms:CreateKey`, `kms:TagResource` (và thường thêm `kms:DescribeKey`, `kms:CreateAlias`)
 
 **Bước 3**: Sau khi tạo user → tab **Security credentials** → **Create access key**
 - Chọn: **Command Line Interface (CLI)**
@@ -139,6 +218,7 @@ curl -sL https://raw.githubusercontent.com/cilium/hubble/main/install.sh | bash
 ```
 [ ] AWS account tồn tại
 [ ] IAM user nt531-eks-admin đã tạo với đầy đủ policies
+[ ] IAM đã có quyền EKS Cluster + Nodegroup + Addon + iam:PassRole (theo mục 1.2.1)
 [ ] aws configure đã chạy, aws sts get-caller-identity thành công
 [ ] kubectl >= 1.28, helm >= 3.12, terraform >= 1.5.0, python3 >= 3.8, boto3 đã cài
 [ ] Quota AWS đủ cho EKS + EC2
@@ -152,7 +232,7 @@ curl -sL https://raw.githubusercontent.com/cilium/hubble/main/install.sh | bash
 
 Kiểm tra `terraform/envs/dev/terraform.tfvars`:
 ```hcl
-project_name       = "nt531-netperf"
+project_name       = "nt531-bm"
 region             = "ap-southeast-1"
 kubernetes_version = "1.34"
 cilium_version     = "1.18.7"
@@ -180,7 +260,7 @@ make fmt   # format code trước commit
 ### 2.3 Plan & Apply
 
 ```bash
-terraform plan -var-file=envs/dev/terraform.tfvars -out=tfplan
+terraform plan -var-file="envs/dev/terraform.tfvars" -out=tfplan
 terraform apply tfplan
 ```
 
@@ -189,7 +269,7 @@ terraform apply tfplan
 ### 2.4 Cập nhật kubectl context
 
 ```bash
-aws eks update-kubeconfig --name nt531-netperf --region ap-southeast-1
+aws eks update-kubeconfig --name nt531-bm --region ap-southeast-1
 kubectl get nodes
 # Output kỳ vọng: 3 node Ready
 ```
@@ -366,57 +446,47 @@ cp results/calibration/mode=A_kube-proxy/calibration_*.csv report/appendix/
 
 ---
 
-## Phase 7 — Mode A Full Benchmark Runs (27 runs thực tế)
+## Phase 7 — Mode A Full Benchmark Runs (15 runs thực tế)
 
 > **Script tự loop REPEAT bên trong. Chỉ truyền 1 LOAD mỗi lần gọi.**
-> Biến: `REPEAT` (số runs mỗi load), KHÔNG phải `REPEATS`.
+> **S3 chỉ chạy ở Mode B — Mode A không cần S3.**
 
 ### 7.1 S1 — Steady-state (Mode A)
 
 ```bash
-MODE=A LOAD=L1 REPEAT=3 ./scripts/run_s1.sh
-MODE=A LOAD=L2 REPEAT=3 ./scripts/run_s1.sh
-MODE=A LOAD=L3 REPEAT=3 ./scripts/run_s1.sh
+MODE=A LOAD=L1 ./scripts/run_s1.sh
+MODE=A LOAD=L2 ./scripts/run_s1.sh
+MODE=A LOAD=L3 ./scripts/run_s1.sh
 ```
 3 load × 3 repeat = **9 runs** | ~5 phút/lệnh | **Tổng ~15 phút**
 
 ### 7.2 S2 — Stress + Connection Churn (Mode A)
 
 ```bash
-MODE=A LOAD=L2 REPEAT=3 ./scripts/run_s2.sh
-MODE=A LOAD=L3 REPEAT=3 ./scripts/run_s2.sh
+MODE=A LOAD=L2 ./scripts/run_s2.sh
+MODE=A LOAD=L3 ./scripts/run_s2.sh
 ```
 2 load × 3 repeat = **6 runs** | ~7 phút/lệnh | **Tổng ~14 phút**
 
-### 7.3 S3 — NetworkPolicy Overhead (Mode A)
-
-```bash
-MODE=A LOAD=L2 REPEAT=3 ./scripts/run_s3.sh
-MODE=A LOAD=L3 REPEAT=3 ./scripts/run_s3.sh
-```
-2 load × 3 repeat × 2 phases (OFF→ON) = **12 runs** | **Tổng ~30 phút**
-
-### 7.4 Thu thập Evidence
+### 7.3 Thu thập Evidence
 
 ```bash
 ./scripts/collect_meta.sh results/mode=A_kube-proxy/
 ```
 
-### 7.5 Verify kết quả Mode A
+### 7.4 Verify kết quả Mode A
 
 ```bash
-find results/mode=A_kube-proxy -name "bench.log" | wc -l    # phải = 27
-find results/mode=A_kube-proxy/scenario=S2 -name "bench_phase1_rampup.log" | wc -l  # phải = 9
-find results/mode=A_kube-proxy/scenario=S3 -name "bench.log" | wc -l             # phải = 12
+find results/mode=A_kube-proxy -name "bench.log" | wc -l    # phải = 15
+find results/mode=A_kube-proxy/scenario=S2 -name "bench_phase1_rampup.log" | wc -l  # phải = 6
 ```
 
 ### Checklist Phase 7 ✅
 ```
-[ ] 27 runs hoàn tất (S1=9, S2=6, S3=12)
+[ ] 15 runs hoàn tất (S1=9, S2=6)
 [ ] Mỗi run có: bench.log, metadata.json, checklist.txt
 [ ] kubectl_get_all.txt, kubectl_top_nodes.txt, events.txt
 [ ] S2: 4 phase logs mỗi run (phase1→phase4)
-[ ] S3: phase=off/ + phase=on/ subdirectories
 ```
 
 ---
@@ -428,7 +498,7 @@ find results/mode=A_kube-proxy/scenario=S3 -name "bench.log" | wc -l            
 ### 8.1 Lấy EKS API endpoint
 
 ```bash
-aws eks describe-cluster --name nt531-netperf --region ap-southeast-1 \
+aws eks describe-cluster --name nt531-bm --region ap-southeast-1 \
   --query 'cluster.endpoint' --output text
 # Output: https://ABCDE...eks.amazonaws.com
 ```
@@ -459,7 +529,8 @@ kubectl rollout status ds/cilium -n kube-system -w
 ### 8.5 Restart workload pods
 
 ```bash
-kubectl delete pod -n benchmark -l app=echo -l app=fortio
+kubectl delete pod -n benchmark -l app=echo
+kubectl delete pod -n benchmark -l app=fortio
 kubectl get pods -n benchmark -w  # đợi Ready
 ```
 
@@ -493,23 +564,23 @@ kubectl exec -n benchmark deploy/fortio -- \
 ### 9.1 S1 — Steady-state (Mode B)
 
 ```bash
-MODE=B LOAD=L1 REPEAT=3 ./scripts/run_s1.sh
-MODE=B LOAD=L2 REPEAT=3 ./scripts/run_s1.sh
-MODE=B LOAD=L3 REPEAT=3 ./scripts/run_s1.sh
+MODE=B LOAD=L1 ./scripts/run_s1.sh
+MODE=B LOAD=L2 ./scripts/run_s1.sh
+MODE=B LOAD=L3 ./scripts/run_s1.sh
 ```
 
 ### 9.2 S2 — Stress + Connection Churn (Mode B)
 
 ```bash
-MODE=B LOAD=L2 REPEAT=3 ./scripts/run_s2.sh
-MODE=B LOAD=L3 REPEAT=3 ./scripts/run_s2.sh
+MODE=B LOAD=L2 ./scripts/run_s2.sh
+MODE=B LOAD=L3 ./scripts/run_s2.sh
 ```
 
 ### 9.3 S3 — NetworkPolicy Overhead (Mode B) ⭐
 
 ```bash
-MODE=B LOAD=L2 REPEAT=3 ./scripts/run_s3.sh
-MODE=B LOAD=L3 REPEAT=3 ./scripts/run_s3.sh
+MODE=B LOAD=L2 ./scripts/run_s3.sh
+MODE=B LOAD=L3 ./scripts/run_s3.sh
 ```
 
 ### 9.4 Deny case verification (bổ sung evidence cho S3)
@@ -689,7 +760,7 @@ Mỗi benchmark run tạo thư mục `results/mode=<A|B>/scenario=<S1|S2|S3>/loa
 | 4 — Cilium Mode A | [ ] Cilium Running; [ ] kubeProxyReplacement = Disabled; [ ] kube-proxy Running |
 | 5 — Workload | [ ] Echo + Fortio Running trong namespace `benchmark`; [ ] connectivity OK |
 | 6 — Calibration ⭐ | [ ] Calibration xong; [ ] L1/L2/L3 đã xác định; [ ] common.sh đã cập nhật |
-| 7 — Mode A Runs | [ ] 27 runs hoàn tất (S1=9, S2=6, S3=12); [ ] S2: 4 phase logs; [ ] S3: phase=off/ + phase=on/ |
+| 7 — Mode A Runs | [ ] 15 runs hoàn tất (S1=9, S2=6); [ ] S2: 4 phase logs |
 | 8 — Switch A→B ⚠️ | [ ] values-ebpfkpr.yaml đã điền EKS endpoint; [ ] kube-proxy đã xóa; [ ] kubeProxyReplacement = Strict; [ ] connectivity sau switch OK |
 | 9 — Mode B Runs | [ ] 27 runs hoàn tất (S1=9, S2=6, S3=12); [ ] hubble_flows.jsonl đầy đủ; [ ] deny case DROPPED verdict xác nhận |
 | 10 — Phân tích | [ ] comparison_AB.csv có p-value + Δ%; [ ] RQ1/RQ2/RQ3 trả lời được; [ ] Threats to Validity; [ ] Deny case evidence |
@@ -706,7 +777,7 @@ Mỗi benchmark run tạo thư mục `results/mode=<A|B>/scenario=<S1|S2|S3>/loa
 4. Phase 4  → Cilium Mode A (10 phút)
 5. Phase 5  → Deploy Workload (5–10 phút)
 6. Phase 6  → Calibration ★ (30–60 phút)
-7. Phase 7  → Mode A: S1(9) + S2(6) + S3(12) = 27 runs (~59 phút)
+7. Phase 7  → Mode A: S1(9) + S2(6) = 15 runs (~29 phút)
 8. Phase 8  → Switch A→B ⚠️ (15–20 phút)
 9. Phase 9  → Mode B: S1(9) + S2(6) + S3(12) = 27 runs (~59 phút) + deny case
 10. Phase 10 → Phân tích + báo cáo (1–2 ngày)
@@ -722,6 +793,9 @@ Tổng: 2–3 tuần (chủ yếu benchmark runs chạy nền)
 | Vấn đề | Giải quyết |
 |---------|-----------|
 | Terraform fail | `terraform show`; `terraform plan` để diagnose |
+| Terraform báo AccessDenied `eks:CreateCluster` | Bổ sung quyền theo mục 1.2.1 (đặc biệt `eks:CreateCluster` + `iam:PassRole`) |
+| Terraform báo AccessDenied `eks:CreateNodegroup` / `eks:DescribeAddonVersions` | Bổ sung quyền Nodegroup + Addon theo mục 1.2.1 |
+| Terraform báo AccessDenied `eks:CreateAccessEntry` | Bổ sung quyền Access Entry / Access Policy Association theo mục 1.2.1 |
 | Cilium CrashLoopBackOff | `kubectl describe pod -n kube-system -l k8s-app=cilium`; xem `events.txt` |
 | kube-proxy không xóa được | `kubectl delete --grace-period=0 ds/kube-proxy -n kube-system` |
 | Fortio → Echo timeout | `kubectl get endpoints -n benchmark`; `cilium endpoint list` |
