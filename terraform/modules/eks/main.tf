@@ -60,14 +60,14 @@ module "eks" {
   }
 
   # Cluster addons
+  # NOTE: vpc-cni is NOT included. Cilium manages CNI via its own DaemonSet.
+  # After `terraform apply` and Cilium installation, aws-node DaemonSet will be
+  # deleted to avoid CNI conflict. See runbook/docs for the step-by-step.
   cluster_addons = {
     coredns = {
       most_recent = true
     }
     kube-proxy = {
-      most_recent = true
-    }
-    vpc-cni = {
       most_recent = true
     }
   }

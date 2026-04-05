@@ -1,3 +1,12 @@
+output "vpc_cidr_block" {
+  description = "The CIDR block of the VPC"
+  value      = var.vpc_id != "" ? data.aws_vpc.selected.cidr_block : null
+}
+
+data "aws_vpc" "selected" {
+  id = var.vpc_id
+}
+
 output "cluster_name" {
   description = "Name of the EKS cluster"
   value       = module.eks.cluster_name

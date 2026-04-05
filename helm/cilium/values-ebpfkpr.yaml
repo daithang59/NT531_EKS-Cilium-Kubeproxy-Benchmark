@@ -28,9 +28,17 @@ k8sServicePort: 443
 eks:
   enabled: true
 
+# ENI mode cần native routing (không tunnel).
+# routingMode: native + ipam.mode: eni = AWS VPC CNI chaining.
+# ⚠️ KHÔNG dùng tunnel VXLAN với ENI mode — sẽ crash với lỗi
+#    "Cannot specify IPAM mode eni in tunnel mode."
+routingMode: "native"
+ipv4NativeRoutingCIDR: "10.0.0.0/8"
+
 ipam:
   mode: "eni"
 
+# Hubble cho observability — chỉ có ở Mode B
 hubble:
   enabled: true
   relay:
@@ -43,6 +51,3 @@ prometheus:
 operator:
   prometheus:
     enabled: true
-
-# image tag được quyết định bởi chart version (--version 1.18.7)
-# Không cần override image.tag trừ khi muốn build custom.

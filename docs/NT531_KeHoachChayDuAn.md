@@ -128,12 +128,10 @@ AmazonEKSServiceRolePolicy
 
 #### 1.3 Cài AWS CLI v2
 
-```powershell
-# Windows (PowerShell, Administrator):
-msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2.msi
-
-# Hoặc winget:
-winget install Amazon.AWSCLI --accept-package-agreements --accept-source-agreements
+```bash
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
+unzip awscliv2.zip
+sudo ./awsinstall
 ```
 
 #### 1.4 Configure AWS CLI
@@ -154,8 +152,7 @@ aws sts get-caller-identity
 
 ```bash
 aws service-quotas get-service-quota --service-code eks --quota-code L-A2AFCT9C6 --region ap-southeast-1
-aws ec2 describe-instance-type-offerings --region ap-southeast-1 \
-  --filters Name=instance-type,Values=m5.large
+aws ec2 describe-instance-type-offerings --region ap-southeast-1 --filters Name=instance-type,Values=m5.large
 ```
 
 #### 1.6 Cài tools còn lại
@@ -192,17 +189,13 @@ Kiểm tra `terraform/envs/dev/terraform.tfvars` khớp mục 3.1.
 #### 2.2 Init, Validate, Format
 
 ```bash
-cd terraform
-terraform init
-terraform validate
-make fmt
+cd terraform && terraform init && terraform validate && make fmt
 ```
 
 #### 2.3 Plan & Apply
 
 ```bash
-terraform plan -var-file="envs/dev/terraform.tfvars" -out=tfplan
-terraform apply tfplan
+cd terraform && terraform plan -var-file="envs/dev/terraform.tfvars" -out=tfplan && terraform apply tfplan
 ```
 
 ⏱ Thời gian: **15–25 phút.** Không interrupt trong quá trình apply.
@@ -210,8 +203,7 @@ terraform apply tfplan
 #### 2.4 Cập nhật kubectl context
 
 ```bash
-aws eks update-kubeconfig --name nt531-bm --region ap-southeast-1
-kubectl get nodes
+aws eks update-kubeconfig --name nt531-bm --region ap-southeast-1 && kubectl get nodes
 # Kỳ vọng: 3 node Ready
 ```
 
@@ -228,24 +220,24 @@ kubectl get nodes
 ### Phase 3 — Monitoring: Prometheus + Grafana (10–15 phút)
 
 ```bash
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo add cilium https://helm.cilium.io
-helm repo update
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts && \
+helm repo add cilium https://helm.cilium.io && \
+helm repo update && \
+kubectl create ns monitoring && \
+helm upgrade --install prometheus prometheus-community/kube-prometheus-stack -n monitoring --version 60.0.0 -f helm/monitoring/values.yaml
+```
 
-kubectl create ns monitoring
-helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
-  -n monitoring --version 60.0.0 \
-  -f helm/monitoring/values.yaml
-
-# Chờ ~3–5 phút
+```bash
 kubectl get pods -n monitoring -w
+# Chờ ~3–5 phút cho pods Running
+```
 
-# Port-forward Grafana:
-kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80
+```bash
+# Port-forward Grafana (chạy nền):
+kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80 &
 
-# Password:
-kubectl get secret -n monitoring prometheus-grafana \
-  -o jsonpath='{.data.admin-password}' | base64 -d
+# Lấy password:
+kubectl get secret -n monitoring prometheus-grafana -o jsonpath='{.data.admin-password}' | base64 -d
 # Username: admin
 ```
 
@@ -263,20 +255,13 @@ Truy cập http://localhost:3000
 ### Phase 4 — Cilium Mode A: kube-proxy Baseline (10 phút)
 
 ```bash
-helm upgrade --install cilium cilium/cilium \
-  -n kube-system --version 1.18.7 \
-  -f helm/cilium/values-baseline.yaml \
-  --wait
-
-kubectl rollout status ds/cilium -n kube-system -w
-
-# Xác minh:
-kubectl exec -n kube-system ds/cilium -- cilium status
-# Kỳ vọng: KubeProxyReplacement = Disabled, Kube-proxy = Enabled
-
+helm upgrade --install cilium cilium/cilium -n kube-system --version 1.18.7 -f helm/cilium/values-baseline.yaml --wait && \
+kubectl rollout status ds/cilium -n kube-system -w && \
+kubectl exec -n kube-system ds/cilium -- cilium status && \
 kubectl get ds -n kube-system kube-proxy
-# Kỳ vọng: kube-proxy DaemonSet vẫn Running
 ```
+
+> Kỳ vọng: `KubeProxyReplacement = Disabled`, `Kube-proxy = Enabled`, kube-proxy DaemonSet vẫn Running.
 
 #### ✅ Checklist Phase 4
 
@@ -291,16 +276,14 @@ kubectl get ds -n kube-system kube-proxy
 ### Phase 5 — Deploy Workload (5–10 phút)
 
 ```bash
-kubectl apply -f workload/server/
-kubectl apply -f workload/client/
+kubectl apply -f workload/server/ && kubectl apply -f workload/client/ && \
 kubectl get pods -n benchmark -w
 # Đợi: echo Running, fortio Running
+```
 
-# Kiểm tra kết nối:
-kubectl exec -n benchmark deploy/fortio -- \
-  fortio curl http://echo.benchmark.svc.cluster.local:80/echo
+```bash
+kubectl exec -n benchmark deploy/fortio -- fortio curl http://echo.benchmark.svc.cluster.local:80/echo
 # Kỳ vọng: "ok"
-
 kubectl get svc,endpoints -n benchmark
 ```
 
@@ -351,8 +334,8 @@ L3_QPS=<giá trị>; L3_CONNS=<giá trị>
 #### Lưu Calibration Report
 
 ```bash
-mkdir -p report/appendix
-cp results/calibration/mode=A_kube-proxy/calibration_*.txt report/appendix/
+mkdir -p report/appendix && \
+cp results/calibration/mode=A_kube-proxy/calibration_*.txt report/appendix/ && \
 cp results/calibration/mode=A_kube-proxy/calibration_*.csv report/appendix/
 ```
 
@@ -376,15 +359,15 @@ cp results/calibration/mode=A_kube-proxy/calibration_*.csv report/appendix/
 #### 7.1 S1 — Steady-state
 
 ```bash
-MODE=A LOAD=L1 ./scripts/run_s1.sh  # 3 runs × ~5 phút
-MODE=A LOAD=L2 ./scripts/run_s1.sh
+MODE=A LOAD=L1 ./scripts/run_s1.sh && \
+MODE=A LOAD=L2 ./scripts/run_s1.sh && \
 MODE=A LOAD=L3 ./scripts/run_s1.sh
 ```
 
 #### 7.2 S2 — Stress + Connection Churn
 
 ```bash
-MODE=A LOAD=L2 ./scripts/run_s2.sh  # 3 runs × ~7 phút
+MODE=A LOAD=L2 ./scripts/run_s2.sh && \
 MODE=A LOAD=L3 ./scripts/run_s2.sh
 ```
 
@@ -397,11 +380,8 @@ MODE=A LOAD=L3 ./scripts/run_s2.sh
 #### 7.4 Verify kết quả
 
 ```bash
-find results/mode=A_kube-proxy -name "bench.log" | wc -l
-# phải = 15
-
-find results/mode=A_kube-proxy/scenario=S2 -name "bench_phase1_rampup.log" | wc -l
-# phải = 6
+find results/mode=A_kube-proxy -name "bench.log" | wc -l    # phải = 15
+find results/mode=A_kube-proxy/scenario=S2 -name "bench_phase1_rampup.log" | wc -l  # phải = 6
 ```
 
 #### ✅ Checklist Phase 7
@@ -422,8 +402,7 @@ find results/mode=A_kube-proxy/scenario=S2 -name "bench_phase1_rampup.log" | wc 
 #### 8.1 Lấy EKS API endpoint
 
 ```bash
-aws eks describe-cluster --name nt531-bm --region ap-southeast-1 \
-  --query 'cluster.endpoint' --output text
+aws eks describe-cluster --name nt531-bm --region ap-southeast-1 --query cluster.endpoint --output text
 # Output: https://ABCDE...eks.amazonaws.com
 ```
 
@@ -437,40 +416,32 @@ k8sServiceHost: "ABCDE1234567890ABCD1234567890.sk1.ap-southeast-1.eks.amazonaws.
 #### 8.3 XÓA kube-proxy (BẮT BUỘC trước bước 8.4)
 
 ```bash
-kubectl delete ds kube-proxy -n kube-system
-sleep 30  # đợi Cilium eBPF takeover
+kubectl delete ds kube-proxy -n kube-system && sleep 30
 ```
 
 #### 8.4 Upgrade Cilium Mode B
 
 ```bash
-helm upgrade cilium cilium/cilium -n kube-system --version 1.18.7 \
-  -f helm/cilium/values-ebpfkpr.yaml --wait
-
+helm upgrade cilium cilium/cilium -n kube-system --version 1.18.7 -f helm/cilium/values-ebpfkpr.yaml --wait && \
 kubectl rollout status ds/cilium -n kube-system -w
 ```
 
 #### 8.5 Restart workload pods
 
 ```bash
-kubectl delete pod -n benchmark -l app=echo
-kubectl delete pod -n benchmark -l app=fortio
-kubectl get pods -n benchmark -w  # đợi Ready
+kubectl delete pod -n benchmark -l app=echo && kubectl delete pod -n benchmark -l app=fortio && \
+kubectl get pods -n benchmark -w
 ```
 
 #### 8.6 Xác minh Mode B
 
 ```bash
-kubectl exec -n kube-system ds/cilium -- cilium status
-# Kỳ vọng: KubeProxyReplacement = Strict, Kube-proxy = Disabled
-
-kubectl exec -n kube-system ds/cilium -- cilium hubble status
-# Kỳ vọng: Relay = Enabled
-
-kubectl exec -n benchmark deploy/fortio -- \
-  fortio curl http://echo.benchmark.svc.cluster.local:80/echo
-# Phải trả về "ok"
+kubectl exec -n kube-system ds/cilium -- cilium status && \
+kubectl exec -n kube-system ds/cilium -- cilium hubble status && \
+kubectl exec -n benchmark deploy/fortio -- fortio curl http://echo.benchmark.svc.cluster.local:80/echo
 ```
+
+> Kỳ vọng: `KubeProxyReplacement = Strict`, `Kube-proxy = Disabled`, Hubble Relay Enabled, connectivity trả về "ok".
 
 #### ✅ Checklist Phase 8
 
@@ -489,64 +460,56 @@ kubectl exec -n benchmark deploy/fortio -- \
 #### 9.1 S1 — Steady-state
 
 ```bash
-MODE=B LOAD=L1 ./scripts/run_s1.sh  # 9 runs
-MODE=B LOAD=L2 ./scripts/run_s1.sh
+MODE=B LOAD=L1 ./scripts/run_s1.sh && \
+MODE=B LOAD=L2 ./scripts/run_s1.sh && \
 MODE=B LOAD=L3 ./scripts/run_s1.sh
 ```
 
 #### 9.2 S2 — Stress + Connection Churn
 
 ```bash
-MODE=B LOAD=L2 ./scripts/run_s2.sh  # 6 runs
+MODE=B LOAD=L2 ./scripts/run_s2.sh && \
 MODE=B LOAD=L3 ./scripts/run_s2.sh
 ```
 
 #### 9.3 S3 — NetworkPolicy Overhead ⭐
 
 ```bash
-MODE=B LOAD=L2 ./scripts/run_s3.sh  # 6 runs (OFF + ON)
-MODE=B LOAD=L3 ./scripts/run_s3.sh  # 6 runs (OFF + ON)
+MODE=B LOAD=L2 ./scripts/run_s3.sh && \
+MODE=B LOAD=L3 ./scripts/run_s3.sh
 ```
 
 #### 9.4 Deny case verification (evidence cho S3)
 
-> S3 phải chứng minh được deny/drop — bổ sung evidence bằng Hubble flows.
-
 ```bash
-# Bước 1: Deploy attacker pod (không có app=fortio label → default-deny chặn)
 kubectl run attacker --image=curlimages/curl -n benchmark --rm -it -- sh
 # Trong attacker pod:
 curl --connect-timeout 5 http://echo.benchmark.svc.cluster.local:80/echo
-# Kỳ vọng: FAIL/TIMEOUT
-
-# Bước 2: Thu Hubble flows xác nhận DROPPED verdict
-kubectl exec -n kube-system ds/cilium -- \
-  cilium hubble observe --namespace benchmark --last 2000 -o jsonpb \
-  > results/mode=B_cilium-ebpfkpr/scenario=S3/deny_case_hubble.log
-
-# Bước 3–4: Verify
-grep -c "DROPPED" results/mode=B_cilium-ebpfkpr/scenario=S3/deny_case_hubble.log  # > 0
-grep -c "FORWARDED" results/mode=B_cilium-ebpfkpr/scenario=S3/deny_case_hubble.log  # > 0
+# Kỳ vọng: FAIL/TIMEOUT (attacker không match policy allow)
+# Thoát attacker pod: exit
 ```
+
+```bash
+kubectl exec -n kube-system ds/cilium -- cilium hubble observe --namespace benchmark --last 2000 -o jsonpb > results/mode=B_cilium-ebpfkpr/scenario=S3/deny_case_hubble.log
+grep -c "DROPPED" results/mode=B_cilium-ebpfkpr/scenario=S3/deny_case_hubble.log
+grep -c "FORWARDED" results/mode=B_cilium-ebpfkpr/scenario=S3/deny_case_hubble.log
+```
+
+> Kỳ vọng: DROPPED > 0 (enforcement hoạt động), FORWARDED > 0 (legit traffic vẫn đi).
 
 #### 9.5 Thu thập Evidence Mode B
 
 ```bash
-./scripts/collect_meta.sh results/mode=B_cilium-ebpfkpr/
+./scripts/collect_meta.sh results/mode=B_cilium-ebpfkpr/ && \
 ./scripts/collect_hubble.sh results/mode=B_cilium-ebpfkpr/
 ```
 
 #### 9.6 Verify kết quả
 
 ```bash
-find results/mode=B_cilium-ebpfkpr -name "bench.log" | wc -l
-# phải = 27
-
-find results/mode=B_cilium-ebpfkpr/scenario=S3 -name "hubble_flows.jsonl" | wc -l
-# phải = 12
-
-find results/mode=B_cilium-ebpfkpr/scenario=S3 -name "deny_case_hubble.log" | wc -l
-# phải >= 1
+find results/mode=B_cilium-ebpfkpr -name "bench.log" | wc -l           # phải = 27
+find results/mode=B_cilium-ebpfkpr/scenario=S3 -name "hubble_flows.jsonl" | wc -l  # phải = 12
+find results/mode=B_cilium-ebpfkpr/scenario=S3 -name "deny_case_hubble.log" | wc -l  # phải >= 1
 ```
 
 #### ✅ Checklist Phase 9
@@ -622,15 +585,21 @@ docs/appendix/
 
 ### Phase 11 — Dọn dẹp Hạ tầng (5–10 phút)
 
+#### 11.1 Backup kết quả
+
 ```bash
-# Backup kết quả trước
 cp -r results/ ~/backup-nt531-results-$(date +%Y%m%d)/
+```
 
-# Destroy
-cd terraform
-terraform destroy -var-file="envs/dev/terraform.tfvars"
+#### 11.2 Destroy EKS cluster
 
-# Verify
+```bash
+cd terraform && terraform destroy -var-file="envs/dev/terraform.tfvars"
+```
+
+#### 11.3 Verify
+
+```bash
 aws eks list-clusters --region ap-southeast-1
 # { "clusters": [] }
 ```
