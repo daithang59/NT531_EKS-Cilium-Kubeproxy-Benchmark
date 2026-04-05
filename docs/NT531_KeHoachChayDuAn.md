@@ -27,14 +27,14 @@
 | Scenario | Loads | Repeats | Runs/thí nghiệm | Ghi chú |
 |----------|-------|---------|-----------------|---------|
 | S1 | L1, L2, L3 | 3 | **9 runs** | steady-state |
-| S2 | L1, L2, L3 | 3 | **9 runs** | stress + churn (4 phases) |
+| S2 | L2, L3 | 3 | **6 runs** | stress + churn (4 phases), bỏ L1 vì L1 × S2 QPS quá thấp không stress được conntrack |
 | S3 | L2, L3 | 3 × 2 phases | **12 runs** | policy OFF + ON |
 
 - **S1**: 3 load × 3 repeat = **9 runs** per mode
-- **S2**: 3 load × 3 repeat = **9 runs** per mode
+- **S2**: 2 load × 3 repeat = **6 runs** per mode (L1 bỏ: burst QPS 150 vẫn quá thấp, không đủ để phơi bày khác biệt iptables vs eBPF)
 - **S3**: 2 load × 3 repeat × 2 phases = **12 runs** per mode
-- **Tổng mỗi mode**: 9 + 9 + 12 = **30 runs thực tế**
-- **Tổng cả 2 modes**: **60 runs thực tế**
+- **Tổng mỗi mode**: 9 + 6 + 12 = **27 runs thực tế**
+- **Tổng cả 2 modes**: **54 runs thực tế**
 
 ---
 
@@ -366,7 +366,7 @@ cp results/calibration/mode=A_kube-proxy/calibration_*.csv report/appendix/
 
 ---
 
-## Phase 7 — Mode A Full Benchmark Runs (30 runs thực tế)
+## Phase 7 — Mode A Full Benchmark Runs (27 runs thực tế)
 
 > **Script tự loop REPEAT bên trong. Chỉ truyền 1 LOAD mỗi lần gọi.**
 > Biến: `REPEAT` (số runs mỗi load), KHÔNG phải `REPEATS`.
@@ -383,11 +383,10 @@ MODE=A LOAD=L3 REPEAT=3 ./scripts/run_s1.sh
 ### 7.2 S2 — Stress + Connection Churn (Mode A)
 
 ```bash
-MODE=A LOAD=L1 REPEAT=3 ./scripts/run_s2.sh
 MODE=A LOAD=L2 REPEAT=3 ./scripts/run_s2.sh
 MODE=A LOAD=L3 REPEAT=3 ./scripts/run_s2.sh
 ```
-3 load × 3 repeat = **9 runs** | ~7 phút/lệnh | **Tổng ~21 phút**
+2 load × 3 repeat = **6 runs** | ~7 phút/lệnh | **Tổng ~14 phút**
 
 ### 7.3 S3 — NetworkPolicy Overhead (Mode A)
 
@@ -406,14 +405,14 @@ MODE=A LOAD=L3 REPEAT=3 ./scripts/run_s3.sh
 ### 7.5 Verify kết quả Mode A
 
 ```bash
-find results/mode=A_kube-proxy -name "bench.log" | wc -l    # phải = 30
+find results/mode=A_kube-proxy -name "bench.log" | wc -l    # phải = 27
 find results/mode=A_kube-proxy/scenario=S2 -name "bench_phase1_rampup.log" | wc -l  # phải = 9
 find results/mode=A_kube-proxy/scenario=S3 -name "bench.log" | wc -l             # phải = 12
 ```
 
 ### Checklist Phase 7 ✅
 ```
-[ ] 30 runs hoàn tất (S1=9, S2=9, S3=12)
+[ ] 27 runs hoàn tất (S1=9, S2=6, S3=12)
 [ ] Mỗi run có: bench.log, metadata.json, checklist.txt
 [ ] kubectl_get_all.txt, kubectl_top_nodes.txt, events.txt
 [ ] S2: 4 phase logs mỗi run (phase1→phase4)
@@ -489,7 +488,7 @@ kubectl exec -n benchmark deploy/fortio -- \
 
 ---
 
-## Phase 9 — Mode B Full Benchmark Runs (30 runs thực tế)
+## Phase 9 — Mode B Full Benchmark Runs (27 runs thực tế)
 
 ### 9.1 S1 — Steady-state (Mode B)
 
@@ -502,7 +501,6 @@ MODE=B LOAD=L3 REPEAT=3 ./scripts/run_s1.sh
 ### 9.2 S2 — Stress + Connection Churn (Mode B)
 
 ```bash
-MODE=B LOAD=L1 REPEAT=3 ./scripts/run_s2.sh
 MODE=B LOAD=L2 REPEAT=3 ./scripts/run_s2.sh
 MODE=B LOAD=L3 REPEAT=3 ./scripts/run_s2.sh
 ```
@@ -551,14 +549,14 @@ grep -c "FORWARDED" results/mode=B_cilium-ebpfkpr/scenario=S3/deny_case_hubble.l
 ### 9.6 Verify kết quả Mode B
 
 ```bash
-find results/mode=B_cilium-ebpfkpr -name "bench.log" | wc -l        # phải = 30
+find results/mode=B_cilium-ebpfkpr -name "bench.log" | wc -l        # phải = 27
 find results/mode=B_cilium-ebpfkpr/scenario=S3 -name "hubble_flows.jsonl" | wc -l  # phải = 12
 find results/mode=B_cilium-ebpfkpr/scenario=S3 -name "deny_case_hubble.log" | wc -l  # phải >= 1
 ```
 
 ### Checklist Phase 9 ✅
 ```
-[ ] 30 runs Mode B hoàn tất (S1=9, S2=9, S3=12)
+[ ] 27 runs Mode B hoàn tất (S1=9, S2=6, S3=12)
 [ ] hubble_flows.jsonl đầy đủ (12 files S3)
 [ ] Deny case: attacker pod bị DROP, hubble log có DROPPED verdict
 [ ] Deny case: fortio→echo vẫn FORWARDED (không false-positive)
@@ -691,9 +689,9 @@ Mỗi benchmark run tạo thư mục `results/mode=<A|B>/scenario=<S1|S2|S3>/loa
 | 4 — Cilium Mode A | [ ] Cilium Running; [ ] kubeProxyReplacement = Disabled; [ ] kube-proxy Running |
 | 5 — Workload | [ ] Echo + Fortio Running trong namespace `benchmark`; [ ] connectivity OK |
 | 6 — Calibration ⭐ | [ ] Calibration xong; [ ] L1/L2/L3 đã xác định; [ ] common.sh đã cập nhật |
-| 7 — Mode A Runs | [ ] 30 runs hoàn tất; [ ] S2: 4 phase logs; [ ] S3: phase=off/ + phase=on/ |
+| 7 — Mode A Runs | [ ] 27 runs hoàn tất (S1=9, S2=6, S3=12); [ ] S2: 4 phase logs; [ ] S3: phase=off/ + phase=on/ |
 | 8 — Switch A→B ⚠️ | [ ] values-ebpfkpr.yaml đã điền EKS endpoint; [ ] kube-proxy đã xóa; [ ] kubeProxyReplacement = Strict; [ ] connectivity sau switch OK |
-| 9 — Mode B Runs | [ ] 30 runs hoàn tất; [ ] hubble_flows.jsonl đầy đủ; [ ] deny case DROPPED verdict xác nhận |
+| 9 — Mode B Runs | [ ] 27 runs hoàn tất (S1=9, S2=6, S3=12); [ ] hubble_flows.jsonl đầy đủ; [ ] deny case DROPPED verdict xác nhận |
 | 10 — Phân tích | [ ] comparison_AB.csv có p-value + Δ%; [ ] RQ1/RQ2/RQ3 trả lời được; [ ] Threats to Validity; [ ] Deny case evidence |
 | 11 — Cleanup | [ ] Kết quả backup; [ ] terraform destroy thành công |
 
@@ -708,9 +706,9 @@ Mỗi benchmark run tạo thư mục `results/mode=<A|B>/scenario=<S1|S2|S3>/loa
 4. Phase 4  → Cilium Mode A (10 phút)
 5. Phase 5  → Deploy Workload (5–10 phút)
 6. Phase 6  → Calibration ★ (30–60 phút)
-7. Phase 7  → Mode A: S1(9) + S2(9) + S3(12) = 30 runs (~66 phút)
+7. Phase 7  → Mode A: S1(9) + S2(6) + S3(12) = 27 runs (~59 phút)
 8. Phase 8  → Switch A→B ⚠️ (15–20 phút)
-9. Phase 9  → Mode B: S1(9) + S2(9) + S3(12) = 30 runs (~66 phút) + deny case
+9. Phase 9  → Mode B: S1(9) + S2(6) + S3(12) = 27 runs (~59 phút) + deny case
 10. Phase 10 → Phân tích + báo cáo (1–2 ngày)
 11. Phase 11 → Dọn dẹp (5–10 phút)
 ─────────────────────────────────────────
