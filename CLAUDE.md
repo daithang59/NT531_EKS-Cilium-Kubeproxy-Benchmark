@@ -21,11 +21,28 @@ Workload chính: Fortio (load generator) → HTTP echo server qua ClusterIP Serv
 kubectl apply -f workload/server/
 kubectl apply -f workload/client/
 
-# 2) Chạy calibration sweep trên Mode A
+# 2) Load config và chạy calibration sweep trên Mode A
+cp .env.example .env
+set -a && source .env && set +a
 MODE=A REPEAT=2 ./scripts/calibrate.sh
 
 # 3) Xem kết quả → cập nhật L1_QPS/L2_QPS/L3_QPS trong common.sh
 # 4) Lưu report vào report/appendix/
+```
+
+### Chạy Benchmark (dùng .env)
+
+```bash
+# Copy template → .env, điền giá trị
+cp .env.example .env
+
+# Load config (interactive menu):
+source config/load-env.sh
+
+# Hoặc chạy trực tiếp:
+MODE=A LOAD=L1 REPEAT=3 ./scripts/run_s1.sh
+
+# Load config xong thì script tự đọc MODE/LOAD/REPEAT từ env
 ```
 
 ### Phân tích thống kê (sau khi có kết quả)

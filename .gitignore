@@ -9,6 +9,9 @@ kubeconfig*
 *.pem
 *.key
 
+# benchmark config — NEVER commit real credentials
+.env
+
 # terraform
 terraform/.terraform/
 terraform/*.tfstate*

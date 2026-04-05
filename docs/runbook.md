@@ -24,6 +24,26 @@
 - `bc` (cho calibrate.sh)
 - (Mode B) `hubble` CLI (optional — script sẽ fallback qua cilium pod exec)
 
+### 1.3 Benchmark Environment Config
+
+Benchmark sử dụng `.env` để quản lý biến môi trường. Cách dùng:
+
+```bash
+# 1) Copy template → tạo .env thực
+cp .env.example .env
+
+# 2) Load config (biến MODE, LOAD, REPEAT được export)
+set -a && source .env && set +a
+
+# 3) Hoặc dùng interactive menu:
+source config/load-env.sh
+
+# 4) Hoặc truyền trực tiếp khi chạy:
+MODE=B LOAD=L2 REPEAT=3 ./scripts/run_s1.sh
+```
+
+> **Lưu ý**: `.env` được gitignore. Không commit credentials/config thực.
+
 ---
 
 ## 1bis. Calibration (bắt buộc chạy TRƯỚC bước 2)
@@ -193,6 +213,10 @@ kubectl -n benchmark delete -f workload/policies/ --ignore-not-found=true
 
 ### 4.2 Scenario S1 — Service Baseline
 ```bash
+# Load .env config trước, rồi chạy:
+cp .env.example .env
+set -a && source .env && set +a
+
 MODE=A LOAD=L1 REPEAT=3 ./scripts/run_s1.sh
 MODE=A LOAD=L2 REPEAT=3 ./scripts/run_s1.sh
 MODE=A LOAD=L3 REPEAT=3 ./scripts/run_s1.sh
