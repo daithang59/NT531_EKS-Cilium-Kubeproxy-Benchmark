@@ -294,12 +294,30 @@ kubectl exec -n benchmark deploy/fortio -- fortio curl http://echo.benchmark.svc
 kubectl get svc,endpoints -n benchmark
 ```
 
+```bash
+# DNS contract check (nên pass trước benchmark)
+kubectl get svc -n kube-system kube-dns -o wide
+kubectl get endpoints -n kube-system kube-dns -o wide
+# Kỳ vọng: kube-dns có 53/UDP + 53/TCP và có endpoints
+```
+
+Nếu có lỗi kiểu `lookup ... on 172.20.0.10:53: i/o timeout`, reconcile CoreDNS addon:
+
+```bash
+CLUSTER_NAME=$(kubectl config current-context | sed 's|.*/||')
+aws eks update-addon --cluster-name "${CLUSTER_NAME}" --region ap-southeast-1 \
+    --addon-name coredns --resolve-conflicts OVERWRITE
+aws eks wait addon-active --cluster-name "${CLUSTER_NAME}" --region ap-southeast-1 \
+    --addon-name coredns
+```
+
 #### ✅ Checklist Phase 5
 
 ```
 [ ] echo + fortio pods Running trong namespace benchmark
 [ ] fortio → echo connectivity OK
 [ ] Service ClusterIP tồn tại, endpoint được populate
+[ ] kube-dns service có 53/UDP + 53/TCP và có endpoints
 ```
 
 ---
@@ -691,7 +709,7 @@ Tổng:   2–3 tuần (chủ yếu benchmark chạy nền)
 | Terraform báo `AccessDenied` `eks:CreateAccessEntry` | Bổ sung quyền Access Entry / Access Policy Association theo `docs/appendix/iam-policy-eks.md` |
 | Cilium CrashLoopBackOff | `kubectl describe pod -n kube-system -l k8s-app=cilium`; xem `events.txt` |
 | kube-proxy không xóa được | `kubectl delete --grace-period=0 ds/kube-proxy -n kube-system` |
-| Fortio → Echo timeout | `kubectl get endpoints -n benchmark`; `cilium endpoint list` |
+| Fortio → Echo timeout | `kubectl get endpoints -n benchmark`; `kubectl get svc,endpoints -n kube-system kube-dns`; reconcile CoreDNS addon (`aws eks update-addon ... --resolve-conflicts OVERWRITE`) |
 | Hubble flows empty | `cilium hubble observe` sau khi chạy S3; enable port 4245 |
 | Deny case không thấy DROPPED | Attacker pod không có `app=fortio` label; tăng `--last` |
 | Calibrate.sh Python lỗi | `python3 --version` >= 3.8; kiểm tra inline script syntax |

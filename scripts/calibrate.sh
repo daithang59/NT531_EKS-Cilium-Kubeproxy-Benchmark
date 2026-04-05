@@ -64,6 +64,50 @@ fortio_pod() {
   kubectl -n "${NS}" get pod -l app=fortio -o jsonpath='{.items[0].metadata.name}'
 }
 
+# check_cluster_dns
+# Validates kube-dns service contract and DNS resolution from fortio pod.
+check_cluster_dns() {
+  echo -n "[CHECK] kube-dns Service contract... "
+
+  local dns_ip dns_ports dns_eps ep_count
+  dns_ip="$(kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)"
+  dns_ports="$(kubectl -n kube-system get svc kube-dns -o jsonpath='{range .spec.ports[*]}{.port}{"/"}{.protocol}{"\n"}{end}' 2>/dev/null || true)"
+  dns_eps="$(kubectl -n kube-system get endpoints kube-dns -o jsonpath='{range .subsets[*].addresses[*]}{.ip}{"\n"}{end}' 2>/dev/null || true)"
+
+  if [[ -z "${dns_ip}" ]]; then
+    echo "FAIL" >&2
+    echo "[FATAL] kube-dns service not found in kube-system." >&2
+    exit 1
+  fi
+
+  if ! printf '%s\n' "${dns_ports}" | grep -q '^53/UDP$' || ! printf '%s\n' "${dns_ports}" | grep -q '^53/TCP$'; then
+    echo "FAIL" >&2
+    echo "[FATAL] kube-dns must expose both 53/UDP and 53/TCP. Current ports:" >&2
+    printf '%s\n' "${dns_ports}" >&2
+    exit 1
+  fi
+
+  ep_count="$(printf '%s\n' "${dns_eps}" | sed '/^$/d' | wc -l | tr -d ' ')"
+  if [[ "${ep_count}" -eq 0 ]]; then
+    echo "FAIL" >&2
+    echo "[FATAL] kube-dns has no ready endpoints." >&2
+    exit 1
+  fi
+
+  echo "OK (clusterIP=${dns_ip}, endpoints=${ep_count})"
+
+  echo -n "[CHECK] DNS resolution from fortio pod... "
+  local pod
+  pod="$(fortio_pod)"
+  if ! kubectl -n "${NS}" exec "${pod}" -- \
+    fortio curl -timeout 5s "http://echo.${NS}.svc.cluster.local:80/echo" >/dev/null 2>&1; then
+    echo "FAIL" >&2
+    echo "[FATAL] DNS/Service probe failed from fortio pod." >&2
+    exit 1
+  fi
+  echo "OK"
+}
+
 # parse_fortio_latency <bench_log>
 # Extracts latency percentiles from Fortio stdout.
 # Fortio prints:  "Max latency ..." then "p50 ...", "p75 ...", "p90 ...", "p99 ..." lines.
@@ -185,6 +229,16 @@ preflight() {
   fi
   echo "OK"
 
+  echo -n "[CHECK] Nodes Ready... "
+  local not_ready
+  not_ready=$(kubectl get nodes --no-headers | grep -v ' Ready' | wc -l)
+  if [[ "${not_ready}" -gt 0 ]]; then
+    echo "FAIL (${not_ready} node(s) not Ready)" >&2
+    kubectl get nodes >&2
+    exit 1
+  fi
+  echo "OK"
+
   echo -n "[CHECK] echo pod Running... "
   if ! kubectl -n "${NS}" get pod -l app=echo -o jsonpath='{.items[0].status.phase}' 2>/dev/null | grep -q Running; then
     echo "FAIL" >&2
@@ -198,6 +252,8 @@ preflight() {
     exit 1
   fi
   echo "OK"
+
+  check_cluster_dns
 
   echo ""
   echo "Calibration config:"

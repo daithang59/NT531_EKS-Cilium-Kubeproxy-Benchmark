@@ -131,6 +131,25 @@ kubectl -n benchmark exec "${FORTIO_POD}" -- \
   fortio load -qps 10 -c 1 -t 5s http://echo.benchmark.svc.cluster.local/
 ```
 
+### 2.5 Verify DNS contract (fail-fast trước benchmark)
+
+```bash
+kubectl get svc -n kube-system kube-dns -o wide
+kubectl get endpoints -n kube-system kube-dns -o wide
+kubectl -n benchmark exec "${FORTIO_POD}" -- \
+  fortio curl http://echo.benchmark.svc.cluster.local:80/echo
+```
+
+Nếu pod resolve DNS bị timeout (ví dụ `lookup ... on 172.20.0.10:53: i/o timeout`), reconcile CoreDNS addon:
+
+```bash
+CLUSTER_NAME=$(kubectl config current-context | sed 's|.*/||')
+aws eks update-addon --cluster-name "${CLUSTER_NAME}" --region ap-southeast-1 \
+  --addon-name coredns --resolve-conflicts OVERWRITE
+aws eks wait addon-active --cluster-name "${CLUSTER_NAME}" --region ap-southeast-1 \
+  --addon-name coredns
+```
+
 ---
 
 ## 3. Chọn Mode (A hoặc B)

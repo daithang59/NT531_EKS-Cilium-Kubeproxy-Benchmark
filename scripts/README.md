@@ -60,7 +60,19 @@ Trước khi chạy, scripts tự động kiểm tra:
 1. `kubectl` context hoạt động
 2. Tất cả nodes `Ready`
 3. Pod `echo` và `fortio` đang `Running` trong namespace
-4. (Mode B) `cilium status` khả dụng
+4. `kube-dns` Service contract hợp lệ (`53/UDP`, `53/TCP`, có endpoints)
+5. DNS probe từ pod `fortio` tới `echo.benchmark.svc.cluster.local` thành công
+6. (Mode B) `cilium status` khả dụng
+
+Nếu DNS check fail, reconcile CoreDNS addon trước khi chạy lại benchmark:
+
+```bash
+CLUSTER_NAME=$(kubectl config current-context | sed 's|.*/||')
+aws eks update-addon --cluster-name "$CLUSTER_NAME" --region ap-southeast-1 \
+  --addon-name coredns --resolve-conflicts OVERWRITE
+aws eks wait addon-active --cluster-name "$CLUSTER_NAME" --region ap-southeast-1 \
+  --addon-name coredns
+```
 
 ### Output (theo Results Contract)
 
