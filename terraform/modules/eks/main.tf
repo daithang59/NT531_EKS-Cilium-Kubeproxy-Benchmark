@@ -32,6 +32,10 @@ module "eks" {
   # Allow the IAM principal that creates the cluster to administer it via kubectl.
   enable_cluster_creator_admin_permissions = true
 
+  # Disable automatic VPC CNI management — Cilium manages CNI via its own DaemonSet.
+  # Without this, the module installs aws-node DaemonSet regardless of cluster_addons.
+  manage_vpc_cni = false
+
   # Managed Node Group
   eks_managed_node_groups = {
     benchmark = {
@@ -59,10 +63,8 @@ module "eks" {
     }
   }
 
-  # Cluster addons
-  # NOTE: vpc-cni is NOT included. Cilium manages CNI via its own DaemonSet.
-  # After `terraform apply` and Cilium installation, aws-node DaemonSet will be
-  # deleted to avoid CNI conflict. See runbook/docs for the step-by-step.
+  # Cluster addons — vpc-cni is NOT installed (manage_vpc_cni = false above).
+  # Cilium manages CNI via its own DaemonSet.
   cluster_addons = {
     coredns = {
       most_recent = true

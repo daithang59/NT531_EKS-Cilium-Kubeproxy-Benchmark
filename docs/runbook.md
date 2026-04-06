@@ -156,7 +156,7 @@ aws eks wait addon-active --cluster-name "${CLUSTER_NAME}" --region ap-southeast
 
 ### Mode A — kube-proxy baseline
 
-> ⚠️ **Yêu cầu trước khi cài:** EKS Terraform phải KHÔNG có `vpc-cni` trong `cluster_addons`. Nếu không — Cilium sẽ crash với lỗi `"Cannot specify IPAM mode eni in tunnel mode"` hoặc `"required IPv4 PodCIDR not available"`.
+> ⚠️ **Yêu cầu trước khi cài:** Terraform module EKS đã set `manage_vpc_cni = false` nên aws-node sẽ **không được cài tự động**. Nếu dùng cluster cũ (chưa có fix này) — xóa aws-node trước: `kubectl delete ds aws-node -n kube-system`. Không xóa → Cilium sẽ crash với lỗi `"Cannot specify IPAM mode eni in tunnel mode"` hoặc `"required IPv4 PodCIDR not available"`.
 
 ```bash
 # Tạo namespace cần thiết:

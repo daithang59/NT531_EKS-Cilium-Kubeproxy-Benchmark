@@ -11,7 +11,7 @@
 1. [Tổng quan](#1-tổng-quan) — đề tài, chi phí, thời gian
 2. [Số lượng runs](#2-số-lượng-runs) — tổng hợp 42 runs
 3. [Hạ tầng](#3-hạ-tầng) — Terraform, EKS, cấu hình
-4. [Setup từng bước](#4-setup-từng-bước) — Phase 1→11 chi tiết
+4. [Setup từng bước](#4-setup-từng-bước) — Phase 1→11 chi tiết (có Phase 5b: resume sau tạm dừng)
 5. [Artifacts sinh ra](#5-artifacts-sinh-ra)
 6. [Tổng hợp checklist](#6-tổng-hợp-checklist)
 7. [Hỗ trợ nhanh](#7-hỗ-trợ-nhanh)
@@ -213,6 +213,7 @@ aws eks update-kubeconfig --name nt531-bm --region ap-southeast-1 && kubectl get
 [ ] terraform init/validate thành công
 [ ] terraform apply hoàn tất không lỗi
 [ ] kubectl get nodes → 3 node Ready
+[ ] aws-node DaemonSet KHÔNG tồn tại (manage_vpc_cni = false)
 ```
 
 ---
@@ -254,7 +255,7 @@ Truy cập http://localhost:3000
 
 ### Phase 4 — Cilium Mode A: kube-proxy Baseline (10 phút)
 
-> ⚠️ **Lưu ý trước khi cài:** EKS dùng VPC CNI làm CNI mặc định. Phải tắt `vpc-cni` addon trong Terraform trước (xem `terraform/modules/eks/main.tf`). Nếu không — Cilium sẽ crash với lỗi `"Cannot specify IPAM mode eni in tunnel mode"` hoặc `"required IPv4 PodCIDR not available"`.
+> ⚠️ **Lưu ý trước khi cài:** Terraform module đã set `manage_vpc_cni = false` nên aws-node **không được cài tự động**. Cluster mới sẽ không có aws-node. Cluster cũ (tạo trước fix) vẫn còn aws-node → xóa trước: `kubectl delete ds aws-node -n kube-system`.
 
 ```bash
 kubectl create namespace cilium-secrets && \
@@ -318,6 +319,123 @@ aws eks wait addon-active --cluster-name "${CLUSTER_NAME}" --region ap-southeast
 [ ] fortio → echo connectivity OK
 [ ] Service ClusterIP tồn tại, endpoint được populate
 [ ] kube-dns service có 53/UDP + 53/TCP và có endpoints
+```
+
+---
+
+### Phase 5b — Resume sau Tạm dừng (sau khi scale node về 0)
+
+> Chạy sau khi scale node group lên lại 3 nodes.
+> Scale về 0 → tất cả pods (workload + Cilium) bị terminated.
+> Cần verify toàn bộ hệ thống trước khi tiếp tục benchmark.
+
+#### 5b.0 Resume node group (trước khi verify anything khác)
+
+```bash
+# Lấy nodegroup name thực tế
+NODEGROUP=$(aws eks list-nodegroups --cluster-name nt531-bm --region ap-southeast-1 --query 'nodegroups[0]' --output text)
+echo "Nodegroup: ${NODEGROUP}"
+
+# Scale lên 3 nodes cố định
+aws eks update-nodegroup-config \
+    --cluster-name nt531-bm \
+    --nodegroup-name "${NODEGROUP}" \
+    --scaling-config minSize=3,maxSize=3,desiredSize=3 \
+    --region ap-southeast-1
+
+# Đợi nodes ready
+aws eks wait nodegroup-active \
+    --cluster-name nt531-bm \
+    --nodegroup-name "${NODEGROUP}" \
+    --region ap-southeast-1
+
+echo "Node group scaled up to 3. Tiếp tục 5b.1..."
+```
+
+#### 5b.1 Verify nodes up
+
+```bash
+kubectl get nodes -o wide
+# Kỳ vọng: 3 node Ready, AGE ~5-10 phút (vừa scale lên)
+```
+
+#### 5b.2 Verify Cilium pods
+
+```bash
+kubectl -n kube-system get pods -l k8s-app=cilium -o wide
+# Kỳ vọng: 3 cilium-node pods Running (DaemonSet)
+kubectl -n kube-system get ds
+# Kỳ vọng: cilium DaemonSet tồn tại; aws-node KHÔNG tồn tại
+```
+
+#### 5b.3 Verify kube-proxy (tùy mode hiện tại)
+
+```bash
+kubectl -n kube-system get ds kube-proxy -o name
+# Mode A: phải thấy daemonset.apps/kube-proxy
+# Mode B: NotFound — đã bị xóa ở Phase 8
+```
+
+#### 5b.4 Verify Cilium status + datapath mode
+
+```bash
+kubectl exec -n kube-system ds/cilium -- cilium status
+# Mode A: KubeProxyReplacement = Disabled, IPAM: cluster-pool
+# Mode B: KubeProxyReplacement = Strict, IPAM: eni, Hubble Relay Enabled
+```
+
+#### 5b.5 Redeploy workload (sau khi scale node)
+
+```bash
+kubectl apply -f workload/server/ && kubectl apply -f workload/client/
+kubectl -n benchmark get pods -w
+# Đợi: echo Running, fortio Running (cột AGE sẽ ~1-2 phút)
+```
+
+#### 5b.6 Verify connectivity
+
+```bash
+kubectl exec -n benchmark deploy/fortio -- fortio curl http://echo.benchmark.svc.cluster.local:80/echo
+# Kỳ vọng: HTTP 200, response chứa "ok"
+```
+
+#### 5b.7 Verify DNS
+
+```bash
+kubectl get svc,endpoints -n kube-system kube-dns -o wide
+# Kỳ vọng: 53/UDP + 53/TCP endpoint tồn tại
+```
+
+#### 5b.8 Verify Service + Endpoints
+
+```bash
+kubectl get svc,endpoints -n benchmark
+# Kỳ vọng: echo ClusterIP, port 80→5678, ENDPOINTS có IP
+```
+
+#### 5b.9 Quick Fortio smoke test
+
+```bash
+kubectl exec -n benchmark deploy/fortio -- \
+  fortio load -qps 10 -c 1 -t 10s http://echo.benchmark.svc.cluster.local:80/echo
+# Kỳ vọng: 100% success, p99 < 5ms (ở QPS thấp)
+```
+
+#### ✅ Checklist Phase 5b
+
+```
+[ ] NODEGROUP lấy đúng tên
+[ ] aws eks update-nodegroup-config → desiredSize=3
+[ ] aws eks wait nodegroup-active → thành công
+[ ] 3 nodes Ready
+[ ] Cilium DaemonSet Running, aws-node NOT present
+[ ] kube-proxy đúng trạng thái (Mode A: Running, Mode B: absent)
+[ ] cilium status: đúng mode (A: cluster-pool+Disabled / B: eni+Strict)
+[ ] echo + fortio pods Running sau khi redeploy
+[ ] fortio → echo connectivity OK
+[ ] kube-dns endpoints tồn tại
+[ ] echo Service ClusterIP + endpoints populate
+[ ] Fortio smoke test: 100% success
 ```
 
 ---
@@ -713,6 +831,7 @@ results/mode=<A|B>/scenario=<S1|S2|S3>/load=<L?>/[phase=<off|on>/]run=R<#>
 | **3 — Monitoring** | [ ] Prometheus/Grafana Running; [ ] Grafana truy cập được |
 | **4 — Cilium Mode A** | [ ] Cilium Running; [ ] kubeProxyReplacement = Disabled; [ ] kube-proxy Running |
 | **5 — Workload** | [ ] Echo + Fortio Running; [ ] connectivity OK |
+| **5b — Resume** | [ ] 3 nodes Ready; [ ] Cilium Running; [ ] kube-proxy đúng mode; [ ] workload connectivity OK; [ ] Fortio smoke test 100% |
 | **6 — Calibration ⭐** | [ ] Calibration xong; [ ] L1/L2/L3 xác định; [ ] common.sh đã cập nhật |
 | **7 — Mode A Runs** | [ ] 15 runs (S1=9, S2=6); [ ] S2: 4 phase logs |
 | **8 — Switch A→B ⚠️** | [ ] values-ebpfkpr.yaml đã điền EKS endpoint; [ ] kube-proxy đã xóa; [ ] kubeProxyReplacement = Strict; [ ] connectivity OK |
@@ -728,6 +847,7 @@ Phase  2 → Terraform EKS               (15–25 phút)
 Phase  3 → Prometheus/Grafana          (10–15 phút)
 Phase  4 → Cilium Mode A                (10 phút)
 Phase  5 → Deploy Workload              (5–10 phút)
+Phase  5b → Resume sau tạm dừng         (5–10 phút) ← sau khi scale node về 0
 Phase  6 → Calibration ★                 (30–60 phút)
 Phase  7 → Mode A: S1(9) + S2(6)        (~36 phút)
 Phase  8 → Switch A→B ⚠️                 (15–20 phút)
