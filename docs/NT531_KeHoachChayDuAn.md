@@ -610,6 +610,47 @@ docs/appendix/
 
 ### Phase 11 — Dọn dẹp Hạ tầng (5–10 phút)
 
+#### 11.0 Tạm dừng project (không destroy)
+
+Nếu muốn nghỉ tạm và giảm chi phí EC2, scale node group về 0 trước khi quay lại.
+Không hardcode `--nodegroup-name benchmark` vì EKS managed node group thường có suffix tự sinh.
+
+Có thể dùng script tiện ích (khuyến nghị):
+
+```bash
+./scripts/cluster_power.sh pause
+# quay lại thì:
+./scripts/cluster_power.sh resume
+```
+
+Hoặc chạy thủ công như bên dưới:
+
+```bash
+# Lấy nodegroup name thực tế
+NODEGROUP=$(aws eks list-nodegroups --cluster-name nt531-bm --region ap-southeast-1 --query 'nodegroups[0]' --output text)
+
+# Pause: scale xuống 0
+aws eks update-nodegroup-config \
+    --cluster-name nt531-bm \
+    --nodegroup-name "${NODEGROUP}" \
+    --scaling-config minSize=0,maxSize=3,desiredSize=0 \
+    --region ap-southeast-1
+
+aws eks wait nodegroup-active \
+    --cluster-name nt531-bm \
+    --nodegroup-name "${NODEGROUP}" \
+    --region ap-southeast-1
+
+# Resume: scale lên lại 3 nodes cố định cho benchmark
+aws eks update-nodegroup-config \
+    --cluster-name nt531-bm \
+    --nodegroup-name "${NODEGROUP}" \
+    --scaling-config minSize=3,maxSize=3,desiredSize=3 \
+    --region ap-southeast-1
+```
+
+> Lưu ý: scale node group về 0 chỉ giảm phần EC2; EKS control plane và NAT Gateway vẫn tính phí.
+
 #### 11.1 Backup kết quả
 
 ```bash
@@ -710,6 +751,7 @@ Tổng:   2–3 tuần (chủ yếu benchmark chạy nền)
 | Cilium CrashLoopBackOff | `kubectl describe pod -n kube-system -l k8s-app=cilium`; xem `events.txt` |
 | kube-proxy không xóa được | `kubectl delete --grace-period=0 ds/kube-proxy -n kube-system` |
 | Fortio → Echo timeout | `kubectl get endpoints -n benchmark`; `kubectl get svc,endpoints -n kube-system kube-dns`; reconcile CoreDNS addon (`aws eks update-addon ... --resolve-conflicts OVERWRITE`) |
+| `ResourceNotFoundException: nodeGroup ... not found` khi scale | Sai nodegroup name. Chạy `aws eks list-nodegroups --cluster-name nt531-bm --region ap-southeast-1` rồi dùng đúng tên trả về (thường có suffix tự sinh) |
 | Hubble flows empty | `cilium hubble observe` sau khi chạy S3; enable port 4245 |
 | Deny case không thấy DROPPED | Attacker pod không có `app=fortio` label; tăng `--last` |
 | Calibrate.sh Python lỗi | `python3 --version` >= 3.8; kiểm tra inline script syntax |

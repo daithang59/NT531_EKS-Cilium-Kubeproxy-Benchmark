@@ -13,6 +13,7 @@ Mọi script tuân theo **Results Contract** (xem `results/README.md`).
 | `run_s3.sh` | **Scenario 3 — NetworkPolicy Overhead (off → on).** Phase OFF (policy deleted) → Phase ON (policy applied). |
 | `collect_meta.sh` | Standalone kubectl evidence collector (`kubectl_get_all.txt`, `kubectl_top_nodes.txt`, `events.txt`). |
 | `collect_hubble.sh` | Standalone Cilium/Hubble evidence collector (`cilium_status.txt`, `hubble_status.txt`, `hubble_flows.jsonl`). |
+| `cluster_power.sh` | Utility tạm dừng/bật lại cụm EKS an toàn (`pause`, `resume`, `status`) với auto-discover nodegroup và xử lý CoreDNS/PDB. |
 
 ## Cách sử dụng
 
@@ -53,6 +54,21 @@ MODE=B LOAD=L3 ./scripts/run_s3.sh
 ```
 
 > S2 không chạy L1 vì QPS quá thấp. S3 chỉ Mode B.
+
+### Tạm dừng / bật lại cụm EKS
+
+```bash
+# Pause (scale nodegroup về 0)
+./scripts/cluster_power.sh pause
+
+# Resume (khôi phục từ state; fallback TARGET_NODES=3)
+./scripts/cluster_power.sh resume
+
+# Xem trạng thái cluster + nodegroup + nodes
+./scripts/cluster_power.sh status
+```
+
+Script lưu state vào `results/ops/cluster_power_<cluster>.env` để restore lại min/max/desired và số replicas CoreDNS khi resume.
 
 ### Fail-fast checks
 
