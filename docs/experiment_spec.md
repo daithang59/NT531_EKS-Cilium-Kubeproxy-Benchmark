@@ -270,6 +270,7 @@ Tạo 1 bảng (1 trang) trong report/appendix:
   - Ghi rõ giới hạn phạm vi và lý do lựa chọn
 - **Calibration chưa làm:** dùng QPS mặc định không đúng với hạ tầng thực tế → L2 có thể đã bão hòa, L3 gãy hoàn toàn → kết quả S2/S3 không đáng tin
   - **Giải pháp: chạy `calibrate.sh` trước mọi benchmark chính thức**
+- **Methodological confound — IPAM mode:** Mode A dùng `cluster-pool` IPAM + kube-proxy iptables; Mode B dùng `eni` IPAM + eBPF KPR. Do đó, Δ hiệu năng phản ánh tổng hợp của: (1) eBPF socket-level redirect thay iptables DNAT/SNAT chain traversal — đây là biến chính cần đo; (2) ENI native routing loại bỏ overlay encapsulation overhead — bonus của production-grade config. Không thể isolate từng effect riêng biệt. Giá trị Δ tổng phản ánh lợi ích end-to-end khi deploy full Mode B solution. **Cả 2 đều là production-grade datapath**, phản ánh cách deploy thực tế trên EKS, không phải lab giả lập.
 
 ---
 

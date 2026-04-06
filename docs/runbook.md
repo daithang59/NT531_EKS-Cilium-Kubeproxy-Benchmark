@@ -207,6 +207,19 @@ Xác nhận: `KubeProxyReplacement: False`, `IPAM: cluster-pool`, `kube-proxy 3/
    # Đợi: kubectl -n benchmark get pods (Running)
    ```
 
+### ⚠️ Confound giữa Mode A và Mode B — IPAM mode
+
+> **Đọc kỹ trước khi chạy.** Thông tin này cần ghi nhận trong thesis/report.
+
+Mode A và Mode B **khác nhau ở 2 biến** thay vì 1:
+
+| | Mode A | Mode B |
+|---|---|---|
+| **IPAM** | `cluster-pool` (dải IP riêng Cilium) | `eni` (VPC native ENI) |
+| **Datapath** | kube-proxy iptables DNAT/SNAT | eBPF socket-level redirect |
+
+→ Δ hiệu năng = **eBPF effect** + **NAT/overlay removal effect**. Không isolate riêng được. Cả 2 đều là production-grade config — phản ánh cách deploy thực tế trên EKS. Xem `docs/experiment_spec.md` §12 (Threats to Validity) để biết cách trình bày trong thesis.
+
 ### NetworkPolicy (S3)
 > **Lưu ý:** Script `run_s3.sh` **tự động** xóa và apply policies — không cần thao tác thủ công.
 > Nếu muốn test thủ công trước:
