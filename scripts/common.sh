@@ -37,18 +37,21 @@ DURATION_SEC="${DURATION_SEC:-180}"
 REST_BETWEEN_RUNS="${REST_BETWEEN_RUNS:-60}"
 
 # ---- Load-level profiles (Fortio params) -------------------------------------
-# L1 — Light: low concurrency, moderate QPS
+# L1 — Light: stable, near-zero errors
+# Calibrated Mode A (2026-04-07): QPS=100, p99=0.51ms, err=0%, stable near-zero tail
 L1_QPS="${L1_QPS:-100}"
 L1_CONNS="${L1_CONNS:-8}"
 L1_THREADS="${L1_THREADS:-2}"
 
-# L2 — Medium: higher concurrency + QPS
-L2_QPS="${L2_QPS:-500}"
+# L2 — Medium: visible tail, no saturation
+# Calibrated Mode A (2026-04-07): QPS=400, p99=2.65ms, err=0%, visible tail, no saturation
+L2_QPS="${L2_QPS:-400}"
 L2_CONNS="${L2_CONNS:-32}"
 L2_THREADS="${L2_THREADS:-4}"
 
-# L3 — High: near saturation
-L3_QPS="${L3_QPS:-1000}"
+# L3 — High: near saturation (p99 spike ~15× vs L2)
+# Calibrated Mode A (2026-04-07): QPS=800, p99=38.77ms, err=0%, p99 spike approaching saturation
+L3_QPS="${L3_QPS:-800}"
 L3_CONNS="${L3_CONNS:-64}"
 L3_THREADS="${L3_THREADS:-8}"
 
@@ -128,7 +131,8 @@ preflight_checks() {
   # 2. Nodes Ready
   echo -n "[CHECK] Nodes Ready... "
   local not_ready
-  not_ready=$(kubectl get nodes --no-headers | grep -v ' Ready' | wc -l)
+  not_ready=$(kubectl get nodes --no-headers | grep -v ' Ready' | wc -l | tr -d ' ' || true)
+  if [[ -z "${not_ready}" ]]; then not_ready=0; fi
   if [[ "${not_ready}" -gt 0 ]]; then
     echo "FAIL (${not_ready} node(s) not Ready)"
     kubectl get nodes >&2
