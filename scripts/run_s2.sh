@@ -87,7 +87,7 @@ for run_num in $(seq 1 "${REPEAT}"); do
         -c "${BENCH_CONNS}" \
         -t "${RAMP_SEC}s" \
         -keepalive=false \
-        "${SVC_URL}" 2>&1
+        "${SVC_URL}" 2>&1 || true
   } > "${outdir}/bench_phase1_rampup.log"
 
   # ---- Phase 2: Sustained high (100% QPS, 2× connections) ------------------
