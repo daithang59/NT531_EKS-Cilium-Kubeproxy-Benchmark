@@ -254,7 +254,7 @@ run_fortio() {
       -t "${DURATION_SEC}s" \
       "${extra_flags[@]+"${extra_flags[@]}"}" \
       "${SVC_URL}" \
-    2>&1 | tee "${outdir}/bench.log"
+    2>&1 | tee "${outdir}/bench.log" || true
 }
 
 # ======================== metadata.json generation ============================

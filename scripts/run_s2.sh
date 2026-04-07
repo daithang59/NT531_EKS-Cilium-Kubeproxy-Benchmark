@@ -102,7 +102,7 @@ for run_num in $(seq 1 "${REPEAT}"); do
         -c "${CONNS_HIGH}" \
         -t "${SUSTAINED_SEC}s" \
         -keepalive=false \
-        "${SVC_URL}" 2>&1
+        "${SVC_URL}" 2>&1 || true
   } > "${outdir}/bench_phase2_sustained.log"
 
   # ---- Phase 3: Bursts (150% QPS × N, with rest between) -------------------
@@ -118,7 +118,7 @@ for run_num in $(seq 1 "${REPEAT}"); do
           -c "${CONNS_HIGH}" \
           -t "${BURST_SEC}s" \
           -keepalive=false \
-          "${SVC_URL}" 2>&1
+          "${SVC_URL}" 2>&1 || true
     } >> "${outdir}/bench_phase3_bursts.log"
 
     if [[ "${b}" -lt "${BURST_COUNT}" ]]; then
@@ -139,7 +139,7 @@ for run_num in $(seq 1 "${REPEAT}"); do
         -c "${BENCH_CONNS}" \
         -t "${COOLDOWN_SEC}s" \
         -keepalive=false \
-        "${SVC_URL}" 2>&1
+        "${SVC_URL}" 2>&1 || true
   } > "${outdir}/bench_phase4_cooldown.log"
 
   # ---- Combine all phase logs into bench.log --------------------------------
