@@ -183,29 +183,89 @@ Xác nhận: `KubeProxyReplacement: False`, `IPAM: cluster-pool`, `kube-proxy 3/
 
 **Các bước chuyển Mode A → Mode B:**
 
-1. Sửa `helm/cilium/values-ebpfkpr.yaml`: điền `k8sServiceHost` = EKS API endpoint
-2. **Tắt kube-proxy DaemonSet:** ← BẮT BUỘC
+1. **Điền `k8sServiceHost`** trong `helm/cilium/values-ebpfkpr.yaml` (nếu chưa có)
+2. **Đảm bảo `eni.enabled: true`** trong `values-ebpfkpr.yaml` ← BẮT BUỘC
+   - Dòng này báo cho helm chart chọn đúng `operator-aws` (thay vì `operator-generic`)
+   - Nếu thiếu → cilium-operator crash với lỗi `"cilium-operator-generic: executable file not found"`
+3. **Tắt kube-proxy DaemonSet:** ← BẮT BUỘC
    ```bash
-   kubectl delete daemonset kube-proxy -n kube-system
+   kubectl delete daemonset kube-proxy -n kube-system || true
    ```
-3. Đợi ~30 giây cho kube-proxy pods terminated trên tất cả nodes
-4. Upgrade Cilium in-place (không gỡ):
+4. Đợi ~30 giây cho kube-proxy pods terminated
+5. **Upgrade Cilium in-place:**
    ```bash
    helm upgrade cilium cilium/cilium \
      --namespace kube-system \
      --version 1.18.7 \
      -f helm/cilium/values-ebpfkpr.yaml
    ```
-5. Verify:
+   > ⚠️ Không dùng `--wait` — cilium-agent restart mất 2-3 phút, helm `--wait` timeout sẽ fail.
+6. **Theo dõi tiến trình:**
    ```bash
-   kubectl -n kube-system exec ds/cilium -- cilium status
-   # Phải thấy: KubeProxyReplacement: True
+   kubectl get pods -n kube-system -l app=cilium-operator -w &
+   kubectl get pods -n kube-system -l k8s-app=cilium -w &
    ```
-6. Restart workload pods (để nhận datapath mới):
+   Chờ cho đến khi `cilium-operator` và cả 3 `cilium` pods đều `Running 1/1`.
+   (Thường mất 2-5 phút sau upgrade)
+7. **Verify:**
+   ```bash
+   kubectl exec -n kube-system ds/cilium -- cilium status
+   # Phải thấy:
+   #   KubeProxyReplacement: True
+   #   IPAM: IPv4: X/10 allocated (ENI, không phải cluster-pool)
+   #   Routing: Network: Native (không phải Tunnel [vxlan])
+   #   Hubble: Ok (Enabled)
+   ```
+8. **Restart CoreDNS** (bắt buộc sau Mode B switch):
+   ```bash
+   kubectl delete pods -n kube-system -l k8s-app=kube-dns
+   # Đợi ~30s
+   kubectl get pods -n kube-system -l k8s-app=kube-dns  # phải Running 1/1
+   ```
+   Lý do: kube-proxy bị xóa → CoreDNS endpoint resolver bị broken. Phải restart để pick up eBPF datapath mới.
+9. **Restart workload pods** (để nhận ENI IPs):
    ```bash
    kubectl delete pods -n benchmark --all
    # Đợi: kubectl -n benchmark get pods (Running)
    ```
+   Lý do: Pods cũ dùng cluster-pool IPs (10.96.x.x), không đi qua ENI native routing. Restart để nhận ENI IPs (10.0.x.x).
+10. **Verify kết nối:**
+    ```bash
+    FORTIO=$(kubectl get pods -n benchmark -l app=fortio -o jsonpath='{.items[0].metadata.name}')
+    kubectl exec -n benchmark "$FORTIO" -- fortio load -qps 10 -c 1 -t 5s http://echo.benchmark.svc.cluster.local/
+    # Phải thấy: Code 200, 0 errors
+    ```
+
+### Chuyển Mode B → Mode A (rollback)
+
+Các bước tương tự nhưng ngược lại:
+
+1. **Restore kube-proxy** (Mode A cần kube-proxy):
+   ```bash
+   kubectl apply -f terraform/modules/eks/kube-proxy-daemonset.yaml
+   # Hoặc restore từ EKS addon:
+   aws eks create-addon --cluster-name nt531-bm --region ap-southeast-1 --addon-name kube-proxy
+   ```
+2. **Upgrade Cilium về Mode A:**
+   ```bash
+   helm upgrade cilium cilium/cilium -n kube-system \
+     --version 1.18.7 -f helm/cilium/values-baseline.yaml
+   ```
+3. **Theo dõi** đợi cả 3 cilium pods Ready
+4. **Restart workload pods** (`kubectl delete pods -n benchmark --all`)
+5. **Restart CoreDNS** (`kubectl delete pods -n kube-system -l k8s-app=kube-dns`)
+6. **Verify**
+
+> ⚠️ **Mỗi lần switch mode (A→B hoặc B→A), LUÔN restart workload pods.** Lý do: IPAM mode khác nhau → pod IP ranges khác nhau. Workload pods cần restart để nhận IP pool tương ứng.
+
+### Troubleshooting Mode B Upgrade
+
+| Triệu chứng | Nguyên nhân | Fix |
+|---|---|---|
+| `cilium-operator` CrashLoopBackOff: `"cilium-operator-generic: executable not found"` | Thiếu `eni.enabled: true` trong values → chart chọn sai operator image | Thêm `eni.enabled: true` vào `values-ebpfkpr.yaml`, upgrade lại |
+| `cilium` pods CrashLoopBackOff: `"Waiting for IPs to become available in CRD-backed allocation pool"` | `cilium-operator` chưa Running → không cấp IP ENI được | Đợi operator Ready trước, hoặc check operator logs |
+| Fortio DNS lookup timeout: `lookup echo.benchmark.svc.cluster.local on 172.20.0.10:53: i/o timeout` | CoreDNS chưa pick up eBPF datapath | Restart CoreDNS: `kubectl delete pods -n kube-system -l k8s-app=kube-dns` |
+| Fortio dial timeout trên IP trực tiếp: `dial tcp 172.20.x.x:80: i/o timeout` | Workload pods giữ cluster-pool IPs (10.96.x.x) | Restart workload pods: `kubectl delete pods -n benchmark --all` |
 
 ### ⚠️ Confound giữa Mode A và Mode B — IPAM mode
 

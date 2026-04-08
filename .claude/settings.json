@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(bash -n \"c:/nt531-project/NT531_Project/thesis-cilium-eks-benchmark/scripts/calibrate.sh\")"
+      "Bash(bash -n \"c:/nt531-project/NT531_Project/thesis-cilium-eks-benchmark/scripts/calibrate.sh\")",
+      "Bash(helm rollback:*)"
     ]
   }
 }

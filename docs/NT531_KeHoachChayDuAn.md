@@ -541,6 +541,9 @@ find results/mode=A_kube-proxy/scenario=S2 -name "bench_phase1_rampup.log" | wc 
 ### Phase 8 — Chuyển Mode A → Mode B ⚠️ CRITICAL
 
 > **NẾU LÀM SAI:** kube-proxy + eBPF chạy song song → NAT table conflict → results sai hoàn toàn.
+>
+> **Lưu ý quan trọng:** Mỗi lần switch mode (A→B hoặc B→A), LUÔN restart workload pods sau khi switch.
+> Lý do: IPAM mode khác nhau (cluster-pool vs ENI) → pod IP ranges khác nhau.
 
 #### 8.1 Lấy EKS API endpoint
 
@@ -554,47 +557,103 @@ aws eks describe-cluster --name nt531-bm --region ap-southeast-1 --query cluster
 ```yaml
 k8sServiceHost: "ABCD1234EFGHIJKL.gr7.ap-southeast-1.eks.amazonaws.com"
 # Lưu ý: KHÔNG có https:// và KHÔNG có path
+# Đảm bảo có dòng: eni.enabled: true
+#   (thiếu dòng này → cilium-operator crash: "cilium-operator-generic: executable not found")
 ```
 
 #### 8.3 XÓA kube-proxy (BẮT BUỘC trước bước 8.4)
 
 ```bash
-kubectl delete ds kube-proxy -n kube-system && sleep 30
+kubectl delete ds kube-proxy -n kube-system || true
+sleep 30
 ```
 
 #### 8.4 Upgrade Cilium Mode B
 
 ```bash
-helm upgrade cilium cilium/cilium -n kube-system --version 1.18.7 -f helm/cilium/values-ebpfkpr.yaml --wait && \
-kubectl rollout status ds/cilium -n kube-system -w
+helm upgrade cilium cilium/cilium -n kube-system \
+  --version 1.18.7 -f helm/cilium/values-ebpfkpr.yaml
 ```
 
-#### 8.5 Restart workload pods
+> ⚠️ Không dùng `--wait` — cilium-agent restart mất 2-3 phút, helm `--wait` timeout sẽ fail.
+
+#### 8.5 Theo dõi tiến trình
 
 ```bash
-kubectl delete pod -n benchmark -l app=echo && kubectl delete pod -n benchmark -l app=fortio && \
-kubectl get pods -n benchmark -w
+kubectl get pods -n kube-system -l app=cilium-operator -w &
+kubectl get pods -n kube-system -l k8s-app=cilium -w &
+# Chờ ~2-5 phút cho đến khi:
+#   - cilium-operator Running 1/1
+#   - cả 3 cilium pods Running 1/1
 ```
 
 #### 8.6 Xác minh Mode B
 
 ```bash
-kubectl exec -n kube-system ds/cilium -- cilium status && \
-kubectl exec -n kube-system ds/cilium -- cilium hubble status && \
-kubectl exec -n benchmark deploy/fortio -- fortio curl http://echo.benchmark.svc.cluster.local:80/echo
+kubectl exec -n kube-system ds/cilium -- cilium status
 ```
 
-> Kỳ vọng: `KubeProxyReplacement = Strict`, `Kube-proxy = Disabled`, Hubble Relay Enabled, connectivity trả về "ok".
+> Kỳ vọng:
+> ```
+> KubeProxyReplacement: True  (ens5 ...)
+> IPAM: IPv4: X/10 allocated     ← ENI, không phải cluster-pool
+> Routing: Network: Native       ← không phải Tunnel [vxlan]
+> Hubble: Ok
+> ```
+
+#### 8.7 Restart CoreDNS (BẮT BUỘC)
+
+```bash
+kubectl delete pods -n kube-system -l k8s-app=kube-dns
+# Đợi ~30s
+kubectl get pods -n kube-system -l k8s-app=kube-dns
+# Kỳ vọng: Running 1/1
+```
+
+> Lý do: kube-proxy bị xóa → CoreDNS endpoint resolver broken. Phải restart để pick up eBPF datapath mới.
+
+#### 8.8 Restart workload pods (BẮT BUỘC)
+
+```bash
+kubectl delete pods -n benchmark --all
+# Đợi ~30s
+kubectl get pods -n benchmark -o wide
+# Kỳ vọng: echo + fortio Running với ENI IPs (10.0.x.x)
+```
+
+> Lý do: Pods cũ giữ cluster-pool IPs (10.96.x.x), không đi qua ENI native routing. Restart để nhận ENI IPs (10.0.x.x).
+
+#### 8.9 Verify connectivity
+
+```bash
+FORTIO=$(kubectl get pods -n benchmark -l app=fortio -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n benchmark "$FORTIO" -- \
+  fortio load -qps 10 -c 1 -t 5s http://echo.benchmark.svc.cluster.local/
+# Kỳ vọng: Code 200, 0 errors
+```
 
 #### ✅ Checklist Phase 8
 
 ```
 [ ] values-ebpfkpr.yaml đã điền k8sServiceHost (không có https://)
-[ ] kube-proxy DaemonSet đã xóa
-[ ] Cilium kubeProxyReplacement = Strict
-[ ] Fortio → Echo connectivity sau switch vẫn OK
-[ ] Hubble Relay Enabled
+[ ] values-ebpfkpr.yaml có eni.enabled: true
+[ ] kube-proxy DaemonSet đã xóa (hoặc NotFound)
+[ ] cilium-operator Running 1/1 (rev mới)
+[ ] cả 3 cilium pods Running 1/1
+[ ] cilium status: KubeProxyReplacement=True, IPAM=ENI, Routing=Native
+[ ] CoreDNS pods restarted và Running 1/1
+[ ] Workload pods restarted với ENI IPs
+[ ] Fortio → Echo: Code 200, 0 errors
 ```
+
+#### Troubleshooting Phase 8
+
+| Triệu chứng | Nguyên nhân | Fix |
+|---|---|---|
+| `cilium-operator` CrashLoopBackOff: `"cilium-operator-generic: executable not found"` | Thiếu `eni.enabled: true` | Thêm `eni.enabled: true` vào values-ebpfkpr.yaml, upgrade lại |
+| `cilium` pods CrashLoopBackOff: `"Waiting for IPs to become available"` | `cilium-operator` chưa Running | Đợi operator, hoặc check operator logs |
+| Fortio DNS timeout: `lookup ... on 172.20.0.10:53: i/o timeout` | CoreDNS chưa pick up eBPF datapath | Restart CoreDNS: `kubectl delete pods -n kube-system -l k8s-app=kube-dns` |
+| Fortio dial timeout trên IP trực tiếp | Workload pods giữ cluster-pool IPs | Restart workload: `kubectl delete pods -n benchmark --all` |
 
 ---
 
@@ -868,7 +927,10 @@ Tổng:   2–3 tuần (chủ yếu benchmark chạy nền)
 | Terraform báo `AccessDenied` `eks:CreateCluster` | Attach inline policy EKS full lifecycle theo `docs/appendix/iam-policy-eks.md` |
 | Terraform báo `AccessDenied` `eks:CreateNodegroup` / `eks:DescribeAddonVersions` | Bổ sung quyền Nodegroup + Addon theo `docs/appendix/iam-policy-eks.md` |
 | Terraform báo `AccessDenied` `eks:CreateAccessEntry` | Bổ sung quyền Access Entry / Access Policy Association theo `docs/appendix/iam-policy-eks.md` |
-| Cilium CrashLoopBackOff | `kubectl describe pod -n kube-system -l k8s-app=cilium`; xem `events.txt` |
+| Cilium CrashLoopBackOff | `kubectl describe pod -n kube-system -l k8s-app=cilium`; xem `events.txt`; nếu operator crash `"cilium-operator-generic: executable not found"` → thêm `eni.enabled: true` vào values-ebpfkpr.yaml |
+| `cilium-operator` crash: `"cilium-operator-generic: executable not found"` | Thiếu `eni.enabled: true` trong values-ebpfkpr.yaml | Thêm `eni.enabled: true` rồi `helm upgrade cilium ... -f helm/cilium/values-ebpfkpr.yaml` |
+| Fortio DNS lookup timeout sau switch A→B | CoreDNS chưa pick up eBPF datapath | `kubectl delete pods -n kube-system -l k8s-app=kube-dns` |
+| Fortio dial timeout trên ClusterIP sau switch A→B | Workload pods giữ cluster-pool IPs (10.96.x.x) | `kubectl delete pods -n benchmark --all` để restart với ENI IPs |
 | kube-proxy không xóa được | `kubectl delete --grace-period=0 ds/kube-proxy -n kube-system` |
 | Fortio → Echo timeout | `kubectl get endpoints -n benchmark`; `kubectl get svc,endpoints -n kube-system kube-dns`; reconcile CoreDNS addon (`aws eks update-addon ... --resolve-conflicts OVERWRITE`) |
 | `ResourceNotFoundException: nodeGroup ... not found` khi scale | Sai nodegroup name. Chạy `aws eks list-nodegroups --cluster-name nt531-bm --region ap-southeast-1` rồi dùng đúng tên trả về (thường có suffix tự sinh) |

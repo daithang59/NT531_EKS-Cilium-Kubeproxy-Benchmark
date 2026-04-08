@@ -22,10 +22,17 @@ kubeProxyReplacement: true
 
 # ← ĐIỀN EKS API endpoint ở đây (hostname only)
 # Ví dụ: ABCD1234EFGHIJKL.gr7.ap-southeast-1.eks.amazonaws.com
-k8sServiceHost: ""
+k8sServiceHost: "472A12F53EF9ACDEC758451AF350C0D6.gr7.ap-southeast-1.eks.amazonaws.com"
 k8sServicePort: 443
 
 eks:
+  enabled: true
+
+# BẮT BUỘC: eni.enabled=true báo cho Helm chart chọn operator-aws image
+# (thay vì operator-generic mặc định). operator-aws hỗ trợ ENI IPAM allocator.
+# Nếu thiếu dòng này → cilium-operator crash:
+#   "cilium-operator-generic: executable file not found in $PATH"
+eni:
   enabled: true
 
 # ENI mode cần native routing (không tunnel).
