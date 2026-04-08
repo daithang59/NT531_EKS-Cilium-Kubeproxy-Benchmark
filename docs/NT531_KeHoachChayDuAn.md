@@ -235,10 +235,11 @@ kubectl get pods -n monitoring -w
 
 ```bash
 # Port-forward Grafana (chạy nền):
+# ⚠️ Service port là 80, không phải 3000 — dùng cú pháp port:port
 kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80 &
 
-# Lấy password:
-kubectl get secret -n monitoring prometheus-grafana -o jsonpath='{.data.admin-password}' | base64 -d
+# Lấy password (secret name khác với service name):
+kubectl get secret -n monitoring -l app.kubernetes.io/component=admin-secret -o jsonpath='{.items[0].data.admin-password}' | base64 -d
 # Username: admin
 ```
 
@@ -247,9 +248,12 @@ Truy cập http://localhost:3000
 #### ✅ Checklist Phase 3
 
 ```
-[ ] Prometheus pods Running
-[ ] Grafana truy cập được (http://localhost:3000)
+[ ] Prometheus StatefulSet tồn tại và Prometheus pod Running
+[ ] Grafana pod 3/3 Running
+[ ] Grafana truy cập được (http://localhost:3000) — dashboard có data
 ```
+
+> **Troubleshooting:** Nếu Grafana dashboard trống ("No data"), xem `docs/runbook.md` §"Monitoring / Grafana không hoạt động".
 
 ---
 
@@ -929,6 +933,7 @@ Tổng:   2–3 tuần (chủ yếu benchmark chạy nền)
 | Terraform báo `AccessDenied` `eks:CreateAccessEntry` | Bổ sung quyền Access Entry / Access Policy Association theo `docs/appendix/iam-policy-eks.md` |
 | Cilium CrashLoopBackOff | `kubectl describe pod -n kube-system -l k8s-app=cilium`; xem `events.txt`; nếu operator crash `"cilium-operator-generic: executable not found"` → thêm `eni.enabled: true` vào values-ebpfkpr.yaml |
 | `cilium-operator` crash: `"cilium-operator-generic: executable not found"` | Thiếu `eni.enabled: true` trong values-ebpfkpr.yaml | Thêm `eni.enabled: true` rồi `helm upgrade cilium ... -f helm/cilium/values-ebpfkpr.yaml` |
+| `cilium-operator` crash: `dial tcp 172.20.0.1:443: i/o timeout` | Cilium BPF service entries bị stuck `non-routable` trên 1+ nodes | Restart Cilium DaemonSet: `kubectl delete pod -n kube-system -l k8s-app=cilium`; verify: `kubectl exec -n kube-system ds/cilium -- cilium bpf lb list \| grep "172.20.0.1:443"` phải thấy backend `active` |
 | Fortio DNS lookup timeout sau switch A→B | CoreDNS chưa pick up eBPF datapath | `kubectl delete pods -n kube-system -l k8s-app=kube-dns` |
 | Fortio dial timeout trên ClusterIP sau switch A→B | Workload pods giữ cluster-pool IPs (10.96.x.x) | `kubectl delete pods -n benchmark --all` để restart với ENI IPs |
 | kube-proxy không xóa được | `kubectl delete --grace-period=0 ds/kube-proxy -n kube-system` |

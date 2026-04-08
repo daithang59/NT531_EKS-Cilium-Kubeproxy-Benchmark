@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-analyze_results.py — Statistical analysis of benchmark results.
+analyze_results.py -- Statistical analysis of benchmark results.
 
 Reads bench.log files from the Results Contract directory structure and produces:
-  1. Summary table (median, mean, std, CI) per (mode × scenario × load)
-  2. A vs B comparison table with t-test p-values and Δ% for each metric
+  1. Summary table (median, mean, std, CI) per (mode x scenario x load)
+  2. A vs B comparison table with t-test p-values and D% for each metric
   3. CSV export of all aggregated results
   4. Calibration results table (from results/calibration/)
 
@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-# ─── Constants ───────────────────────────────────────────────────────────────
+# --- Constants ---------------------------------------------------------------
 
 METRICS = ["p50_ms", "p90_ms", "p99_ms", "p999_ms", "max_ms", "rps", "error_rate_pct"]
 METRIC_LABELS = {
@@ -43,7 +43,7 @@ ALPHA = 0.05   # significance level for t-tests
 CI_LEVEL = 0.95  # confidence interval level
 
 
-# ─── Parsing ───────────────────────────────────────────────────────────────────
+# --- Parsing -------------------------------------------------------------------
 
 def parse_fortio_log(log_path: Path) -> dict:
     """Extract metrics from a Fortio bench.log file."""
@@ -52,29 +52,41 @@ def parse_fortio_log(log_path: Path) -> dict:
 
     content = log_path.read_text(errors="replace")
 
-    def get(key: str) -> Optional[float]:
-        # Match lines like "  p99 :  1.234 ms" or "  p99 :  1.234"
-        patterns = [
-            rf"(?<!\w){re.escape(key)}\s*[:\s=]+\s*([\d.]+)\s*(ms|s)?",
-            rf"(?<!\w){re.escape(key)}\s+([\d.]+)",
-        ]
-        for pat in patterns:
-            m = re.search(pat, content, re.IGNORECASE)
-            if m:
-                val = float(m.group(1))
-                unit = (m.group(2) or "ms").lower()
-                if unit == "s":
-                    val *= 1000
-                return val
+    # Fortio 1.74.x format:
+    #   # target 50% 0.000545751        <- percentile values in seconds
+    #   # target 99% 0.00151233
+    #   # target 99.9% 0.00195616
+    #   Aggregated Function Time : count N avg X min Y max Z
+    #   All done N calls ... X ms avg, QPS.0 qps
+    #   Code 200 : N (M%)           <- HTTP codes (no colon after "Code")
+
+    def get_target_pct(pct_str: str) -> Optional[float]:
+        """Extract value from '# target PCT% VALUE' line."""
+        m = re.search(rf"#\s*target\s+{re.escape(pct_str)}\s+([\d.e+-]+)", content, re.IGNORECASE)
+        if m:
+            return float(m.group(1)) * 1000.0  # convert s -> ms
         return None
 
-    def get_keyval(key: str) -> Optional[float]:
-        m = re.search(rf"(?<!\w){re.escape(key)}\s*[:\s]+\s*([\d.]+)", content, re.IGNORECASE)
+    def get_aggregated_max() -> Optional[float]:
+        """Extract max latency (ms) from 'Aggregated Function Time' line."""
+        m = re.search(r"Aggregated Function Time\s*:\s*count\s+\d+\s+[^\s]+\s+[^\s]+\s+[^\s]+\s+[^\s]+\s+([\d.e+-]+)", content)
+        if m:
+            return float(m.group(1)) * 1000.0
+        return None
+
+    def get_avg_ms() -> Optional[float]:
+        """Extract avg ms from 'All done ... X ms avg' line."""
+        m = re.search(r"All done\s+\d+\s+calls[^\d]*([\d.]+)\s+ms\s+avg", content)
         return float(m.group(1)) if m else None
 
-    # HTTP error breakdown
+    def get_qps() -> Optional[float]:
+        """Extract actual QPS from 'All done ... QPS.0 qps' line."""
+        m = re.search(r"All done\s+\d+\s+calls[^\d]*([\d.]+)\s+qps", content)
+        return float(m.group(1)) if m else None
+
+    # HTTP error breakdown: "Code 200 : N" (no colon after Code)
     http_errors: dict[int, int] = {}
-    for m in re.finditer(r"HTTP code[s]?:\s*(\d+)\s+(\d+)", content):
+    for m in re.finditer(r"Code\s+(\d+)\s+:\s+(\d+)", content):
         code, cnt = int(m.group(1)), int(m.group(2))
         http_errors[code] = http_errors.get(code, 0) + cnt
 
@@ -93,25 +105,24 @@ def parse_fortio_log(log_path: Path) -> dict:
 
     if json_data:
         h = json_data.get("Histogram", json_data.get("h", {}))
-        total_r = json_data.get("Duration", {}).get("Count", 0)
         rps = json_data.get("RequestedQPS", 0)
         return {
-            "p50_ms": h.get("Percentile", {}).get("50.0", get("p50")),
-            "p90_ms": h.get("Percentile", {}).get("90.0", get("p90")),
-            "p99_ms": h.get("Percentile", {}).get("99.0", get("p99")),
-            "p999_ms": h.get("Percentile", {}).get("99.9", get("p999")),
-            "max_ms": h.get("Max", get("Max")),
-            "rps": json_data.get("ActualQPS", rps),
+            "p50_ms":  h.get("Percentile", {}).get("50.0") or get_target_pct("50%"),
+            "p90_ms":  h.get("Percentile", {}).get("90.0") or get_target_pct("90%"),
+            "p99_ms":  h.get("Percentile", {}).get("99.0") or get_target_pct("99%"),
+            "p999_ms": h.get("Percentile", {}).get("99.9") or get_target_pct("99.9%"),
+            "max_ms":  h.get("Max") or get_aggregated_max(),
+            "rps":     json_data.get("ActualQPS", rps) or get_qps(),
             "error_rate_pct": error_rate,
         }
 
     return {
-        "p50_ms": get("p50"),
-        "p90_ms": get("p90"),
-        "p99_ms": get("p99"),
-        "p999_ms": get("p999") or get("p99.9"),
-        "max_ms": get("Max"),
-        "rps": get_keyval("QPS") or get_keyval("Requests/s"),
+        "p50_ms":  get_target_pct("50%"),
+        "p90_ms":  get_target_pct("90%"),
+        "p99_ms":  get_target_pct("99%"),
+        "p999_ms": get_target_pct("99.9%"),
+        "max_ms":  get_aggregated_max(),
+        "rps":     get_qps(),
         "error_rate_pct": error_rate,
     }
 
@@ -126,7 +137,7 @@ def parse_metadata(meta_path: Path) -> dict:
         return {}
 
 
-# ─── Statistics ───────────────────────────────────────────────────────────────
+# --- Statistics ---------------------------------------------------------------
 
 def mean(values: list[float]) -> float:
     return statistics.mean(values) if values else float("nan")
@@ -142,7 +153,7 @@ def median(values: list[float]) -> float:
 
 def ci_tdist(values: list[float], level: float = CI_LEVEL) -> tuple[float, float, float]:
     """
-    Compute mean ± CI using Student's t-distribution.
+    Compute mean +/- CI using Student's t-distribution.
     Returns (mean, ci_lower, ci_upper).
     """
     if not values:
@@ -232,7 +243,7 @@ def _t_cdf_two_tailed(t: float, df: int) -> float:
 
 
 def _beta_inc(a: float, b: float, x: float) -> float:
-    """Regularized incomplete beta function I_x(a,b) — using continued fraction."""
+    """Regularized incomplete beta function I_x(a,b) -- using continued fraction."""
     import math
     if x == 0:
         return 0.0
@@ -285,7 +296,7 @@ def _beta_inc(a: float, b: float, x: float) -> float:
     ) * h) / a if a != 0 else float("nan")
 
 
-# ─── t-critical lookup (two-tailed, for n=2..30) ──────────────────────────────
+# --- t-critical lookup (two-tailed, for n=2..30) ------------------------------
 # Values for alpha=0.05, two-tailed: P(|T| > t) = 0.05
 _T_CRITICAL = {
     1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447, 7: 2.365,
@@ -311,7 +322,7 @@ def _t_critical_sample(n: int, level: float = CI_LEVEL) -> float:
 _t_critical = _T_CRITICAL
 
 
-# ─── Data structures ──────────────────────────────────────────────────────────
+# --- Data structures ----------------------------------------------------------
 
 @dataclass
 class RunResult:
@@ -348,10 +359,10 @@ class RunResult:
         return d
 
 
-# ─── Directory scanning ────────────────────────────────────────────────────────
+# --- Directory scanning --------------------------------------------------------
 
 def scan_results(results_dir: Path) -> list[RunResult]:
-    """Walk results/ and collect all run results grouped by (mode × scenario × load × phase)."""
+    """Walk results/ and collect all run results grouped by (mode x scenario x load x phase)."""
     runs: list[RunResult] = []
 
     # Pattern: results/mode=A_kube-proxy/scenario=S1/load=L1/run=R1_2026-02-27T14-30-00+07-00/
@@ -431,7 +442,7 @@ def scan_calibration(cal_dir: Path) -> dict:
     return results
 
 
-# ─── Aggregation ──────────────────────────────────────────────────────────────
+# --- Aggregation --------------------------------------------------------------
 
 def aggregate(runs: list[RunResult], group_by: str = "mode+scenario+load") -> dict:
     """
@@ -479,12 +490,12 @@ def aggregate(runs: list[RunResult], group_by: str = "mode+scenario+load") -> di
     return summaries
 
 
-# ─── Comparison (A vs B) ──────────────────────────────────────────────────────
+# --- Comparison (A vs B) ------------------------------------------------------
 
 def compare_ab(summaries: dict, scenario: str, load: str, metric: str) -> dict:
     """Compare Mode A vs Mode B for a given (scenario, load, metric)."""
-    key_a = f"{scenario}+{load}+A_kube-proxy"
-    key_b = f"{scenario}+{load}+B_cilium-ebpfkpr"
+    key_a = f"A_kube-proxy+{scenario}+{load}"
+    key_b = f"B_cilium-ebpfkpr+{scenario}+{load}"
 
     s_a = summaries.get(key_a, {})
     s_b = summaries.get(key_b, {})
@@ -501,7 +512,7 @@ def compare_ab(summaries: dict, scenario: str, load: str, metric: str) -> dict:
     improvement = val_a - val_b  # positive = A is slower = B is faster
 
     # Raw values for t-test
-    # We need individual run values — reconstruct from summaries
+    # We need individual run values -- reconstruct from summaries
     return {
         "scenario": scenario, "load": load, "metric": metric,
         "A_mean": val_a, "A_ci_lo": s_a.get(f"{metric}_ci_lo"),
@@ -520,7 +531,7 @@ def compare_ab(summaries: dict, scenario: str, load: str, metric: str) -> dict:
     }
 
 
-# ─── Output formatting ─────────────────────────────────────────────────────────
+# --- Output formatting ---------------------------------------------------------
 
 def fmt(v: float, decimals: int = 3) -> str:
     if v is None or (isinstance(v, float) and math.isnan(v)):
@@ -541,26 +552,25 @@ import math
 def print_summary_table(summaries: dict, scenarios: list[str], loads: list[str]):
     print("")
     print("=" * 120)
-    print(" SUMMARY TABLE — ALL RUNS")
+    print(" SUMMARY TABLE -- ALL RUNS")
     print(f" Confidence intervals: {CI_LEVEL*100:.0f}% using Student's t-distribution")
     print(f" Statistical significance: p < {ALPHA} (Welch's t-test, two-tailed)")
     print("=" * 120)
 
     for scenario in scenarios:
         for load in loads:
-            key = f"{scenario}+{load}+A_kube-proxy"
-            if key not in summaries and f"{scenario}+{load}+B_cilium-ebpfkpr" not in summaries:
+            if f"A_kube-proxy+{scenario}+{load}" not in summaries and f"B_cilium-ebpfkpr+{scenario}+{load}" not in summaries:
                 continue
 
-            print(f"\n  ── {scenario} × {load} ─────────────────────────────────────────────────────")
-            header = f"  {'Metric':<20} │ {'Mode':<22} │ {'n':>4} │ {'Median':>10} │ {'Mean±CI':>22} │ {'StDev':>8}"
+            print(f"\n  -- {scenario} x {load} -----------------------------------------------------")
+            header = f"  {'Metric':<20} | {'Mode':<22} | {'n':>4} | {'Median':>10} | {'Mean+/-CI':>22} | {'StDev':>8}"
             print(header)
-            print("  " + "─" * 104)
+            print("  " + "-" * 104)
 
             for m in METRICS:
                 label = METRIC_LABELS.get(m, m)
-                for mode_key, mode_label in [("A_kube-proxy", "A (kube-proxy)"), ("B_cilium-ebpfkpr", "B (eBPF KPR)")]:
-                    k = f"{scenario}+{load}+{mode_key}"
+                for mk, ml in [("A_kube-proxy", "A (kube-proxy)"), ("B_cilium-ebpfkpr", "B (eBPF KPR)")]:
+                    k = f"{mk}+{scenario}+{load}"
                     if k not in summaries:
                         continue
                     s = summaries[k]
@@ -573,25 +583,25 @@ def print_summary_table(summaries: dict, scenarios: list[str], loads: list[str])
                     ci_hi = s.get(f"{m}_ci_hi")
                     std_v = s.get(f"{m}_stdev")
                     ci_str = fmt_ci(ci_lo, ci_hi)
-                    print(f"  {label:<20} │ {mode_label:<22} │ {n:>4} │ {fmt(med_v):>10} │ {fmt(m_v):>7} ± {ci_str:<12} │ {fmt(std_v):>8}")
+                    print(f"  {label:<20} | {ml:<22} | {n:>4} | {fmt(med_v):>10} | {fmt(m_v):>7} +/- {ci_str:<12} | {fmt(std_v):>8}")
 
             # A vs B comparison for p99
             for m in ["p99_ms", "p50_ms", "error_rate_pct"]:
                 comp = compare_ab(summaries, scenario, load, m)
                 if comp:
-                    winner_icon = "← B wins" if comp["winner"] == "B" else ("A wins →" if comp["winner"] == "A" else "  tie")
-                    delta_str = f"Δ={fmt(comp['delta_pct'])}%  ({winner_icon})"
+                    winner_icon = "[B]" if comp["winner"] == "B" else ("[A]" if comp["winner"] == "A" else "  tie")
+                    delta_str = f"delta={fmt(comp['delta_pct'])}%  ({winner_icon})"
                     print(f"\n  {METRIC_LABELS.get(m,m)} A vs B: A={fmt(comp['A_mean'])} B={fmt(comp['B_mean'])} {delta_str}")
 
 
 def print_comparison_table(summaries: dict, scenarios: list[str], loads: list[str]):
     print("")
     print("=" * 130)
-    print(" COMPARISON TABLE — Mode A vs Mode B")
-    print(" Δ% = (B - A) / |A| × 100%  |  Positive = B improved over A")
+    print(" COMPARISON TABLE -- Mode A vs Mode B")
+    print(" delta% = (B - A) / |A| x 100%  |  Positive = B improved over A")
     print(" CI = 95% confidence interval (Student's t-distribution)")
-    print(" p  = Welch's t-test p-value (two-tailed, α=0.05)")
-    print(" ✓  = statistically significant (p < 0.05)")
+    print(" p  = Welch's t-test p-value (two-tailed, alpha=0.05)")
+    print(" [sig] = statistically significant (p < 0.05)")
     print("=" * 130)
 
     all_comps = []
@@ -608,11 +618,11 @@ def print_comparison_table(summaries: dict, scenarios: list[str], loads: list[st
         by_metric.setdefault(c["metric"], []).append(c)
 
     for metric, comps in by_metric.items():
-        print(f"\n  ── {METRIC_LABELS.get(metric, metric)} ──")
-        print(f"  {'Scenario':<12} {'Load':<6} {'A_mean':>9} {'A_95%CI':>22} {'B_mean':>9} {'B_95%CI':>22} {'Δ%':>8} {'p-value':>10} {'Sig':>5}")
-        print("  " + "─" * 115)
+        print(f"\n  -- {METRIC_LABELS.get(metric, metric)} --")
+        print(f"  {'Scenario':<12} {'Load':<6} {'A_mean':>9} {'A_CI95':>22} {'B_mean':>9} {'B_CI95':>22} {'D%':>8} {'p-value':>10} {'Sig':>5}")
+        print("  " + "-" * 115)
         for c in comps:
-            sig = "✓" if c.get("significant") else " "
+            sig = "[sig]" if c.get("significant") else " "
             print(
                 f"  {c['scenario']:<12} {c['load']:<6} "
                 f"{fmt(c['A_mean']):>9} {fmt_ci(c['A_ci_lo'], c['A_ci_hi']):>22} "
@@ -641,7 +651,7 @@ def export_csv(summaries: dict, scenarios: list[str], loads: list[str], output_d
             w = csv.DictWriter(f, fieldnames=cols, extrasaction="ignore")
             w.writeheader()
             w.writerows(rows)
-        print(f"\n  [CSV] Aggregated summary → {output_dir / 'aggregated_summary.csv'}")
+        print(f"\n  [CSV] Aggregated summary -> {output_dir / 'aggregated_summary.csv'}")
 
     # A vs B comparison
     comp_rows = []
@@ -673,7 +683,7 @@ def export_csv(summaries: dict, scenarios: list[str], loads: list[str], output_d
             w = csv.DictWriter(f, fieldnames=list(comp_rows[0].keys()))
             w.writeheader()
             w.writerows(comp_rows)
-        print(f"  [CSV] A vs B comparison → {output_dir / 'comparison_AB.csv'}")
+        print(f"  [CSV] A vs B comparison -> {output_dir / 'comparison_AB.csv'}")
 
 
 def print_calibration_table(cal_results: dict):
@@ -688,18 +698,18 @@ def print_calibration_table(cal_results: dict):
         rows = data["rows"]
         if not rows:
             continue
-        print(f"\n  ── {mode} ──")
+        print(f"\n  -- {mode} --")
         print(f"  {'QPS':>6} {'Conns':>6} {'Run':>4} {'p50_ms':>8} {'p90_ms':>8} {'p99_ms':>8} {'p999_ms':>8} {'ErrRate%':>8} {'RPS':>8}")
-        print("  " + "─" * 70)
+        print("  " + "-" * 70)
         for r in rows:
-            def g(k): v = r.get(k); return fmt(v) if v is not None else "—"
+            def g(k): v = r.get(k); return fmt(v) if v is not None else "--"
             print(
                 f"  {int(r['qps']):>6} {int(r['conns']):>6} {int(r['run']):>4} "
                 f"{g('p50_ms'):>8} {g('p90_ms'):>8} {g('p99_ms'):>8} {g('p999_ms'):>8} {g('error_rate_pct'):>8} {g('rps'):>8}"
             )
 
 
-# ─── Main ─────────────────────────────────────────────────────────────────────
+# --- Main ---------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="Statistical analysis of benchmark results")
@@ -713,10 +723,6 @@ def main():
                         help=f"Significance level for t-tests (default: {ALPHA})")
     args = parser.parse_args()
 
-    global CI_LEVEL, ALPHA
-    CI_LEVEL = args.ci_level
-    ALPHA = args.alpha
-
     results_dir = args.results_dir
     output_dir = args.output_dir
 
@@ -725,7 +731,7 @@ def main():
     print(f" Results dir : {results_dir.resolve()}")
     print(f" Output dir  : {output_dir.resolve()}")
     print(f" CI level    : {CI_LEVEL*100:.0f}% (Student's t-distribution)")
-    print(f" α (t-test)  : {ALPHA}")
+    print(f" alpha (t-test)  : {ALPHA}")
     print("=" * 80)
 
     # Scan runs
