@@ -12,7 +12,7 @@
 - 3 nodes `m5.large`, cùng AZ, `min=desired=max=3` (non-burstable)
 - `kubectl` context trỏ đúng cluster:
   ```bash
-  aws eks update-kubeconfig --name <cluster-name> --region ap-southeast-1
+  aws eks update-kubeconfig --name nt531-bm --region ap-southeast-1
   kubectl get nodes   # tất cả phải Ready
   ```
 
@@ -23,6 +23,16 @@
 - `python3` (>= 3.8 — cần cho scripts phân tích)
 - `bc` (cho calibrate.sh)
 - (Mode B) `hubble` CLI (optional — script sẽ fallback qua cilium pod exec)
+
+### 1.3 Benchmark Environment
+
+Truyền biến trực tiếp bằng lệnh. Biến:
+
+| Biến | Giá trị | Mô tả |
+|------|---------|--------|
+| `MODE` | `A` hoặc `B` | Mode đang test |
+| `LOAD` | `L1`, `L2`, `L3` | Load level |
+| `REPEAT` | `3` (khuyến nghị ≥ 3) | Số lần lặp |
 
 ---
 
@@ -121,18 +131,46 @@ kubectl -n benchmark exec "${FORTIO_POD}" -- \
   fortio load -qps 10 -c 1 -t 5s http://echo.benchmark.svc.cluster.local/
 ```
 
+### 2.5 Verify DNS contract (fail-fast trước benchmark)
+
+```bash
+kubectl get svc -n kube-system kube-dns -o wide
+kubectl get endpoints -n kube-system kube-dns -o wide
+kubectl -n benchmark exec "${FORTIO_POD}" -- \
+  fortio curl http://echo.benchmark.svc.cluster.local:80/echo
+```
+
+Nếu pod resolve DNS bị timeout (ví dụ `lookup ... on 172.20.0.10:53: i/o timeout`), reconcile CoreDNS addon:
+
+```bash
+CLUSTER_NAME=$(kubectl config current-context | sed 's|.*/||')
+aws eks update-addon --cluster-name "${CLUSTER_NAME}" --region ap-southeast-1 \
+  --addon-name coredns --resolve-conflicts OVERWRITE
+aws eks wait addon-active --cluster-name "${CLUSTER_NAME}" --region ap-southeast-1 \
+  --addon-name coredns
+```
+
 ---
 
 ## 3. Chọn Mode (A hoặc B)
 
 ### Mode A — kube-proxy baseline
+
+> ⚠️ **Yêu cầu trước khi cài:** Terraform module EKS đã set `manage_vpc_cni = false` nên aws-node sẽ **không được cài tự động**. Nếu dùng cluster cũ (chưa có fix này) — xóa aws-node trước: `kubectl delete ds aws-node -n kube-system`. Không xóa → Cilium sẽ crash với lỗi `"Cannot specify IPAM mode eni in tunnel mode"` hoặc `"required IPv4 PodCIDR not available"`.
+
 ```bash
-helm upgrade --install cilium cilium/cilium \
-  --namespace kube-system \
-  --version 1.18.7 \
-  -f helm/cilium/values-baseline.yaml
+# Tạo namespace cần thiết:
+kubectl create namespace cilium-secrets
+
+# Cài Cilium (Mode A):
+helm install cilium cilium/cilium -n kube-system --version 1.18.7 -f helm/cilium/values-baseline.yaml
+
+# Verify:
+kubectl exec -n kube-system ds/cilium -- cilium status
+kubectl get ds -n kube-system kube-proxy
 ```
-kube-proxy vẫn chạy bình thường, Cilium chỉ là CNI.
+
+Xác nhận: `KubeProxyReplacement: False`, `IPAM: cluster-pool`, `kube-proxy 3/3 Running`.
 
 ### Mode B — Cilium eBPF kube-proxy replacement
 
@@ -145,29 +183,102 @@ kube-proxy vẫn chạy bình thường, Cilium chỉ là CNI.
 
 **Các bước chuyển Mode A → Mode B:**
 
-1. Sửa `helm/cilium/values-ebpfkpr.yaml`: điền `k8sServiceHost` = EKS API endpoint
-2. **Tắt kube-proxy DaemonSet:** ← BẮT BUỘC
+1. **Điền `k8sServiceHost`** trong `helm/cilium/values-ebpfkpr.yaml` (nếu chưa có)
+2. **Đảm bảo `eni.enabled: true`** trong `values-ebpfkpr.yaml` ← BẮT BUỘC
+   - Dòng này báo cho helm chart chọn đúng `operator-aws` (thay vì `operator-generic`)
+   - Nếu thiếu → cilium-operator crash với lỗi `"cilium-operator-generic: executable file not found"`
+3. **Tắt kube-proxy DaemonSet:** ← BẮT BUỘC
    ```bash
-   kubectl delete daemonset kube-proxy -n kube-system
+   kubectl delete daemonset kube-proxy -n kube-system || true
    ```
-3. Đợi ~30 giây cho kube-proxy pods terminated trên tất cả nodes
-4. Upgrade Cilium in-place (không gỡ):
+4. Đợi ~30 giây cho kube-proxy pods terminated
+5. **Upgrade Cilium in-place:**
    ```bash
    helm upgrade cilium cilium/cilium \
      --namespace kube-system \
      --version 1.18.7 \
      -f helm/cilium/values-ebpfkpr.yaml
    ```
-5. Verify:
+   > ⚠️ Không dùng `--wait` — cilium-agent restart mất 2-3 phút, helm `--wait` timeout sẽ fail.
+6. **Theo dõi tiến trình:**
    ```bash
-   kubectl -n kube-system exec ds/cilium -- cilium status
-   # Phải thấy: KubeProxyReplacement: True
+   kubectl get pods -n kube-system -l app=cilium-operator -w &
+   kubectl get pods -n kube-system -l k8s-app=cilium -w &
    ```
-6. Restart workload pods (để nhận datapath mới):
+   Chờ cho đến khi `cilium-operator` và cả 3 `cilium` pods đều `Running 1/1`.
+   (Thường mất 2-5 phút sau upgrade)
+7. **Verify:**
+   ```bash
+   kubectl exec -n kube-system ds/cilium -- cilium status
+   # Phải thấy:
+   #   KubeProxyReplacement: True
+   #   IPAM: IPv4: X/10 allocated (ENI, không phải cluster-pool)
+   #   Routing: Network: Native (không phải Tunnel [vxlan])
+   #   Hubble: Ok (Enabled)
+   ```
+8. **Restart CoreDNS** (bắt buộc sau Mode B switch):
+   ```bash
+   kubectl delete pods -n kube-system -l k8s-app=kube-dns
+   # Đợi ~30s
+   kubectl get pods -n kube-system -l k8s-app=kube-dns  # phải Running 1/1
+   ```
+   Lý do: kube-proxy bị xóa → CoreDNS endpoint resolver bị broken. Phải restart để pick up eBPF datapath mới.
+9. **Restart workload pods** (để nhận ENI IPs):
    ```bash
    kubectl delete pods -n benchmark --all
    # Đợi: kubectl -n benchmark get pods (Running)
    ```
+   Lý do: Pods cũ dùng cluster-pool IPs (10.96.x.x), không đi qua ENI native routing. Restart để nhận ENI IPs (10.0.x.x).
+10. **Verify kết nối:**
+    ```bash
+    FORTIO=$(kubectl get pods -n benchmark -l app=fortio -o jsonpath='{.items[0].metadata.name}')
+    kubectl exec -n benchmark "$FORTIO" -- fortio load -qps 10 -c 1 -t 5s http://echo.benchmark.svc.cluster.local/
+    # Phải thấy: Code 200, 0 errors
+    ```
+
+### Chuyển Mode B → Mode A (rollback)
+
+Các bước tương tự nhưng ngược lại:
+
+1. **Restore kube-proxy** (Mode A cần kube-proxy):
+   ```bash
+   kubectl apply -f terraform/modules/eks/kube-proxy-daemonset.yaml
+   # Hoặc restore từ EKS addon:
+   aws eks create-addon --cluster-name nt531-bm --region ap-southeast-1 --addon-name kube-proxy
+   ```
+2. **Upgrade Cilium về Mode A:**
+   ```bash
+   helm upgrade cilium cilium/cilium -n kube-system \
+     --version 1.18.7 -f helm/cilium/values-baseline.yaml
+   ```
+3. **Theo dõi** đợi cả 3 cilium pods Ready
+4. **Restart workload pods** (`kubectl delete pods -n benchmark --all`)
+5. **Restart CoreDNS** (`kubectl delete pods -n kube-system -l k8s-app=kube-dns`)
+6. **Verify**
+
+> ⚠️ **Mỗi lần switch mode (A→B hoặc B→A), LUÔN restart workload pods.** Lý do: IPAM mode khác nhau → pod IP ranges khác nhau. Workload pods cần restart để nhận IP pool tương ứng.
+
+### Troubleshooting Mode B Upgrade
+
+| Triệu chứng | Nguyên nhân | Fix |
+|---|---|---|
+| `cilium-operator` CrashLoopBackOff: `"cilium-operator-generic: executable not found"` | Thiếu `eni.enabled: true` trong values → chart chọn sai operator image | Thêm `eni.enabled: true` vào `values-ebpfkpr.yaml`, upgrade lại |
+| `cilium` pods CrashLoopBackOff: `"Waiting for IPs to become available in CRD-backed allocation pool"` | `cilium-operator` chưa Running → không cấp IP ENI được | Đợi operator Ready trước, hoặc check operator logs |
+| Fortio DNS lookup timeout: `lookup echo.benchmark.svc.cluster.local on 172.20.0.10:53: i/o timeout` | CoreDNS chưa pick up eBPF datapath | Restart CoreDNS: `kubectl delete pods -n kube-system -l k8s-app=kube-dns` |
+| Fortio dial timeout trên IP trực tiếp: `dial tcp 172.20.x.x:80: i/o timeout` | Workload pods giữ cluster-pool IPs (10.96.x.x) | Restart workload pods: `kubectl delete pods -n benchmark --all` |
+
+### ⚠️ Confound giữa Mode A và Mode B — IPAM mode
+
+> **Đọc kỹ trước khi chạy.** Thông tin này cần ghi nhận trong thesis/report.
+
+Mode A và Mode B **khác nhau ở 2 biến** thay vì 1:
+
+| | Mode A | Mode B |
+|---|---|---|
+| **IPAM** | `cluster-pool` (dải IP riêng Cilium) | `eni` (VPC native ENI) |
+| **Datapath** | kube-proxy iptables DNAT/SNAT | eBPF socket-level redirect |
+
+→ Δ hiệu năng = **eBPF effect** + **NAT/overlay removal effect**. Không isolate riêng được. Cả 2 đều là production-grade config — phản ánh cách deploy thực tế trên EKS. Xem `docs/experiment_spec.md` §12 (Threats to Validity) để biết cách trình bày trong thesis.
 
 ### NetworkPolicy (S3)
 > **Lưu ý:** Script `run_s3.sh` **tự động** xóa và apply policies — không cần thao tác thủ công.
@@ -183,45 +294,53 @@ kubectl -n benchmark delete -f workload/policies/ --ignore-not-found=true
 
 ## 4. Chạy Benchmark
 
-### 4.1 Environment variables
-
-| Variable | Giá trị | Mô tả |
-|----------|---------|-------|
-| `MODE` | `A` hoặc `B` | Mode đang test |
-| `LOAD` | `L1`, `L2`, `L3` | Load level |
-| `REPEAT` | `3` (khuyến nghị ≥ 3) | Số lần lặp |
-
 ### 4.2 Scenario S1 — Service Baseline
+
 ```bash
-MODE=A LOAD=L1 REPEAT=3 ./scripts/run_s1.sh
-MODE=A LOAD=L2 REPEAT=3 ./scripts/run_s1.sh
-MODE=A LOAD=L3 REPEAT=3 ./scripts/run_s1.sh
+MODE=A LOAD=L1 ./scripts/run_s1.sh
+MODE=A LOAD=L2 ./scripts/run_s1.sh
+MODE=A LOAD=L3 ./scripts/run_s1.sh
 ```
-Lặp lại toàn bộ với `MODE=B`.
+
+Lặp lại với `MODE=B`.
 
 ### 4.3 Scenario S2 — High-load + Connection Churn
-```bash
-MODE=A LOAD=L2 REPEAT=3 ./scripts/run_s2.sh
-MODE=A LOAD=L3 REPEAT=3 ./scripts/run_s2.sh
-```
-S2 gồm 4 phase: ramp-up → sustained high → burst ×3 → cool-down.
-Keepalive tắt → mỗi request mở TCP connection mới (churn).
 
-### 4.4 Scenario S3 — NetworkPolicy Overhead
 ```bash
-MODE=B LOAD=L2 REPEAT=3 ./scripts/run_s3.sh
+MODE=A LOAD=L2 ./scripts/run_s2.sh
+MODE=A LOAD=L3 ./scripts/run_s2.sh
+```
+S2 gồm 4 phase: ramp-up → sustained → burst ×3 → cool-down.
+Keepalive tắt → mỗi request mở TCP connection mới (churn).
+L1 không chạy S2 vì QPS quá thấp không stress được conntrack.
+
+### 4.4 Scenario S3 — NetworkPolicy Overhead (Mode B)
+
+```bash
+MODE=B LOAD=L2 ./scripts/run_s3.sh
+MODE=B LOAD=L3 ./scripts/run_s3.sh
 ```
 Script tự động: xóa policy → đo (phase=off) → apply policy → đo (phase=on).
+S3 chỉ chạy ở Mode B. Mode A không cần.
 
-### 4.5 Chạy toàn bộ ma trận (ví dụ)
+### 4.5 Tổng hợp
+
 ```bash
-for mode in A B; do
-  for load in L1 L2 L3; do
-    MODE=${mode} LOAD=${load} REPEAT=3 ./scripts/run_s1.sh
-    MODE=${mode} LOAD=${load} REPEAT=3 ./scripts/run_s2.sh
-  done
-  MODE=${mode} LOAD=L2 REPEAT=3 ./scripts/run_s3.sh
-done
+# Mode A — S1, S2
+MODE=A LOAD=L1 ./scripts/run_s1.sh
+MODE=A LOAD=L2 ./scripts/run_s1.sh
+MODE=A LOAD=L3 ./scripts/run_s1.sh
+MODE=A LOAD=L2 ./scripts/run_s2.sh
+MODE=A LOAD=L3 ./scripts/run_s2.sh
+
+# Mode B — S1, S2, S3
+MODE=B LOAD=L1 ./scripts/run_s1.sh
+MODE=B LOAD=L2 ./scripts/run_s1.sh
+MODE=B LOAD=L3 ./scripts/run_s1.sh
+MODE=B LOAD=L2 ./scripts/run_s2.sh
+MODE=B LOAD=L3 ./scripts/run_s2.sh
+MODE=B LOAD=L2 ./scripts/run_s3.sh
+MODE=B LOAD=L3 ./scripts/run_s3.sh
 ```
 
 ---

@@ -22,15 +22,30 @@ kubeProxyReplacement: true
 
 # ← ĐIỀN EKS API endpoint ở đây (hostname only)
 # Ví dụ: ABCD1234EFGHIJKL.gr7.ap-southeast-1.eks.amazonaws.com
-k8sServiceHost: ""
+k8sServiceHost: "472A12F53EF9ACDEC758451AF350C0D6.gr7.ap-southeast-1.eks.amazonaws.com"
 k8sServicePort: 443
 
 eks:
   enabled: true
 
+# BẮT BUỘC: eni.enabled=true báo cho Helm chart chọn operator-aws image
+# (thay vì operator-generic mặc định). operator-aws hỗ trợ ENI IPAM allocator.
+# Nếu thiếu dòng này → cilium-operator crash:
+#   "cilium-operator-generic: executable file not found in $PATH"
+eni:
+  enabled: true
+
+# ENI mode cần native routing (không tunnel).
+# routingMode: native + ipam.mode: eni = AWS VPC CNI chaining.
+# ⚠️ KHÔNG dùng tunnel VXLAN với ENI mode — sẽ crash với lỗi
+#    "Cannot specify IPAM mode eni in tunnel mode."
+routingMode: "native"
+ipv4NativeRoutingCIDR: "10.0.0.0/8"
+
 ipam:
   mode: "eni"
 
+# Hubble cho observability — chỉ có ở Mode B
 hubble:
   enabled: true
   relay:
@@ -43,6 +58,3 @@ prometheus:
 operator:
   prometheus:
     enabled: true
-
-# image tag được quyết định bởi chart version (--version 1.18.7)
-# Không cần override image.tag trừ khi muốn build custom.

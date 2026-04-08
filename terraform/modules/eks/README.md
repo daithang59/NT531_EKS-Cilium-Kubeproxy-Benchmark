@@ -11,7 +11,7 @@ Module này tạo **Amazon EKS cluster** và **managed node group** để chạy
 | IAM Roles | Tự động tạo bởi module (cluster + node group) |
 | Security Groups | Control plane ↔ worker nodes communication |
 | OIDC Provider | Cho IAM Roles for Service Accounts (IRSA) |
-| EKS Addons | CoreDNS, kube-proxy, vpc-cni (latest compatible versions) |
+| EKS Addons | CoreDNS, kube-proxy (vpc-cni **KHÔNG** có — Cilium quản lý CNI) |
 
 ## Implementation
 
@@ -42,7 +42,8 @@ Sử dụng community module `terraform-aws-modules/eks/aws ~> 20.0`.
 - **Autoscaling tắt:** `min_size = max_size = desired_size` → số node cố định, tránh nhiễu.
 - **Instance type `m5.large`:** 2 vCPU, 8 GiB RAM — **non-burstable**, CPU ổn định 100% xuyên suốt, không có credit exhaustion.
 - **3 nodes:** Scheduler phân bố pods trên nhiều node.
-- **Addons:** CoreDNS + kube-proxy + vpc-cni cài tự động, Cilium cài riêng qua Helm.
+- **Addons:** CoreDNS + kube-proxy (vpc-cni **KHÔNG** có — Cilium thay thế làm CNI duy nhất).
+- ⚠️ **VPC CNI conflict:** Nếu `vpc-cni` vẫn có trong cluster_addons → Cilium sẽ crash. Phải bỏ `vpc-cni` khỏi cluster_addons trước khi cài Cilium. Xem `helm/cilium/README.md`.
 
 ## Lưu ý
 

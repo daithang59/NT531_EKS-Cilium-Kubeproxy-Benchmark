@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(kubectl get:*)",
+      "Bash(chmod +x scripts/collect_node_metrics.sh)",
+      "Bash(bash scripts/collect_node_metrics.sh)",
+      "Bash(python3 -c \":*)",
+      "Bash(python3:*)"
+    ]
+  }
+}

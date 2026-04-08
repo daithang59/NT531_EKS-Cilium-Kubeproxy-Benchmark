@@ -37,18 +37,21 @@ DURATION_SEC="${DURATION_SEC:-180}"
 REST_BETWEEN_RUNS="${REST_BETWEEN_RUNS:-60}"
 
 # ---- Load-level profiles (Fortio params) -------------------------------------
-# L1 — Light: low concurrency, moderate QPS
+# L1 — Light: stable, near-zero errors
+# Calibrated Mode A (2026-04-07): QPS=100, p99=0.51ms, err=0%, stable near-zero tail
 L1_QPS="${L1_QPS:-100}"
 L1_CONNS="${L1_CONNS:-8}"
 L1_THREADS="${L1_THREADS:-2}"
 
-# L2 — Medium: higher concurrency + QPS
-L2_QPS="${L2_QPS:-500}"
+# L2 — Medium: visible tail, no saturation
+# Calibrated Mode A (2026-04-07): QPS=400, p99=2.65ms, err=0%, visible tail, no saturation
+L2_QPS="${L2_QPS:-400}"
 L2_CONNS="${L2_CONNS:-32}"
 L2_THREADS="${L2_THREADS:-4}"
 
-# L3 — High: near saturation
-L3_QPS="${L3_QPS:-1000}"
+# L3 — High: near saturation (p99 spike ~15× vs L2)
+# Calibrated Mode A (2026-04-07): QPS=800, p99=38.77ms, err=0%, p99 spike approaching saturation
+L3_QPS="${L3_QPS:-800}"
 L3_CONNS="${L3_CONNS:-64}"
 L3_THREADS="${L3_THREADS:-8}"
 
@@ -128,7 +131,8 @@ preflight_checks() {
   # 2. Nodes Ready
   echo -n "[CHECK] Nodes Ready... "
   local not_ready
-  not_ready=$(kubectl get nodes --no-headers | grep -v ' Ready' | wc -l)
+  not_ready=$(kubectl get nodes --no-headers | grep -v ' Ready' | wc -l | tr -d ' ' || true)
+  if [[ -z "${not_ready}" ]]; then not_ready=0; fi
   if [[ "${not_ready}" -gt 0 ]]; then
     echo "FAIL (${not_ready} node(s) not Ready)"
     kubectl get nodes >&2
@@ -153,7 +157,10 @@ preflight_checks() {
   fi
   echo "OK"
 
-  # 4. Mode B extras
+  # 4. DNS service contract + in-cluster DNS probe
+  check_cluster_dns
+
+  # 5. Mode B extras
   if [[ "${MODE}" == "B" ]]; then
     echo -n "[CHECK] cilium status... "
     if ! kubectl -n kube-system exec ds/cilium -- cilium status --brief &>/dev/null; then
@@ -173,6 +180,53 @@ preflight_checks() {
 # ======================== Fortio helpers ======================================
 fortio_pod() {
   kubectl -n "${NS}" get pod -l app=fortio -o jsonpath='{.items[0].metadata.name}'
+}
+
+# check_cluster_dns
+# Validates kube-dns service contract and DNS resolution from fortio pod.
+check_cluster_dns() {
+  echo -n "[CHECK] kube-dns Service contract... "
+
+  local dns_ip dns_ports dns_eps ep_count
+  dns_ip="$(kubectl -n kube-system get svc kube-dns -o jsonpath='{.spec.clusterIP}' 2>/dev/null || true)"
+  dns_ports="$(kubectl -n kube-system get svc kube-dns -o jsonpath='{range .spec.ports[*]}{.port}{"/"}{.protocol}{"\n"}{end}' 2>/dev/null || true)"
+  dns_eps="$(kubectl -n kube-system get endpoints kube-dns -o jsonpath='{range .subsets[*].addresses[*]}{.ip}{"\n"}{end}' 2>/dev/null || true)"
+
+  if [[ -z "${dns_ip}" ]]; then
+    echo "FAIL"
+    echo "[FATAL] kube-dns service not found in kube-system." >&2
+    exit 1
+  fi
+
+  if ! printf '%s\n' "${dns_ports}" | grep -q '^53/UDP$' || ! printf '%s\n' "${dns_ports}" | grep -q '^53/TCP$'; then
+    echo "FAIL"
+    echo "[FATAL] kube-dns must expose both 53/UDP and 53/TCP. Current ports:" >&2
+    printf '%s\n' "${dns_ports}" >&2
+    echo "[HINT] kubectl get svc -n kube-system kube-dns -o yaml" >&2
+    exit 1
+  fi
+
+  ep_count="$(printf '%s\n' "${dns_eps}" | sed '/^$/d' | wc -l | tr -d ' ')"
+  if [[ "${ep_count}" -eq 0 ]]; then
+    echo "FAIL"
+    echo "[FATAL] kube-dns has no ready endpoints." >&2
+    echo "[HINT] kubectl get pods -n kube-system -l k8s-app=kube-dns -o wide" >&2
+    exit 1
+  fi
+
+  echo "OK (clusterIP=${dns_ip}, endpoints=${ep_count})"
+
+  echo -n "[CHECK] DNS resolution from fortio pod... "
+  local pod
+  pod="$(fortio_pod)"
+  if ! kubectl -n "${NS}" exec "${pod}" -- \
+    fortio curl -timeout 5s "http://echo.${NS}.svc.cluster.local:80/echo" >/dev/null 2>&1; then
+    echo "FAIL"
+    echo "[FATAL] DNS/Service probe failed from fortio pod." >&2
+    echo "[HINT] Verify kube-dns/CoreDNS before benchmark." >&2
+    exit 1
+  fi
+  echo "OK"
 }
 
 # run_fortio <outdir> [extra_fortio_flags...]
@@ -200,7 +254,7 @@ run_fortio() {
       -t "${DURATION_SEC}s" \
       "${extra_flags[@]+"${extra_flags[@]}"}" \
       "${SVC_URL}" \
-    2>&1 | tee "${outdir}/bench.log"
+    2>&1 | tee "${outdir}/bench.log" || true
 }
 
 # ======================== metadata.json generation ============================
