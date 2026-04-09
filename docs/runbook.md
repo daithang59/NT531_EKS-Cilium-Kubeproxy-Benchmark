@@ -229,7 +229,17 @@ Xác nhận: `KubeProxyReplacement: False`, `IPAM: cluster-pool`, `kube-proxy 3/
    # Đợi: kubectl -n benchmark get pods (Running)
    ```
    Lý do: Pods cũ dùng cluster-pool IPs (10.96.x.x), không đi qua ENI native routing. Restart để nhận ENI IPs (10.0.x.x).
-10. **Verify kết nối:**
+10. **Xóa Hubble relay và Hubble UI pods** ← BẮT BUỘC sau Mode B upgrade:
+    ```bash
+    kubectl delete pod -n kube-system -l app.kubernetes.io/name=hubble-relay
+    kubectl delete pod -n kube-system -l app.kubernetes.io/name=hubble-ui
+    # Verify ENI IP (phải là 10.0.x.x, KHÔNG phải 10.96.x.x):
+    kubectl get pod -n kube-system -l app.kubernetes.io/name=hubble-relay -o jsonpath='{.items[0].status.podIP}'
+    # Verify không BackOff:
+    kubectl get events -n kube-system --sort-by='.lastTimestamp' | grep hubble-relay
+    ```
+    Lý do: Hubble relay pod giữ **cluster-pool IP (`10.96.x.x`)** từ Mode A. ENI native routing không route được `10.96.x.x` → eBPF drop packet → startup probe fail → BackOff loop. Xóa pod buộc nó nhận ENI IP mới (`10.0.x.x`).
+11. **Verify kết nối:**
     ```bash
     FORTIO=$(kubectl get pods -n benchmark -l app=fortio -o jsonpath='{.items[0].metadata.name}')
     kubectl exec -n benchmark "$FORTIO" -- fortio load -qps 10 -c 1 -t 5s http://echo.benchmark.svc.cluster.local/
@@ -263,9 +273,11 @@ Các bước tương tự nhưng ngược lại:
 | Triệu chứng | Nguyên nhân | Fix |
 |---|---|---|
 | `cilium-operator` CrashLoopBackOff: `"cilium-operator-generic: executable not found"` | Thiếu `eni.enabled: true` trong values → chart chọn sai operator image | Thêm `eni.enabled: true` vào `values-ebpfkpr.yaml`, upgrade lại |
+| `cilium-operator` CrashLoopBackOff: `dial tcp 172.20.0.1:443: i/o timeout` | Cilium BPF service entries bị stuck `non-routable` trên 1+ nodes → không kết nối được API server | Restart Cilium DaemonSet trên nodes bị ảnh hưởng: `kubectl delete pod -n kube-system -l k8s-app=cilium`; đợi pods recreate; verify: `kubectl exec -n kube-system ds/cilium -- cilium bpf lb list \| grep "172.20.0.1:443"` phải thấy backend `active` |
 | `cilium` pods CrashLoopBackOff: `"Waiting for IPs to become available in CRD-backed allocation pool"` | `cilium-operator` chưa Running → không cấp IP ENI được | Đợi operator Ready trước, hoặc check operator logs |
 | Fortio DNS lookup timeout: `lookup echo.benchmark.svc.cluster.local on 172.20.0.10:53: i/o timeout` | CoreDNS chưa pick up eBPF datapath | Restart CoreDNS: `kubectl delete pods -n kube-system -l k8s-app=kube-dns` |
 | Fortio dial timeout trên IP trực tiếp: `dial tcp 172.20.x.x:80: i/o timeout` | Workload pods giữ cluster-pool IPs (10.96.x.x) | Restart workload pods: `kubectl delete pods -n benchmark --all` |
+| `hubble-relay` BackOff: `timeout: failed to connect service "10.96.x.x:4222"` | Hubble relay pod giữ cluster-pool IP (`10.96.x.x`) sau Mode A→B upgrade — ENI native routing không route được dải này → startup probe fail → BackOff loop | Xóa relay và UI pods để buộc nhận ENI IP: `kubectl delete pod -n kube-system -l app.kubernetes.io/name=hubble-relay && kubectl delete pod -n kube-system -l app.kubernetes.io/name=hubble-ui` |
 
 ### ⚠️ Confound giữa Mode A và Mode B — IPAM mode
 
@@ -289,6 +301,46 @@ kubectl apply -f workload/policies/
 # Xóa
 kubectl -n benchmark delete -f workload/policies/ --ignore-not-found=true
 ```
+
+### ⚠️ Monitoring / Grafana không hoạt động sau switch A→B
+
+> Sau khi switch Mode A→B, tất cả monitoring pods trong namespace `monitoring` giữ cluster-pool IPs (10.96.x.x) cũ. Chúng không thể reach Kubernetes API server vì:
+> - cluster-pool IP range không còn routeable qua ENI native routing
+> - Cilium ENI mode chỉ hỗ trợ ENI IPs (10.0.x.x)
+>
+> **Ảnh hưởng:** Grafana dashboards trống, Prometheus không scrape được metrics.
+
+**Fix — Helm upgrade monitoring (tốt nhất):**
+```bash
+helm upgrade prometheus prometheus-community/kube-prometheus-stack -n monitoring \
+  --version 60.0.0 -f helm/monitoring/values.yaml \
+  --timeout 10m
+# Helm sẽ terminate và recreate tất cả pods
+```
+
+**Fix nhanh (nếu helm upgrade không khả thi):**
+```bash
+# Xóa từng pod để buộc nhận ENI IP mới
+kubectl delete pod -n monitoring prometheus-kube-prometheus-prometheus-0
+kubectl delete pod -n monitoring -l app.kubernetes.io/name=grafana
+kubectl delete pod -n monitoring -l app.kubernetes.io/name=kube-prometheus-operator
+# Monitor:
+kubectl get pods -n monitoring -w
+```
+
+**Verify Grafana đã hoạt động:**
+```bash
+# Port-forward (chú ý: service port là 80, không phải 3000)
+kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80 &
+
+# Lấy password (service name khác với secret name):
+kubectl get secret -n monitoring -l app.kubernetes.io/component=admin-secret -o jsonpath='{.items[0].data.admin-password}' | base64 -d
+# Username: admin
+```
+
+Truy cập http://localhost:3000
+- Dashboard "Kubernetes / Compute Resources / Node" → có data
+- Dashboard "Kubernetes / Compute Resources / Pods" → có data
 
 ---
 

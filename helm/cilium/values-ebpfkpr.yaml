@@ -46,12 +46,46 @@ ipam:
   mode: "eni"
 
 # Hubble cho observability — chỉ có ở Mode B
+# ⚠️ CRÍTICAL: Hubble relay/ui pods CẦN nhận ENI IPs (10.0.x.x) sau Mode A→B upgrade.
+# Sau khi helm upgrade Mode B, XÓA hubble relay/ui pods để force ENI IP reassignment:
+#   kubectl delete pod -n kube-system -l app.kubernetes.io/name=hubble-relay
+#   kubectl delete pod -n kube-system -l app.kubernetes.io/name=hubble-ui
+# Không làm → relay giữ cluster-pool IP (10.96.x.x) → eBPF datapath drop → BackOff loop.
 hubble:
   enabled: true
   relay:
     enabled: true
+    # Một relay replica là đủ cho 3-node benchmark cluster
+    replicas: 1
+    # Anti-affinity: buộc relay pod chạy cùng node với cilium-agent
+    # → đảm bảo relay luôn nhận ENI IP (10.0.x.x), không giữ cluster-pool IP cũ
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+                - key: k8s-app
+                  operator: In
+                  values:
+                    - cilium
+            topologyKey: kubernetes.io/hostname
+    tolerations:
+      - operator: Exists
   ui:
     enabled: true
+    # Hubble UI cũng cần ENI IP — same affinity treatment
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+                - key: k8s-app
+                  operator: In
+                  values:
+                    - cilium
+            topologyKey: kubernetes.io/hostname
+    tolerations:
+      - operator: Exists
 
 prometheus:
   enabled: true

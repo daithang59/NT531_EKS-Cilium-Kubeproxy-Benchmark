@@ -39,6 +39,8 @@ sleep 5  # settle
 for i in $(seq 1 "${REPEAT}"); do
   # Override OUTDIR to include phase
   export OUTDIR="${REPO_ROOT}/results/mode=${MODE_LABEL}/scenario=${SCENARIO}/load=${LOAD}/phase=off/run=R${i}_$(ts_dir)"
+  # No policy active — POLICY_METADATA unset so write_metadata uses template defaults
+  unset POLICY_METADATA
   execute_run "${i}"
 
   if [[ "${i}" -lt "${REPEAT}" ]]; then
@@ -56,6 +58,10 @@ echo "────────────────────────�
 kubectl apply -f "${REPO_ROOT}/workload/policies/"
 sleep 10  # let policy propagate
 
+# Policy metadata: 2 CiliumNetworkPolicy files (01-allow-fortio-to-echo + 02-deny-other)
+# Parsed by write_metadata into workload.policy block in metadata.json
+export POLICY_METADATA="enabled=true,type=CiliumNetworkPolicy,complexity_level=simple,rule_count_estimate=2"
+
 for i in $(seq 1 "${REPEAT}"); do
   export OUTDIR="${REPO_ROOT}/results/mode=${MODE_LABEL}/scenario=${SCENARIO}/load=${LOAD}/phase=on/run=R${i}_$(ts_dir)"
   execute_run "${i}"
@@ -66,6 +72,7 @@ for i in $(seq 1 "${REPEAT}"); do
   fi
 done
 unset OUTDIR
+unset POLICY_METADATA
 
 echo ""
 echo "[DONE] S3 completed — ${REPEAT} run(s) × 2 phases for MODE=${MODE_LABEL} LOAD=${LOAD}"
