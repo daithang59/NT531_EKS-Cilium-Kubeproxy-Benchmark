@@ -5,7 +5,10 @@
       "Bash(chmod +x scripts/collect_node_metrics.sh)",
       "Bash(bash scripts/collect_node_metrics.sh)",
       "Bash(python3 -c \":*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(find C:/nt531-project/NT531_Project/thesis-cilium-eks-benchmark/.omc/artifacts/ask -name codex-*.md)",
+      "Bash(sort -t_ -k5)",
+      "Bash(python tests/test_analyze_results_s3.py)"
     ]
   }
 }

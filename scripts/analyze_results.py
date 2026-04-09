@@ -339,18 +339,21 @@ class RunResult:
 # --- Directory scanning --------------------------------------------------------
 
 def scan_results(results_dir: Path) -> list[RunResult]:
-    """Walk results/ and collect all run results grouped by (mode x scenario x load x phase)."""
+    """Walk results/ and collect all run results grouped by (mode x scenario x load x phase).
+    Matches two directory layouts:
+      - Flat (S1/S2):  results/mode=A_kube-proxy/scenario=S1/load=L1/run=R1_timestamp/bench.log
+      - Phase (S3):     results/mode=B_cilium-ebpfkpr/scenario=S3/load=L2/phase=off/run=R1_timestamp/bench.log
+    Both are found by scanning recursively for bench.log and parsing path components.
+    """
     runs: list[RunResult] = []
 
-    # Pattern: results/mode=A_kube-proxy/scenario=S1/load=L1/run=R1_2026-02-27T14-30-00+07-00/
-    # or with phase: results/mode=.../scenario=S3/load=.../phase=off/run=.../
-    pattern = results_dir / "mode=*" / "scenario=*" / "load=*" / "run=*" / "bench.log"
-    for bench_log in glob.glob(str(pattern), recursive=False):
-        # Try both flat and phase-subdirectory layouts
-        run_dir = Path(bench_log).parent
+    for bench_log in glob.glob(str(results_dir / "**" / "bench.log"), recursive=True):
+        if "/calibration/" in bench_log:
+            continue
 
-        # Parse directory name to infer mode/scenario/load
+        run_dir = Path(bench_log).parent
         parts = run_dir.parts
+
         try:
             mode = next(p.split("=")[1] for p in parts if p.startswith("mode="))
             scenario = next(p.split("=")[1] for p in parts if p.startswith("scenario="))
@@ -358,29 +361,29 @@ def scan_results(results_dir: Path) -> list[RunResult]:
         except StopIteration:
             continue
 
+        # Phase subdirectory sits between run_id dir and bench.log (S3 layout)
         phase = None
         run_id = run_dir.name
-        # Check if bench.log is inside a phase subdirectory
         if run_dir.parent.name.startswith("phase="):
             phase = run_dir.parent.name.split("=")[1]
-            run_id = run_dir.name
 
-        # Check for multiple repeats under run subdir (e.g. bench_R1.log, bench_R2.log)
-        bench_files = list(run_dir.glob("bench*.log")) + list(run_dir.glob("*.log"))
-        # Also look for bench_R{1,2,3}.log at run_dir level
-        for bench_file in sorted(run_dir.glob("bench_R*.log")):
-            sub_run_id = bench_file.stem  # e.g. "bench_R1"
-            metrics = parse_fortio_log(bench_file)
-            if metrics:
-                rr = RunResult(run_dir=run_dir, mode=mode, scenario=scenario,
-                               load=load, phase=phase, run_id=sub_run_id)
-                for m in METRICS:
-                    v = metrics.get(m)
-                    if v is not None:
-                        getattr(rr, m).append(v)
-                runs.append(rr)
+        # S2 multi-phase: bench_phase1.log, bench_phase2.log, ...
+        phase_bench_logs = sorted(run_dir.glob("bench_phase*.log"))
+        if phase_bench_logs:
+            for pb in phase_bench_logs:
+                phase_label = pb.stem  # "bench_phase1_rampup"
+                metrics = parse_fortio_log(pb)
+                if metrics:
+                    rr = RunResult(run_dir=run_dir, mode=mode, scenario=scenario,
+                                   load=load, phase=phase, run_id=phase_label)
+                    for m in METRICS:
+                        v = metrics.get(m)
+                        if v is not None:
+                            getattr(rr, m).append(v)
+                    runs.append(rr)
+            continue  # S2 already handled by phase logs
 
-        # Single bench.log
+        # Single bench.log (S1, S3) — no merge needed, each run_dir is unique
         metrics = parse_fortio_log(Path(bench_log))
         if metrics:
             rr = RunResult(run_dir=run_dir, mode=mode, scenario=scenario,
@@ -389,17 +392,7 @@ def scan_results(results_dir: Path) -> list[RunResult]:
                 v = metrics.get(m)
                 if v is not None:
                     getattr(rr, m).append(v)
-            # Merge if we already have a run with same run_id
-            existing = next((r for r in runs
-                             if r.run_dir == run_dir and r.run_id == run_id and r.mode == mode
-                             and r.scenario == scenario and r.load == load), None)
-            if existing:
-                for m in METRICS:
-                    vals = getattr(rr, m)
-                    if vals:
-                        getattr(existing, m).extend(vals)
-            else:
-                runs.append(rr)
+            runs.append(rr)
 
     return runs
 

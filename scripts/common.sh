@@ -254,84 +254,33 @@ run_fortio() {
       -t "${DURATION_SEC}s" \
       "${extra_flags[@]+"${extra_flags[@]}"}" \
       "${SVC_URL}" \
-    2>&1 | tee "${outdir}/bench.log" || true
+    2>&1 | tee "${outdir}/bench.log" || exit 1
 }
 
 # ======================== metadata.json generation ============================
 
-# Derive human-readable scenario name from SCENARIO id
-_scenario_name() {
-  case "${SCENARIO}" in
-    S1) echo "Service Baseline" ;;
-    S2) echo "Stress + Churn" ;;
-    S3) echo "NetworkPolicy Overhead" ;;
-    *)  echo "${SCENARIO}" ;;
-  esac
-}
-
 write_metadata() {
   local outdir="$1"
   local run_num="${2:-1}"
-  local ts_start ts_end
-  ts_start="$(ts_iso)"
+  local policy_meta="${POLICY_METADATA:-}"
 
-  local scenario_name
-  scenario_name="$(_scenario_name)"
-
-  # POLICY_METADATA: comma-separated "key=value" pairs written by the caller
-  # Supported keys: enabled, type, complexity_level, rule_count_estimate
-  # Example: "enabled=true,type=CiliumNetworkPolicy,complexity_level=simple,rule_count_estimate=3"
-  # If unset or empty, falls back to template defaults (no policy).
-  local pm_enabled pm_type pm_complexity pm_rule_count
-  if [[ -n "${POLICY_METADATA:-}" ]]; then
-    # Parse key=value pairs from POLICY_METADATA
-    while IFS=',' read -r -d ',' pair; do
-      case "${pair}" in
-        enabled=*)    pm_enabled="${pair#*=}" ;;
-        type=*)       pm_type="${pair#*=}" ;;
-        complexity_level=*) pm_complexity="${pair#*=}" ;;
-        rule_count_estimate=*) pm_rule_count="${pair#*=}" ;;
-      esac
-    done <<< "${POLICY_METADATA},"
-
-    # Apply policy block substitutions; use captured values or fall back to template defaults
-    sed \
-      -e "s|\"run_id\": \"\"|\"run_id\": \"R${run_num}_$(ts_dir)\"|" \
-      -e "s|\"timestamp_start_utc\": \"\"|\"timestamp_start_utc\": \"${ts_start}\"|" \
-      -e "s|\"id\": \"A\"|\"id\": \"${MODE}\"|" \
-      -e "s|\"name\": \"kube-proxy baseline\"|\"name\": \"${MODE_LABEL}\"|" \
-      -e "s|\"id\": \"S1\"|\"id\": \"${SCENARIO}\"|" \
-      -e "s|\"name\": \"Service Baseline\"|\"name\": \"${scenario_name}\"|" \
-      -e "s|\"id\": \"L1\"|\"id\": \"${LOAD}\"|" \
-      -e "s|\"qps\": 0|\"qps\": ${BENCH_QPS}|" \
-      -e "s|\"concurrency\": 32|\"concurrency\": ${BENCH_CONNS}|" \
-      -e "s|\"duration_seconds\": 120|\"duration_seconds\": ${DURATION_SEC}|" \
-      -e "s|\"warmup_seconds\": 60|\"warmup_seconds\": ${WARMUP_SEC}|" \
-      -e "s|\"output_dir\": \"\"|\"output_dir\": \"${outdir}\"|" \
-      -e "s|\"enabled\": false,|\"enabled\": ${pm_enabled},|" \
-      -e "s|\"type\": \"none\"|\"type\": \"${pm_type}\"|" \
-      -e "s|\"complexity_level\": \"off\"|\"complexity_level\": \"${pm_complexity}\"|" \
-      -e "s|\"rule_count_estimate\": 0,|\"rule_count_estimate\": ${pm_rule_count},|" \
-      "${REPO_ROOT}/results/metadata.template.json.txt" \
-      > "${outdir}/metadata.json"
-  else
-    # No policy metadata — apply only structural substitutions (backward-compatible)
-    sed \
-      -e "s|\"run_id\": \"\"|\"run_id\": \"R${run_num}_$(ts_dir)\"|" \
-      -e "s|\"timestamp_start_utc\": \"\"|\"timestamp_start_utc\": \"${ts_start}\"|" \
-      -e "s|\"id\": \"A\"|\"id\": \"${MODE}\"|" \
-      -e "s|\"name\": \"kube-proxy baseline\"|\"name\": \"${MODE_LABEL}\"|" \
-      -e "s|\"id\": \"S1\"|\"id\": \"${SCENARIO}\"|" \
-      -e "s|\"name\": \"Service Baseline\"|\"name\": \"${scenario_name}\"|" \
-      -e "s|\"id\": \"L1\"|\"id\": \"${LOAD}\"|" \
-      -e "s|\"qps\": 0|\"qps\": ${BENCH_QPS}|" \
-      -e "s|\"concurrency\": 32|\"concurrency\": ${BENCH_CONNS}|" \
-      -e "s|\"duration_seconds\": 120|\"duration_seconds\": ${DURATION_SEC}|" \
-      -e "s|\"warmup_seconds\": 60|\"warmup_seconds\": ${WARMUP_SEC}|" \
-      -e "s|\"output_dir\": \"\"|\"output_dir\": \"${outdir}\"|" \
-      "${REPO_ROOT}/results/metadata.template.json.txt" \
-      > "${outdir}/metadata.json"
+  local policy_flag=()
+  if [[ -n "${policy_meta}" ]]; then
+    policy_flag=("--policy-metadata" "${policy_meta}")
   fi
+
+  python3 "${REPO_ROOT}/scripts/write_metadata.py" \
+    --outdir "${outdir}" \
+    --run-num "${run_num}" \
+    --mode "${MODE}" \
+    --scenario "${SCENARIO}" \
+    --load "${LOAD}" \
+    --bench-qps "${BENCH_QPS}" \
+    --bench-conns "${BENCH_CONNS}" \
+    --duration-sec "${DURATION_SEC}" \
+    --warmup-sec "${WARMUP_SEC}" \
+    "${policy_flag[@]}" \
+    --write "${outdir}/metadata.json"
 
   echo "[INFO] metadata.json written to ${outdir}"
 }
