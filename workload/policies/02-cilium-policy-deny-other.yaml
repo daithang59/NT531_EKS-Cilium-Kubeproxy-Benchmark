@@ -7,7 +7,20 @@ spec:
   # Default-deny ingress to echo server
   # Only traffic explicitly allowed by 01-allow-fortio-to-echo passes.
   # This proves that enforcement is active (plan §4.2 S3: "deny case").
+  #
+  # Uses ingressDeny (no selectors = deny all) + egress allow DNS
+  # to avoid "rule must have at least one of Ingress, IngressDeny, Egress, EgressDeny".
+  # Note: ingress (not ingressDeny) with empty array is rejected by Cilium operator.
   endpointSelector:
     matchLabels:
       app: echo
-  ingress: []
+  egress:
+    - toEndpoints:
+        - matchLabels: {}
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+  ingressDeny:
+    - fromEndpoints:
+        - matchLabels: {}

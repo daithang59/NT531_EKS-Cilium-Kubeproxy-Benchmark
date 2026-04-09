@@ -229,7 +229,17 @@ Xác nhận: `KubeProxyReplacement: False`, `IPAM: cluster-pool`, `kube-proxy 3/
    # Đợi: kubectl -n benchmark get pods (Running)
    ```
    Lý do: Pods cũ dùng cluster-pool IPs (10.96.x.x), không đi qua ENI native routing. Restart để nhận ENI IPs (10.0.x.x).
-10. **Verify kết nối:**
+10. **Xóa Hubble relay và Hubble UI pods** ← BẮT BUỘC sau Mode B upgrade:
+    ```bash
+    kubectl delete pod -n kube-system -l app.kubernetes.io/name=hubble-relay
+    kubectl delete pod -n kube-system -l app.kubernetes.io/name=hubble-ui
+    # Verify ENI IP (phải là 10.0.x.x, KHÔNG phải 10.96.x.x):
+    kubectl get pod -n kube-system -l app.kubernetes.io/name=hubble-relay -o jsonpath='{.items[0].status.podIP}'
+    # Verify không BackOff:
+    kubectl get events -n kube-system --sort-by='.lastTimestamp' | grep hubble-relay
+    ```
+    Lý do: Hubble relay pod giữ **cluster-pool IP (`10.96.x.x`)** từ Mode A. ENI native routing không route được `10.96.x.x` → eBPF drop packet → startup probe fail → BackOff loop. Xóa pod buộc nó nhận ENI IP mới (`10.0.x.x`).
+11. **Verify kết nối:**
     ```bash
     FORTIO=$(kubectl get pods -n benchmark -l app=fortio -o jsonpath='{.items[0].metadata.name}')
     kubectl exec -n benchmark "$FORTIO" -- fortio load -qps 10 -c 1 -t 5s http://echo.benchmark.svc.cluster.local/
@@ -267,6 +277,7 @@ Các bước tương tự nhưng ngược lại:
 | `cilium` pods CrashLoopBackOff: `"Waiting for IPs to become available in CRD-backed allocation pool"` | `cilium-operator` chưa Running → không cấp IP ENI được | Đợi operator Ready trước, hoặc check operator logs |
 | Fortio DNS lookup timeout: `lookup echo.benchmark.svc.cluster.local on 172.20.0.10:53: i/o timeout` | CoreDNS chưa pick up eBPF datapath | Restart CoreDNS: `kubectl delete pods -n kube-system -l k8s-app=kube-dns` |
 | Fortio dial timeout trên IP trực tiếp: `dial tcp 172.20.x.x:80: i/o timeout` | Workload pods giữ cluster-pool IPs (10.96.x.x) | Restart workload pods: `kubectl delete pods -n benchmark --all` |
+| `hubble-relay` BackOff: `timeout: failed to connect service "10.96.x.x:4222"` | Hubble relay pod giữ cluster-pool IP (`10.96.x.x`) sau Mode A→B upgrade — ENI native routing không route được dải này → startup probe fail → BackOff loop | Xóa relay và UI pods để buộc nhận ENI IP: `kubectl delete pod -n kube-system -l app.kubernetes.io/name=hubble-relay && kubectl delete pod -n kube-system -l app.kubernetes.io/name=hubble-ui` |
 
 ### ⚠️ Confound giữa Mode A và Mode B — IPAM mode
 

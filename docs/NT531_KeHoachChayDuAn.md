@@ -636,6 +636,21 @@ kubectl exec -n benchmark "$FORTIO" -- \
 # Kỳ vọng: Code 200, 0 errors
 ```
 
+#### 8.10 Xóa Hubble relay và Hubble UI pods ← BẮT BUỘC
+
+```bash
+kubectl delete pod -n kube-system -l app.kubernetes.io/name=hubble-relay
+kubectl delete pod -n kube-system -l app.kubernetes.io/name=hubble-ui
+# Đợi ~10s
+# Verify ENI IP (phải là 10.0.x.x, KHÔNG phải 10.96.x.x):
+kubectl get pod -n kube-system -l app.kubernetes.io/name=hubble-relay -o jsonpath='{.items[0].status.podIP}'
+# Verify không BackOff:
+kubectl get events -n kube-system --sort-by='.lastTimestamp' | grep hubble-relay
+# Kỳ vọng: Normal  Started  (không có BackOff)
+```
+
+> Lý do: Hubble relay pod giữ **cluster-pool IP (`10.96.x.x`)** từ Mode A. ENI native routing chỉ route được `10.0.x.x` → eBPF drop packet → startup probe fail → BackOff loop. Xóa pod buộc nó nhận ENI IP mới.
+
 #### ✅ Checklist Phase 8
 
 ```
@@ -647,6 +662,8 @@ kubectl exec -n benchmark "$FORTIO" -- \
 [ ] cilium status: KubeProxyReplacement=True, IPAM=ENI, Routing=Native
 [ ] CoreDNS pods restarted và Running 1/1
 [ ] Workload pods restarted với ENI IPs
+[ ] Hubble relay + UI pods đã xóa và recreated với ENI IPs (10.0.x.x)
+[ ] Hubble relay: không BackOff event, pod Running
 [ ] Fortio → Echo: Code 200, 0 errors
 ```
 
@@ -696,7 +713,7 @@ curl --connect-timeout 5 http://echo.benchmark.svc.cluster.local:80/echo
 ```
 
 ```bash
-kubectl exec -n kube-system ds/cilium -- cilium hubble observe --namespace benchmark --last 2000 -o jsonpb > results/mode=B_cilium-ebpfkpr/scenario=S3/deny_case_hubble.log
+kubectl exec -n kube-system ds/cilium -c cilium-agent -- hubble observe --namespace benchmark --last 2000 -o jsonpb > results/mode=B_cilium-ebpfkpr/scenario=S3/deny_case_hubble.log
 grep -c "DROPPED" results/mode=B_cilium-ebpfkpr/scenario=S3/deny_case_hubble.log
 grep -c "FORWARDED" results/mode=B_cilium-ebpfkpr/scenario=S3/deny_case_hubble.log
 ```
@@ -878,7 +895,7 @@ results/mode=<A|B>/scenario=<S1|S2|S3>/load=<L?>/[phase=<off|on>/]run=R<#>
 | `kubectl_top_nodes.txt` | `kubectl top nodes` | ✅ | ✅ | ✅ |
 | `events.txt` | `kubectl get events -A` | ✅ | ✅ | ✅ |
 | `cilium_status.txt` | `cilium status` | ✅ Mode B | ✅ Mode B | ✅ |
-| `hubble_status.txt` | `cilium hubble status` | ✅ Mode B | ✅ Mode B | ✅ |
+| `hubble_status.txt` | `cilium hubble status` (exec vào cilium-agent container) | ✅ Mode B | ✅ Mode B | ✅ |
 | `hubble_flows.jsonl` | Hubble flows jsonpb | ✅ Mode B | ✅ Mode B | ✅ |
 | `bench_phase{1-4}*.log` | S2 phase logs | | ✅ | |
 | `deny_case_hubble.log` | Hubble observe cho deny case | | | ✅ Mode B |
@@ -939,6 +956,7 @@ Tổng:   2–3 tuần (chủ yếu benchmark chạy nền)
 | kube-proxy không xóa được | `kubectl delete --grace-period=0 ds/kube-proxy -n kube-system` |
 | Fortio → Echo timeout | `kubectl get endpoints -n benchmark`; `kubectl get svc,endpoints -n kube-system kube-dns`; reconcile CoreDNS addon (`aws eks update-addon ... --resolve-conflicts OVERWRITE`) |
 | `ResourceNotFoundException: nodeGroup ... not found` khi scale | Sai nodegroup name. Chạy `aws eks list-nodegroups --cluster-name nt531-bm --region ap-southeast-1` rồi dùng đúng tên trả về (thường có suffix tự sinh) |
-| Hubble flows empty | `cilium hubble observe` sau khi chạy S3; enable port 4245 |
+| `hubble-relay` BackOff sau switch A→B | Hubble relay pod giữ cluster-pool IP (`10.96.x.x`) cũ — ENI native routing không route được | Xóa relay + UI pods: `kubectl delete pod -n kube-system -l app.kubernetes.io/name=hubble-relay && kubectl delete pod -n kube-system -l app.kubernetes.io/name=hubble-ui` |
+| Hubble flows empty | `kubectl exec -n kube-system ds/cilium -c cilium-agent -- hubble observe ...` sau khi chạy S3; enable port 4245 |
 | Deny case không thấy DROPPED | Attacker pod không có `app=fortio` label; tăng `--last` |
 | Calibrate.sh Python lỗi | `python3 --version` >= 3.8; kiểm tra inline script syntax |
