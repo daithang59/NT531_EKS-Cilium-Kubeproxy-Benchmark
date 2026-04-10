@@ -16,7 +16,20 @@
       "Bash(./scripts/cluster_power.sh resume:*)",
       "Bash(python tests/test_pod_affinity.py)",
       "Bash(echo \"EXIT: $?\")",
-      "Bash(python tests/test_monitoring_reconcile.py)"
+      "Bash(python tests/test_monitoring_reconcile.py)",
+      "Bash(omc ask:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"C:/Users/THANG/AppData/Local/Temp/omc-fix.ps1\")",
+      "Bash(bash -n scripts/run_s3.sh)",
+      "Bash(bash -n scripts/common.sh)",
+      "Bash(\". .venv/Scripts/python.exe\" -c \"import yaml; yaml.safe_load\\(open\\(''workload/policies/02-cilium-policy-deny-other.yaml''\\)\\); yaml.safe_load\\(open\\(''workload/server/02-echo-deploy.yaml''\\)\\); yaml.safe_load\\(open\\(''workload/client/01-fortio-deploy.yaml''\\)\\)\")",
+      "Bash(for py:*)",
+      "Bash(do $py -c \"import yaml; print\\(''''$py: yaml OK''''\\)\")",
+      "Bash(break)",
+      "Bash(done)",
+      "Bash(pip show:*)",
+      "Bash(PYTHON=.venv/lib/python3.9/site-packages)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

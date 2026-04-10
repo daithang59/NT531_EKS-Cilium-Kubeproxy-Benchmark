@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
       "Bash(bash -n \"c:/nt531-project/NT531_Project/thesis-cilium-eks-benchmark/scripts/calibrate.sh\")",
@@ -6,6 +7,41 @@
       "Bash(kubectl exec:*)",
       "Bash(aws eks:*)",
       "Bash(kubectl logs:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "tool == \"Bash\" && tool_input.command matches \"git push.*--force\"",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"[Hook] BLOCKED: force push is disabled in this workspace.\" >&2; exit 2"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/post-auto-format.js"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/stop-sound-notify.js"
+          }
+        ]
+      }
     ]
   }
 }
