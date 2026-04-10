@@ -74,5 +74,14 @@ done
 unset OUTDIR
 unset POLICY_METADATA
 
+# ---------- Cleanup: remove policies after S3 completes ----------------------
+# IMPORTANT: Policies must be absent before running S1/S2 runs.
+# Leaving them installed blocks Fortio traffic (ingressDeny: {} denies all).
+echo ""
+echo "────────────────────────────────────"
+echo " Cleanup — removing NetworkPolicy"
+echo "────────────────────────────────────"
+kubectl -n "${NS}" delete -f "${REPO_ROOT}/workload/policies/" --ignore-not-found=true
+
 echo ""
 echo "[DONE] S3 completed — ${REPEAT} run(s) × 2 phases for MODE=${MODE_LABEL} LOAD=${LOAD}"

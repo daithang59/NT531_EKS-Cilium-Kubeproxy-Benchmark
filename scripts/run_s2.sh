@@ -90,6 +90,12 @@ for run_num in $(seq 1 "${REPEAT}"); do
         "${SVC_URL}" 2>&1 || true
   } > "${outdir}/bench_phase1_rampup.log"
 
+  # Validate ramp-up output — Fortio failure here means the pod is broken
+  if ! grep -q "All done" "${outdir}/bench_phase1_rampup.log"; then
+    echo "[WARN] Phase 1 ramp-up did not complete normally — check fortio pod health"
+    kubectl -n "${NS}" describe pod "${local_pod}" | tail -20
+  fi
+
   # ---- Phase 2: Sustained high (100% QPS, 2× connections) ------------------
   echo "[S2] Phase 2/4 — SUSTAINED HIGH: ${SUSTAINED_SEC}s @ QPS=${BENCH_QPS} CONNS=${CONNS_HIGH}"
   {
@@ -102,7 +108,7 @@ for run_num in $(seq 1 "${REPEAT}"); do
         -c "${CONNS_HIGH}" \
         -t "${SUSTAINED_SEC}s" \
         -keepalive=false \
-        "${SVC_URL}" 2>&1 || true
+        "${SVC_URL}" 2>&1
   } > "${outdir}/bench_phase2_sustained.log"
 
   # ---- Phase 3: Bursts (150% QPS × N, with rest between) -------------------
@@ -139,7 +145,7 @@ for run_num in $(seq 1 "${REPEAT}"); do
         -c "${BENCH_CONNS}" \
         -t "${COOLDOWN_SEC}s" \
         -keepalive=false \
-        "${SVC_URL}" 2>&1 || true
+        "${SVC_URL}" 2>&1
   } > "${outdir}/bench_phase4_cooldown.log"
 
   # ---- Combine all phase logs into bench.log --------------------------------
