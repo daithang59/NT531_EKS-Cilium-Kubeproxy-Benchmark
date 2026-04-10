@@ -48,7 +48,8 @@ def get_affinity_spec(deployment_name: str) -> dict:
     return doc["spec"]["template"]["spec"]
 
 
-def check_pod_antiaffinity(name: str, spec: dict):
+def check_pod_antiaffinity(name: str, spec: dict) -> tuple[str, str]:
+    """Returns (label_key, label_value) for the anti-affinity selector."""
     assert "affinity" in spec, (
         f"FAIL: {name} deployment — spec.template.spec.affinity is missing. "
         "Pod may land on different node from peer. "
@@ -87,51 +88,54 @@ def check_pod_antiaffinity(name: str, spec: dict):
         "Need a label selector to identify the peer pod so they repel each other."
     )
 
-    label_key = label_req[0].get("key", "")
+    expr = label_req[0]
+    label_key = expr.get("key", "")
+    label_values = expr.get("values", [])
+    assert label_values, (
+        f"FAIL: {name} deployment — labelSelector matchExpression has no values. "
+        "Use a shared label VALUE (e.g. 'workload') so both pods repel each other."
+    )
+    label_value = label_values[0]
+
     print(
         f"PASS: {name} deployment has podAntiAffinity "
-        f"(topologyKey=kubernetes.io/hostname, labelKey={label_key})"
+        f"(topologyKey=kubernetes.io/hostname, labelKey={label_key}, "
+        f"labelValue={label_value})"
     )
-    return label_key
+    return label_key, label_value
 
 
 def test_echo_has_pod_antiaffinity():
     spec = get_affinity_spec("echo")
-    check_pod_antiaffinity("echo", spec)
+    key, value = check_pod_antiaffinity("echo", spec)
+    assert key and value, f"FAIL: echo returned empty key={key!r} or value={value!r}"
 
 
 def test_fortio_has_pod_antiaffinity():
     spec = get_affinity_spec("fortio")
-    check_pod_antiaffinity("fortio", spec)
+    key, value = check_pod_antiaffinity("fortio", spec)
+    assert key and value, f"FAIL: fortio returned empty key={key!r} or value={value!r}"
 
 
-def test_same_label_key_across_pods():
-    """Both pods must use the SAME label key in their anti-affinity selector
-    so they repel each other (A avoids B via label X, B avoids A via label X).
+def test_mutual_repulsion_same_label_value():
+    """Both pods must use the SAME label VALUE so each repels the other.
+    key: app + Exists  = echo avoids echo, fortio avoids fortio  ← WRONG (no mutual repulsion)
+    key: pair + In [workload] = echo avoids workload, fortio avoids workload ← CORRECT (mutual repulsion)
     """
     echo_spec = get_affinity_spec("echo")
     fortio_spec = get_affinity_spec("fortio")
 
-    def extract_label_key(spec: dict) -> str:
-        aff = spec["affinity"]["podAntiAffinity"]
-        return (
-            aff["requiredDuringSchedulingIgnoredDuringExecution"][0]
-            .get("labelSelector", {})
-            .get("matchExpressions", [{}])[0]
-            .get("key", "")
-        )
+    _, echo_value = check_pod_antiaffinity("echo", echo_spec)
+    _, fortio_value = check_pod_antiaffinity("fortio", fortio_spec)
 
-    echo_key = extract_label_key(echo_spec)
-    fortio_key = extract_label_key(fortio_spec)
-
-    assert echo_key, "FAIL: echo podAntiAffinity label key is empty"
-    assert fortio_key, "FAIL: fortio podAntiAffinity label key is empty"
-    assert echo_key == fortio_key, (
-        f"FAIL: echo and fortio must use the SAME label key in anti-affinity. "
-        f"echo uses '{echo_key}', fortio uses '{fortio_key}'."
+    assert echo_value == fortio_value, (
+        f"FAIL: echo and fortio must use the SAME label VALUE for mutual repulsion. "
+        f"echo anti-affinity selects '{echo_value}', fortio selects '{fortio_value}'. "
+        "Different values mean each pod only avoids ITSELF, not each other — "
+        "they may land on different nodes."
     )
 
-    # Verify the label key exists on the peer pod's template labels
+    # Verify the shared label key+value exists on BOTH pod templates
     def get_template_labels(filename: str) -> dict:
         resp = kubectl_get(filename)
         items = resp.get("items", [resp])
@@ -141,17 +145,19 @@ def test_same_label_key_across_pods():
     echo_labels_map = get_template_labels("server/02-echo-deploy.yaml")
     fortio_labels_map = get_template_labels("client/01-fortio-deploy.yaml")
 
-    assert echo_key in fortio_labels_map, (
-        f"FAIL: echo's anti-affinity label key '{echo_key}' "
-        f"is not a label on fortio pod. fortio labels: {fortio_labels_map}"
+    key_used = "app.benchmark/pair"  # the shared label key
+
+    assert echo_labels_map.get(key_used) == echo_value, (
+        f"FAIL: echo pod template does not have label '{key_used}={echo_value}'. "
+        f"echo labels: {echo_labels_map}"
     )
-    assert fortio_key in echo_labels_map, (
-        f"FAIL: fortio's anti-affinity label key '{fortio_key}' "
-        f"is not a label on echo pod. echo labels: {echo_labels_map}"
+    assert fortio_labels_map.get(key_used) == echo_value, (
+        f"FAIL: fortio pod template does not have label '{key_used}={echo_value}'. "
+        f"fortio labels: {fortio_labels_map}"
     )
 
     print(
-        f"PASS: same label key '{echo_key}' used across both pods "
+        f"PASS: mutual repulsion achieved — both pods use label '{key_used}={echo_value}' "
         f"(echo labels={echo_labels_map}, fortio labels={fortio_labels_map})"
     )
 
@@ -160,7 +166,7 @@ if __name__ == "__main__":
     tests = [
         test_echo_has_pod_antiaffinity,
         test_fortio_has_pod_antiaffinity,
-        test_same_label_key_across_pods,
+        test_mutual_repulsion_same_label_value,
     ]
 
     failed = 0

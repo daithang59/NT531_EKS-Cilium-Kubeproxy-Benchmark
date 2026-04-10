@@ -12,20 +12,24 @@ spec:
     metadata:
       labels:
         app: fortio
+        app.benchmark/pair: workload
     spec:
       # Pin to benchmark nodes (plan §4.5: nodeSelector/affinity)
       nodeSelector:
         role: benchmark
       # Same-node podAntiAffinity: echo and fortio repel each other via the
-      # 'app' label so both land on the same node for single-hop latency.
+      # shared label 'app.benchmark/pair: workload' so both land on the same
+      # node for single-hop latency measurement.
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - topologyKey: kubernetes.io/hostname
               labelSelector:
                 matchExpressions:
-                  - key: app
-                    operator: Exists
+                  - key: app.benchmark/pair
+                    operator: In
+                    values:
+                      - workload
       containers:
         - name: fortio
           image: fortio/fortio:1.74.0  # pin version for reproducibility (plan §4.5)
