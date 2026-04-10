@@ -8,7 +8,15 @@
       "Bash(python3:*)",
       "Bash(find C:/nt531-project/NT531_Project/thesis-cilium-eks-benchmark/.omc/artifacts/ask -name codex-*.md)",
       "Bash(sort -t_ -k5)",
-      "Bash(python tests/test_analyze_results_s3.py)"
+      "Bash(python tests/test_analyze_results_s3.py)",
+      "Bash(python tests/test_metadata_infra.py)",
+      "Bash(python tests/test_parse_crash_graceful.py)",
+      "Bash(python tests/test_fortio_crash_detection.py)",
+      "Bash(python tests/test_hubble_portforward.py)",
+      "Bash(./scripts/cluster_power.sh resume:*)",
+      "Bash(python tests/test_pod_affinity.py)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(python tests/test_monitoring_reconcile.py)"
     ]
   }
 }
