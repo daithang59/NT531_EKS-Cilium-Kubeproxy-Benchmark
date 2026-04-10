@@ -549,21 +549,28 @@ find results/mode=A_kube-proxy/scenario=S2 -name "bench_phase1_rampup.log" | wc 
 > **Lưu ý quan trọng:** Mỗi lần switch mode (A→B hoặc B→A), LUÔN restart workload pods sau khi switch.
 > Lý do: IPAM mode khác nhau (cluster-pool vs ENI) → pod IP ranges khác nhau.
 
-#### 8.1 Lấy EKS API endpoint
+#### 8.1 Cập nhật `k8sServiceHost` trong values-ebpfkpr.yaml ← BẮT BUỘC
+
+> ⚠️ **Mỗi lần chạy `terraform apply`, endpoint THAY ĐỔI.**
+> Phải cập nhật TRƯỚC bước 8.3. Sai endpoint → Cilium upgrade nhắm sai cluster → benchmark thất bại SILENT.
 
 ```bash
-aws eks describe-cluster --name nt531-bm --region ap-southeast-1 --query cluster.endpoint --output text
-# Output: https://ABCDE...eks.amazonaws.com → ghi lại phần hostname
+# Tự động lấy endpoint và update values file:
+ENDPOINT=$(aws eks describe-cluster --name nt531-bm --region ap-southeast-1 \
+  --query cluster.endpoint --output text | sed 's|https://||')
+sed -i "s|k8sServiceHost: \".*\"|k8sServiceHost: \"${ENDPOINT}\"|" helm/cilium/values-ebpfkpr.yaml
+grep k8sServiceHost helm/cilium/values-ebpfkpr.yaml
+# Verify: phải khớp với endpoint AWS trả về (không có https://)
 ```
 
-#### 8.2 Cập nhật `helm/cilium/values-ebpfkpr.yaml`
+#### 8.2 Đảm bảo `eni.enabled: true` trong values-ebpfkpr.yaml ← BẮT BUỘC
 
+Kiểm tra trong file có dòng:
 ```yaml
-k8sServiceHost: "ABCD1234EFGHIJKL.gr7.ap-southeast-1.eks.amazonaws.com"
-# Lưu ý: KHÔNG có https:// và KHÔNG có path
-# Đảm bảo có dòng: eni.enabled: true
-#   (thiếu dòng này → cilium-operator crash: "cilium-operator-generic: executable not found")
+eni:
+  enabled: true
 ```
+Nếu thiếu → thêm vào trước bước 8.3. Thiếu dòng này → cilium-operator crash: `"cilium-operator-generic: executable not found"`.
 
 #### 8.3 XÓA kube-proxy (BẮT BUỘC trước bước 8.4)
 
@@ -911,10 +918,10 @@ results/mode=<A|B>/scenario=<S1|S2|S3>/load=<L?>/[phase=<off|on>/]run=R<#>
 | **3 — Monitoring** | [ ] Prometheus/Grafana Running; [ ] Grafana truy cập được |
 | **4 — Cilium Mode A** | [ ] Cilium Running; [ ] kubeProxyReplacement = Disabled; [ ] kube-proxy Running |
 | **5 — Workload** | [ ] Echo + Fortio Running; [ ] connectivity OK |
-| **5b — Resume** | [ ] 3 nodes Ready; [ ] Cilium Running; [ ] kube-proxy đúng mode; [ ] workload connectivity OK; [ ] Fortio smoke test 100% |
+| **5b — Resume** | [ ] NODEGROUP name đúng (`aws eks list-nodegroups`); [ ] desiredSize=3; [ ] 3 nodes Ready; [ ] Cilium Running (DS đúng mode); [ ] kube-proxy đúng trạng thái (A: Running, B: absent); [ ] cilium status đúng mode (A: cluster-pool/False, B: ENI/Strict); [ ] Echo + Fortio Running sau redeploy; [ ] Fortio smoke test: Code 200, 0 errors |
 | **6 — Calibration ⭐** | [ ] Calibration xong; [ ] L1/L2/L3 xác định; [ ] common.sh đã cập nhật |
 | **7 — Mode A Runs** | [ ] 15 runs (S1=9, S2=6); [ ] S2: 4 phase logs |
-| **8 — Switch A→B ⚠️** | [ ] values-ebpfkpr.yaml đã điền EKS endpoint; [ ] kube-proxy đã xóa; [ ] kubeProxyReplacement = Strict; [ ] connectivity OK |
+| **8 — Switch A→B ⚠️** | [ ] values-ebpfkpr.yaml k8sServiceHost = endpoint hiện tại (chạy lệnh sed ở runbook §3); [ ] eni.enabled: true có trong values; [ ] kube-proxy DS đã xóa (kubectl get ds kube-proxy → NotFound); [ ] cilium-operator Running; [ ] KubeProxyReplacement=True; [ ] CoreDNS restarted; [ ] Workload pods restarted với ENI IPs; [ ] Hubble relay/UI restarted; [ ] Fortio → Echo 200 OK |
 | **9 — Mode B Runs** | [ ] 27 runs (S1=9, S2=6, S3=12); [ ] hubble_flows.jsonl đầy đủ; [ ] deny case DROPPED verdict |
 | **10 — Phân tích** | [ ] comparison_AB.csv có p-value + Δ%; [ ] RQ1/RQ2/RQ3 trả lời được; [ ] Threats to Validity; [ ] Deny case |
 | **11 — Cleanup** | [ ] Kết quả backup; [ ] terraform destroy OK |

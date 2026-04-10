@@ -5,6 +5,26 @@
 
 ---
 
+> ⚠️ **COST WARNING — ĐỌC TRƯỚC KHI BẤT KỲ ĐIỀU GÌ KHÁC:**
+>
+> **EKS + 3× m5.large tốn ~$0.48/giờ (~$350/tháng).**
+>
+> **Sau mỗi session chạy benchmark:**
+> ```bash
+> # Tạm dừng (giảm còn ~$73/tháng — chỉ EKS control plane + NAT GW):
+> ./scripts/cluster_power.sh pause
+>
+> # Quay lại benchmark:
+> ./scripts/cluster_power.sh resume
+>
+> # Xóa hoàn toàn (sau khi nộp xong):
+> cd terraform && terraform destroy -var-file="envs/dev/terraform.tfvars"
+> ```
+>
+> **Tuyệt đối KHÔNG để cluster chạy qua đêm/nhiều ngày không dùng.**
+
+---
+
 ## 1. Prerequisites
 
 ### 1.1 Infrastructure
@@ -183,7 +203,16 @@ Xác nhận: `KubeProxyReplacement: False`, `IPAM: cluster-pool`, `kube-proxy 3/
 
 **Các bước chuyển Mode A → Mode B:**
 
-1. **Điền `k8sServiceHost`** trong `helm/cilium/values-ebpfkpr.yaml` (nếu chưa có)
+1. **Cập nhật `k8sServiceHost`** trong `helm/cilium/values-ebpfkpr.yaml` ← BẮT BUỘC sau terraform apply
+   ```bash
+   # Lấy endpoint hiện tại và update values file tự động:
+   ENDPOINT=$(aws eks describe-cluster --name nt531-bm --region ap-southeast-1 \
+     --query cluster.endpoint --output text | sed 's|https://||')
+   sed -i "s|k8sServiceHost: \".*\"|k8sServiceHost: \"${ENDPOINT}\"|" helm/cilium/values-ebpfkpr.yaml
+   grep k8sServiceHost helm/cilium/values-ebpfkpr.yaml
+   ```
+   > ⚠️ **Sau mỗi lần `terraform apply`, endpoint THAY ĐỔI.**
+   > Dùng lệnh trên để cập nhật TRƯỚC khi chạy Mode B. Sai endpoint → Cilium upgrade nhắm sai cluster → benchmark thất bại SILENT.
 2. **Đảm bảo `eni.enabled: true`** trong `values-ebpfkpr.yaml` ← BẮT BUỘC
    - Dòng này báo cho helm chart chọn đúng `operator-aws` (thay vì `operator-generic`)
    - Nếu thiếu → cilium-operator crash với lỗi `"cilium-operator-generic: executable file not found"`
@@ -460,12 +489,33 @@ Nếu phát hiện bất thường (timeout, error rate cao, pod restart), ghi v
 
 ## 6. Quy tắc khi chạy
 
-### Before running
-- [ ] `kubectl get nodes` — tất cả Ready
-- [ ] (Mode B) `cilium status` OK, `hubble status` OK
-- [ ] Workload deployed (echo + fortio Running)
-- [ ] Service reachable (`fortio load -t 5s`)
-- [ ] Xác nhận `MODE` đúng mode hiện tại
+### Before running (preflight checklist)
+```bash
+# 1. Nodes
+kubectl get nodes   # phải 3 Ready
+
+# 2. Mode verification
+kubectl get ds -n kube-system kube-proxy   # Mode A: phải có | Mode B: NotFound
+kubectl exec -n kube-system ds/cilium -- cilium status | grep KubeProxyReplacement
+  # Mode A: False | Mode B: True
+
+# 3. (Mode B) Verify kube-proxy absent — script sẽ tự fail nếu còn
+#    Nếu preflight pass mà DS còn → chạy:
+#    kubectl delete ds kube-proxy -n kube-system
+
+# 4. Workload
+kubectl -n benchmark get pods          # echo + fortio Running
+kubectl -n benchmark exec deploy/fortio -- \
+  fortio load -qps 10 -c 1 -t 5s http://echo.benchmark.svc.cluster.local/
+  # Phải: Code 200, 0 errors
+
+# 5. (Mode B) aws-node must NOT exist (else Cilium ENI mode crashes)
+kubectl get ds -n kube-system aws-node 2>&1
+  # Phải: "No resources found" — NẾU CÓ: kubectl delete ds aws-node -n kube-system
+
+# 6. Xác nhận MODE đúng
+echo "MODE=${MODE}"   # A hoặc B, không nhầm
+```
 
 ### During run
 - [ ] **KHÔNG** scale nodegroup
@@ -486,8 +536,7 @@ Nếu phát hiện bất thường (timeout, error rate cao, pod restart), ghi v
 | Level | QPS | Connections | Threads | Mục đích |
 |-------|-----|-------------|---------|----------|
 | L1 | 100 | 8 | 2 | Light — near-zero error, stable p99 |
-| L2 | 500 | 32 | 4 | Medium — tail latency visible |
-| L3 | 1000 | 64 | 8 | High — near saturation |
+| L2 | 400 | 32 | 4 | Medium — visible tail, no saturation |
+| L3 | 800 | 64 | 8 | High — near saturation |
 
-> Giá trị mặc định. Điều chỉnh qua env vars sau khi calibration.
-> Xem `docs/experiment_spec.md` § 7 về quy trình Calibration.
+> Giá trị từ pilot run (2026-04-07). **Phải chạy `calibrate.sh`** để xác nhận trên hạ tầng thực tế trước benchmark chính thức. Sau calibration, cập nhật `scripts/common.sh`.
