@@ -348,7 +348,7 @@ def scan_results(results_dir: Path) -> list[RunResult]:
     runs: list[RunResult] = []
 
     for bench_log in glob.glob(str(results_dir / "**" / "bench.log"), recursive=True):
-        if "/calibration/" in bench_log:
+        if "/calibration/" in bench_log or "/pilot/" in bench_log:
             continue
 
         run_dir = Path(bench_log).parent
