@@ -16,6 +16,16 @@ spec:
       # Pin to benchmark nodes (plan §4.5: nodeSelector/affinity)
       nodeSelector:
         role: benchmark
+      # Same-node podAntiAffinity: echo and fortio repel each other via the
+      # 'app' label so both land on the same node for single-hop latency.
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: Exists
       containers:
         - name: echo
           image: hashicorp/http-echo:1.0
