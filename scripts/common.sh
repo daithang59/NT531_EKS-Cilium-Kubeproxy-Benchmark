@@ -168,6 +168,25 @@ preflight_checks() {
     else
       echo "OK"
     fi
+    # B5. kube-proxy MUST be absent for Mode B — silent coexistence corrupts results
+    echo -n "[CHECK] kube-proxy absent (Mode B requirement)... "
+    if kubectl -n kube-system get ds kube-proxy &>/dev/null; then
+      echo "FAIL"
+      echo "[FATAL] kube-proxy DaemonSet still exists. Delete it before Mode B:" >&2
+      echo "[FATAL]   kubectl delete ds kube-proxy -n kube-system" >&2
+      exit 1
+    fi
+    echo "OK (absent)"
+    # B6. Verify live KubeProxyReplacement is enabled
+    echo -n "[CHECK] KubeProxyReplacement enabled... "
+    local kpr
+    kpr="$(kubectl -n kube-system exec ds/cilium -- \
+      cilium status --brief 2>/dev/null | grep -i 'kubeproxyreplacement' | awk '{print $2}' || true)"
+    if [[ "${kpr}" != "True" && "${kpr}" != "Strict" ]]; then
+      echo "WARN (KubeProxyReplacement=${kpr} — expected True/Strict)"
+    else
+      echo "OK (${kpr})"
+    fi
   fi
 
   echo "========================================"
