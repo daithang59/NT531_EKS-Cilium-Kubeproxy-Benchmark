@@ -17,9 +17,11 @@ spec:
       # Pin to benchmark nodes (plan §4.5: nodeSelector/affinity)
       nodeSelector:
         role: benchmark
-      # Same-node podAntiAffinity: echo and fortio repel each other via the
-      # shared label 'app.benchmark/pair: workload' so both land on the same
-      # node for single-hop latency measurement.
+      # Cross-node podAntiAffinity: echo and fortio repel each other via the
+      # shared label 'app.benchmark/pair: workload', forcing them onto different
+      # nodes so traffic always traverses the CNI datapath (no host-local shortcut).
+      # NOTE: traffic is east-west cross-node via ClusterIP Service — this is the
+      # intended measurement path (not same-node shortcut).
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

@@ -4,13 +4,15 @@ metadata:
   name: deny-all-to-echo
   namespace: benchmark
 spec:
-  # Default-deny ingress to echo server
-  # Only traffic explicitly allowed by 01-allow-fortio-to-echo passes.
-  # This proves that enforcement is active (plan §4.2 S3: "deny case").
+  # Egress-only policy: allows DNS (UDP + TCP) from echo server so CoreDNS
+  # lookups succeed.  This is NOT part of the S3 measured phase — it ensures
+  # the echo server can resolve DNS even when the default ingress deny is active.
   #
-  # Uses ingressDeny (no selectors = deny all) + egress allow DNS
-  # to avoid "rule must have at least one of Ingress, IngressDeny, Egress, EgressDeny".
-  # Note: ingress (not ingressDeny) with empty array is rejected by Cilium operator.
+  # NOTE: ingressDeny has been removed from this file. The ingressDeny rule
+  # takes precedence over the allow rule in 01-cilium-policy-allow-fortio-to-echo.yaml,
+  # which would silently block valid traffic during the S3 measured phase.
+  # The deny-case verification (showing DROPPED verdicts) should be run as a
+  # separate post-benchmark step, NOT during the measured S3 phase.
   endpointSelector:
     matchLabels:
       app: echo
@@ -21,6 +23,9 @@ spec:
         - ports:
             - port: "53"
               protocol: UDP
-  ingressDeny:
-    - fromEndpoints:
+    - toEndpoints:
         - matchLabels: {}
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: TCP

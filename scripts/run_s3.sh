@@ -17,6 +17,18 @@
 # ==============================================================================
 set -euo pipefail
 
+# ── Cleanup trap ─────────────────────────────────────────────────────────────
+# If the script is interrupted (Ctrl+C) during phase=on, NetworkPolicy remains
+# active and blocks all subsequent benchmark runs.  This trap ensures policies
+# are deleted on any exit path (normal, error, or signal).
+cleanup_s3_policies() {
+    echo "[TRAP] Cleaning up NetworkPolicy on exit..."
+    kubectl -n "${NS}" delete -f "${REPO_ROOT}/workload/policies/" \
+        --ignore-not-found=true >/dev/null 2>&1 || true
+    echo "[TRAP] Done."
+}
+trap cleanup_s3_policies EXIT INT TERM
+
 export SCENARIO="S3"
 source "$(dirname "$0")/common.sh"
 

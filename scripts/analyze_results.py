@@ -743,8 +743,8 @@ def main():
     scenarios = sorted(set(r.scenario for r in runs))
     loads = sorted(set(r.load for r in runs))
 
-    # Aggregate
-    summaries = aggregate(runs)
+    # Aggregate by mode+scenario+load+phase so S3 off/on and S2 phases are kept separate
+    summaries = aggregate(runs, group_by="mode+scenario+load+phase")
 
     # Print tables
     print_summary_table(summaries, runs, scenarios, loads)

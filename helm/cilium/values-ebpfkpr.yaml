@@ -18,10 +18,16 @@
 #     --query cluster.endpoint --output text
 #   → Chỉ lấy phần hostname, KHÔNG có https:// và KHÔNG có path.
 #
+# ⚠️  SAU terraform destroy/apply: EKS endpoint THAY ĐỔI.
+#    BẮT BUỘC cập nhật giá trị này trước khi chạy Phase 8 (Mode B upgrade).
+#    Sai endpoint → Cilium upgrade nhắm sai cluster → benchmark thất bại SILENT.
+#    Cách lấy endpoint mới:
+#      aws eks describe-cluster --name nt531-bm --region ap-southeast-1 \
+#        --query cluster.endpoint --output text
+#    Hoặc từ terraform output sau khi apply.
 kubeProxyReplacement: true
 
-# ← ĐIỀN EKS API endpoint ở đây (hostname only)
-# Ví dụ: ABCD1234EFGHIJKL.gr7.ap-southeast-1.eks.amazonaws.com
+# ← CẬP NHẬT EKS API endpoint mỗi lần chạy Mode B sau terraform apply
 k8sServiceHost: "472A12F53EF9ACDEC758451AF350C0D6.gr7.ap-southeast-1.eks.amazonaws.com"
 k8sServicePort: 443
 
