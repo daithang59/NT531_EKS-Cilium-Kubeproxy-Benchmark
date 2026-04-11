@@ -213,7 +213,9 @@ aws eks update-kubeconfig --name nt531-bm --region ap-southeast-1 && kubectl get
 [ ] terraform init/validate thành công
 [ ] terraform apply hoàn tất không lỗi
 [ ] kubectl get nodes → 3 node Ready
-[ ] aws-node DaemonSet KHÔNG tồn tại (manage_vpc_cni = false)
+[ ] aws-node DaemonSet KHÔNG tồn tại (không có trong cluster_addons)
+[ ] Cilium VXLAN SG rules đã apply: kiểm tra AWS Console → EC2 → Security Groups → nt531-bm-node
+   → Inbound rules: protocol 4 (IP-in-IP), UDP 8472 (VXLAN) self-referenced phải tồn tại
 ```
 
 ---
@@ -259,7 +261,7 @@ Truy cập http://localhost:3000
 
 ### Phase 4 — Cilium Mode A: kube-proxy Baseline (10 phút)
 
-> ⚠️ **Lưu ý trước khi cài:** Terraform module đã set `manage_vpc_cni = false` nên aws-node **không được cài tự động**. Cluster mới sẽ không có aws-node. Cluster cũ (tạo trước fix) vẫn còn aws-node → xóa trước: `kubectl delete ds aws-node -n kube-system`.
+> ⚠️ **Lưu ý trước khi cài:** Cluster mới (tạo sau khi Terraform fix) không có aws-node vì nó không nằm trong `cluster_addons`. Cluster cũ có thể còn aws-node → xóa trước: `kubectl delete ds aws-node -n kube-system`.
 
 ```bash
 kubectl create namespace cilium-secrets && \
@@ -294,8 +296,10 @@ kubectl get pods -n benchmark -w
 ```
 
 ```bash
-kubectl exec -n benchmark deploy/fortio -- fortio curl http://echo.benchmark.svc.cluster.local:80/echo
-# Kỳ vọng: "ok"
+kubectl exec -n benchmark deploy/fortio -- fortio load -c 1 -n 5 -t 10s http://echo.benchmark.svc:80/echo
+# Kỳ vọng: Code 200, 0 errors
+kubectl get pods -n benchmark -o wide
+# Kỳ vọng: echo và fortio cùng NODE (podAffinity hút vào cùng 1 node)
 kubectl get svc,endpoints -n benchmark
 ```
 
@@ -305,6 +309,8 @@ kubectl get svc -n kube-system kube-dns -o wide
 kubectl get endpoints -n kube-system kube-dns -o wide
 # Kỳ vọng: kube-dns có 53/UDP + 53/TCP và có endpoints
 ```
+
+> ⚠️ **Same-node placement:** Workload deployments dùng `podAffinity` nên echo và fortio **tự động cùng 1 node**. Verify bằng `kubectl get pods -n benchmark -o wide` — cột NODE phải giống nhau. Nếu khác node → kiểm tra lại YAML affinity config.
 
 Nếu có lỗi kiểu `lookup ... on 172.20.0.10:53: i/o timeout`, reconcile CoreDNS addon:
 
@@ -320,7 +326,8 @@ aws eks wait addon-active --cluster-name "${CLUSTER_NAME}" --region ap-southeast
 
 ```
 [ ] echo + fortio pods Running trong namespace benchmark
-[ ] fortio → echo connectivity OK
+[ ] echo và fortio cùng 1 node (NODE column giống nhau)
+[ ] fortio → echo connectivity OK (Code 200)
 [ ] Service ClusterIP tồn tại, endpoint được populate
 [ ] kube-dns service có 53/UDP + 53/TCP và có endpoints
 ```
@@ -421,8 +428,10 @@ kubectl get svc,endpoints -n benchmark
 
 ```bash
 kubectl exec -n benchmark deploy/fortio -- \
-  fortio load -qps 10 -c 1 -t 10s http://echo.benchmark.svc.cluster.local:80/echo
-# Kỳ vọng: 100% success, p99 < 5ms (ở QPS thấp)
+  fortio load -c 1 -n 5 -t 10s http://echo.benchmark.svc:80/echo
+# Kỳ vọng: Code 200, 0 errors
+kubectl get pods -n benchmark -o wide
+# Kỳ vọng: echo và fortio cùng NODE
 ```
 
 #### ✅ Checklist Phase 5b
@@ -436,6 +445,7 @@ kubectl exec -n benchmark deploy/fortio -- \
 [ ] kube-proxy đúng trạng thái (Mode A: Running, Mode B: absent)
 [ ] cilium status: đúng mode (A: cluster-pool+Disabled / B: eni+Strict)
 [ ] echo + fortio pods Running sau khi redeploy
+[ ] echo và fortio cùng 1 node (NODE column giống nhau)
 [ ] fortio → echo connectivity OK
 [ ] kube-dns endpoints tồn tại
 [ ] echo Service ClusterIP + endpoints populate
@@ -544,7 +554,9 @@ find results/mode=A_kube-proxy/scenario=S2 -name "bench_phase1_rampup.log" | wc 
 
 ### Phase 8 — Chuyển Mode A → Mode B ⚠️ CRITICAL
 
-> **NẾU LÀM SAI:** kube-proxy + eBPF chạy song song → NAT table conflict → results sai hoàn toàn.
+> **⚠️ RỦI RO:** Trong thời gian chuyển đổi (~30-60 giây), cluster ở trạng thái trung gian — không có gì quản lý Services nếu kube-proxy đã xóa mà Cilium chưa ready. Benchmark runs nên **dừng trước khi switch**.
+>
+> **⚠️ NẾU LÀM SAI:** kube-proxy + eBPF chạy song song → NAT table conflict → results sai hoàn toàn.
 >
 > **Lưu ý quan trọng:** Mỗi lần switch mode (A→B hoặc B→A), LUÔN restart workload pods sau khi switch.
 > Lý do: IPAM mode khác nhau (cluster-pool vs ENI) → pod IP ranges khác nhau.
@@ -639,7 +651,7 @@ kubectl get pods -n benchmark -o wide
 ```bash
 FORTIO=$(kubectl get pods -n benchmark -l app=fortio -o jsonpath='{.items[0].metadata.name}')
 kubectl exec -n benchmark "$FORTIO" -- \
-  fortio load -qps 10 -c 1 -t 5s http://echo.benchmark.svc.cluster.local/
+  fortio load -c 1 -n 5 -t 10s http://echo.benchmark.svc:80/echo
 # Kỳ vọng: Code 200, 0 errors
 ```
 
@@ -683,6 +695,26 @@ kubectl get events -n kube-system --sort-by='.lastTimestamp' | grep hubble-relay
 | Fortio DNS timeout: `lookup ... on 172.20.0.10:53: i/o timeout` | CoreDNS chưa pick up eBPF datapath | Restart CoreDNS: `kubectl delete pods -n kube-system -l k8s-app=kube-dns` |
 | Fortio dial timeout trên IP trực tiếp | Workload pods giữ cluster-pool IPs | Restart workload: `kubectl delete pods -n benchmark --all` |
 
+#### Rollback Plan (nếu switch thất bại nghiêm trọng)
+
+> **Lưu ý:** Helm values đã commit, Terraform state đã update. Nếu gặp lỗi không fix được sau 30 phút troubleshooting, dùng rollback:
+
+**Option A — Helm rollback (nhanh, ~2 phút):**
+```bash
+helm rollback cilium -n kube-system
+kubectl delete pods -n benchmark --all
+kubectl delete pods -n kube-system -l k8s-app=kube-dns
+# Verify
+kubectl exec -n kube-system ds/cilium -- cilium status | grep KubeProxy
+```
+
+**Option B — Terraform destroy + apply (chậm nhưng sạch nhất, ~15-25 phút):**
+```bash
+cd terraform && terraform destroy -var-file=envs/dev/terraform.tfvars -auto-approve
+terraform apply -var-file=envs/dev/terraform.tfvars -auto-approve
+# Sau đó restart từ Phase 3
+```
+
 ---
 
 ### Phase 9 — Mode B Benchmark Runs: 27 runs thực tế
@@ -712,11 +744,9 @@ MODE=B LOAD=L3 ./scripts/run_s3.sh
 #### 9.4 Deny case verification (evidence cho S3)
 
 ```bash
-kubectl run attacker --image=curlimages/curl -n benchmark --rm -it -- sh
-# Trong attacker pod:
-curl --connect-timeout 5 http://echo.benchmark.svc.cluster.local:80/echo
+kubectl run attacker --image=curlimages/curl --rm -it --restart=Never -n benchmark -- \
+  curl --connect-timeout 5 http://echo.benchmark.svc:80/echo
 # Kỳ vọng: FAIL/TIMEOUT (attacker không match policy allow)
-# Thoát attacker pod: exit
 ```
 
 ```bash
