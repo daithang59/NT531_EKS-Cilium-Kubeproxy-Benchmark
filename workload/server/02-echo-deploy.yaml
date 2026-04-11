@@ -17,13 +17,15 @@ spec:
       # Pin to benchmark nodes (plan §4.5: nodeSelector/affinity)
       nodeSelector:
         role: benchmark
-      # Cross-node podAntiAffinity: echo and fortio repel each other via the
-      # shared label 'app.benchmark/pair: workload', forcing them onto different
-      # nodes so traffic always traverses the CNI datapath (no host-local shortcut).
-      # NOTE: traffic is east-west cross-node via ClusterIP Service — this is the
-      # intended measurement path (not same-node shortcut).
+      # podAffinity: echo and fortio are attracted to the same node via the
+      # shared label 'app.benchmark/pair: workload', forcing them onto the same
+      # node so we measure pure datapath overhead (kube-proxy vs eBPF) without
+      # VXLAN tunnel overhead from cross-node traffic.
+      # NOTE: ClusterIP traffic still goes through iptables/BPF regardless of
+      # same/cross-node, but same-node eliminates network-level noise (jitter,
+      # SG rules, encapsulation) for cleaner benchmark results.
       affinity:
-        podAntiAffinity:
+        podAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - topologyKey: kubernetes.io/hostname
               labelSelector:
