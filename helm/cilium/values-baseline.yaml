@@ -33,6 +33,14 @@ hubble:
 
 prometheus:
   enabled: false
+
+# Override TLS secrets namespace defaults to prevent creating cilium-secrets namespace
+# which gets stuck in Terminating and blocks Helm install/upgrade.
+tls:
+  secretsNamespace:
+    name: kube-system
+    create: false
+
 operator:
   prometheus:
     enabled: false
