@@ -1,2 +1,2 @@
 NAME         DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE   CONTAINERS   IMAGES                                                                                SELECTOR
-kube-proxy   3         3         3       3            3           <none>          35h   kube-proxy   602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/kube-proxy:v1.34.6-eksbuild.2   k8s-app=kube-proxy
+kube-proxy   3         3         3       3            3           <none>          37h   kube-proxy   602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/kube-proxy:v1.34.6-eksbuild.2   k8s-app=kube-proxy

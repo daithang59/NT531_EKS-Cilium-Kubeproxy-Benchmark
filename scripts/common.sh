@@ -38,19 +38,19 @@ REST_BETWEEN_RUNS="${REST_BETWEEN_RUNS:-60}"
 
 # ---- Load-level profiles (Fortio params) -------------------------------------
 # L1 — Light: stable, near-zero errors
-# Calibrated Mode A (2026-04-07): QPS=100, p99=0.51ms, err=0%, stable near-zero tail
+# Calibrated Mode A (2026-04-12): QPS=100, p99=0.385ms, err=0%, stable near-zero tail
 L1_QPS="${L1_QPS:-100}"
 L1_CONNS="${L1_CONNS:-8}"
 L1_THREADS="${L1_THREADS:-2}"
 
 # L2 — Medium: visible tail, no saturation
-# Calibrated Mode A (2026-04-07): QPS=400, p99=2.65ms, err=0%, visible tail, no saturation
+# Calibrated Mode A (2026-04-12): QPS=400, p99=2.11ms, err=0%, visible tail, no saturation
 L2_QPS="${L2_QPS:-400}"
 L2_CONNS="${L2_CONNS:-32}"
 L2_THREADS="${L2_THREADS:-4}"
 
 # L3 — High: near saturation (p99 spike ~15× vs L2)
-# Calibrated Mode A (2026-04-07): QPS=800, p99=38.77ms, err=0%, p99 spike approaching saturation
+# Calibrated Mode A (2026-04-12): QPS=800, p99=30-38ms, err=0%, p99 spike approaching saturation
 L3_QPS="${L3_QPS:-800}"
 L3_CONNS="${L3_CONNS:-64}"
 L3_THREADS="${L3_THREADS:-8}"
@@ -238,7 +238,7 @@ check_cluster_dns() {
   echo -n "[CHECK] DNS resolution from fortio pod... "
   local pod
   pod="$(fortio_pod)"
-  if ! kubectl -n "${NS}" exec "${pod}" -- \
+  if ! kubectl -n "${NS}" exec "${pod}" --request-timeout=30 -- \
     fortio curl -timeout 5s "http://echo.${NS}.svc.cluster.local:80/echo" >/dev/null 2>&1; then
     echo "FAIL"
     echo "[FATAL] DNS/Service probe failed from fortio pod." >&2
@@ -256,8 +256,12 @@ run_fortio() {
   local pod
   pod="$(fortio_pod)"
 
+  # NOTE: --request-timeout=0 prevents kubectl client from killing exec after 60s.
+  # Fortio benchmarks (up to 180s) must complete fully to capture valid data.
+  local _pod
+  _pod="$(fortio_pod)"
   echo "[INFO] Warmup ${WARMUP_SEC}s @ QPS=${BENCH_QPS} CONNS=${BENCH_CONNS}"
-  kubectl -n "${NS}" exec "${pod}" -- \
+  kubectl -n "${NS}" exec "${_pod}" --request-timeout=0 -- \
     fortio load \
       -qps "${BENCH_QPS}" \
       -c "${BENCH_CONNS}" \
@@ -266,7 +270,7 @@ run_fortio() {
       "${SVC_URL}" >/dev/null 2>&1 || true
 
   echo "[INFO] Measurement ${DURATION_SEC}s @ QPS=${BENCH_QPS} CONNS=${BENCH_CONNS}"
-  kubectl -n "${NS}" exec "${pod}" -- \
+  kubectl -n "${NS}" exec "${_pod}" --request-timeout=0 -- \
     fortio load \
       -qps "${BENCH_QPS}" \
       -c "${BENCH_CONNS}" \

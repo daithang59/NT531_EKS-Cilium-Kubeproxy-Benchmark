@@ -629,13 +629,86 @@ MODE=A LOAD=L2 ./scripts/run_s2.sh && \
 MODE=A LOAD=L3 ./scripts/run_s2.sh
 ```
 
-#### 7.2 Thu thập Evidence
+#### 7.3 Thu thập Evidence
 
 ```bash
 ./scripts/collect_meta.sh results/mode=A_kube-proxy/
 ```
 
-#### 7.3 Verify kết quả
+#### 7.4 Grafana Evidence — Screenshot cho mỗi Run ★
+
+> **Nguyên tắc:**
+> - **L1**: Chỉ chụp **1 lần đại diện** cho toàn Mode A (dùng làm baseline evidence)
+> - **L2 & L3**: Chụp **mỗi run** (mỗi LOAD × REPEAT#)
+> - **Lý do**: L1 quá nhẹ → CPU < 5% quota → không ai quan tâm. L2/L3 nơi resource pressure bắt đầu có ý nghĩa.
+
+**Cách mở Grafana:**
+```bash
+kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80 &
+# Mở trình duyệt → http://localhost:3000
+# User: admin | Pass: benchmarkAdmin
+```
+
+##### Mỗi Run → chụp 2 screenshots
+
+**Screenshot G-A: Namespace-level — CPU + Memory Quota**
+```
+Dashboard: Home > Dashboards > Kubernetes / Compute Resources / Namespace (Workloads)
+Filter: namespace=benchmark | workload_type=All
+Chụp: panel CPU Quota (table) + panel Memory Quota (table)
+```
+
+**Screenshot G-B: Pod-level echo — CPU Throttle confirmation** *(chỉ bắt buộc ở L2 & L3)*
+```
+Dashboard: Home > Dashboards > Kubernetes / Compute Resources / Pod
+Filter: namespace=benchmark | pod=echo-xxx
+Chụp: panel CPU Usage (time-series) + panel CPU Throttling (= 0%) + panel CPU Quota (table)
+```
+
+##### Đặt tên file
+
+```
+docs/figures/grafana/
+├── modeA/
+│   ├── grafana-ns-cpu-mem-L1.png              ← 1 lần đại diện
+│   ├── grafana-echo-throttle-L2.png           ← 1 lần đại diện
+│   ├── grafana-echo-throttle-L3.png           ← 1 lần đại diện
+│   ├── grafana-ns-cpu-mem-S1-L2-R1.png       ← mỗi run L2
+│   ├── grafana-ns-cpu-mem-S1-L3-R1.png       ← mỗi run L3
+│   ├── grafana-ns-cpu-mem-S1-L2-R2.png
+│   ├── grafana-ns-cpu-mem-S1-L2-R3.png
+│   ├── grafana-ns-cpu-mem-S1-L3-R2.png
+│   ├── grafana-ns-cpu-mem-S1-L3-R3.png
+│   ├── grafana-ns-cpu-mem-S2-L2-R1.png
+│   ├── grafana-ns-cpu-mem-S2-L3-R1.png
+│   └── ... (tương tự cho mỗi REPEAT)
+```
+
+**Quy tắc đặt tên:**
+```
+grafana-<scope>-<mode>-<scenario>-<load>-R<repeat>.png
+```
+
+| Token | Giá trị | Ý nghĩa |
+|---|---|---|
+| `<scope>` | `ns` (namespace-level) hoặc `echo-throttle` (pod-level) | Loại panel |
+| `<mode>` | `A` | Mode A |
+| `<scenario>` | `S1` hoặc `S2` | Scenario |
+| `<load>` | `L1` hoặc `L2` hoặc `L3` | Load level |
+| `<repeat>` | `R1`, `R2`, `R3` | Run repeat |
+
+##### Checklist Grafana cho mỗi Run
+
+```
+□ kubectl top pods -n benchmark              ← verify pod không restart
+□ Screenshot G-A: namespace CPU+Memory      ← xác nhận không OOM
+□ Screenshot G-B: echo CPU Throttling = 0%  ← xác nhận không throttle
+□ Grafana CPU panel: echo CPU < CPU Limits   ← verify quota đủ
+```
+
+> **Lưu ý:** Nếu L1 đã chụp đại diện và kubectl top không thay đổi → không cần chụp lại cho R2/R3 L1. Chỉ cần chụp L2 & L3 cho mỗi run.
+
+#### 7.5 Verify kết quả
 
 ```bash
 find results/mode=A_kube-proxy -name "bench.log" | wc -l    # phải = 15
@@ -661,6 +734,7 @@ done
 [ ] Mỗi run có: bench.log, metadata.json, checklist.txt
 [ ] kubectl_get_all.txt, kubectl_top_nodes.txt, events.txt
 [ ] S2: 4 phase logs mỗi run (phase1→phase4)
+[ ] Grafana screenshots đầy đủ: L1 đại diện, L2 & L3 mỗi run
 [ ] Error rate OK (<1%) cho tất cả runs
 ```
 
@@ -985,17 +1059,92 @@ grep -c "FORWARDED" results/mode=B_cilium-ebpfkpr/scenario=S3/deny_case_hubble.l
 ./scripts/collect_hubble.sh results/mode=B_cilium-ebpfkpr/
 ```
 
-> **Quick sanity check sau tất cả runs:**
+#### 9.6 Grafana Evidence — Screenshot cho mỗi Run ★
+
+> **Nguyên tắc:** Giống Mode A
+> - **L1**: Chỉ chụp **1 lần đại diện** cho toàn Mode B
+> - **L2 & L3**: Chụp **mỗi run** (mỗi LOAD × REPEAT#)
+
+**Cách mở Grafana:**
 ```bash
+kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80 &
+# Mở trình duyệt → http://localhost:3000
+# User: admin | Pass: benchmarkAdmin
+```
+
+##### Mỗi Run → chụp 2 screenshots
+
+**Screenshot G-A: Namespace-level — CPU + Memory Quota**
+```
+Dashboard: Home > Dashboards > Kubernetes / Compute Resources / Namespace (Workloads)
+Filter: namespace=benchmark | workload_type=All
+Chụp: panel CPU Quota (table) + panel Memory Quota (table)
+```
+
+**Screenshot G-B: Pod-level echo — CPU Throttle confirmation** *(chỉ bắt buộc ở L2 & L3)*
+```
+Dashboard: Home > Dashboards > Kubernetes / Compute Resources / Pod
+Filter: namespace=benchmark | pod=echo-xxx
+Chụp: panel CPU Usage (time-series) + panel CPU Throttling (= 0%) + panel CPU Quota (table)
+```
+
+##### Đặt tên file
+
+```
+docs/figures/grafana/modeB/
+├── grafana-ns-cpu-mem-L1.png              ← 1 lần đại diện Mode B
+├── grafana-echo-throttle-L2.png           ← 1 lần đại diện
+├── grafana-echo-throttle-L3.png           ← 1 lần đại diện
+├── grafana-ns-cpu-mem-S1-L2-R1.png       ← mỗi run L2
+├── grafana-ns-cpu-mem-S1-L3-R1.png       ← mỗi run L3
+├── grafana-ns-cpu-mem-S1-L2-R2.png
+├── grafana-ns-cpu-mem-S1-L2-R3.png
+├── grafana-ns-cpu-mem-S1-L3-R2.png
+├── grafana-ns-cpu-mem-S1-L3-R3.png
+├── grafana-ns-cpu-mem-S2-L2-R1.png
+├── grafana-ns-cpu-mem-S2-L3-R1.png
+├── grafana-ns-cpu-mem-S3-off-L2-R1.png  ← S3: phase=off
+├── grafana-ns-cpu-mem-S3-on-L2-R1.png   ← S3: phase=on
+├── grafana-ns-cpu-mem-S3-off-L3-R1.png
+├── grafana-ns-cpu-mem-S3-on-L3-R1.png
+└── ... (tương tự cho mỗi REPEAT)
+```
+
+**Quy tắc đặt tên Mode B:**
+```
+grafana-<scope>-B-<scenario>-<load>-R<repeat>.png
+grafana-<scope>-B-S3-<phase>-<load>-R<repeat>.png   ← S3 có phase
+```
+
+| Token | Giá trị | Ý nghĩa |
+|---|---|---|
+| `<scope>` | `ns` hoặc `echo-throttle` | Loại panel |
+| `<scenario>` | `S1`, `S2`, `S3-off`, `S3-on` | Scenario; S3 có thêm phase |
+| `<phase>` | `off` (no policy) hoặc `on` (policy enabled) | S3 phase |
+| `<load>` | `L1`, `L2`, `L3` | Load level |
+
+##### Checklist Grafana cho mỗi Run
+
+```
+□ kubectl top pods -n benchmark              ← verify pod không restart
+□ Screenshot G-A: namespace CPU+Memory      ← xác nhận không OOM
+□ Screenshot G-B: echo CPU Throttling = 0% ← xác nhận không throttle
+□ Grafana CPU panel: echo CPU < CPU Limits ← verify quota đủ
+□ Mode B thêm: cilium-envoy CPU không spike bất thường
+```
+
+> **Lưu ý:** S3 chụp **cả hai phase** (off và on) — so sánh để prove policy không gây throttling.
+
+#### 9.7 Verify kết quả
+
+```bash
+# Quick sanity check
 for d in results/mode=B_cilium-ebpfkpr/scenario=*/load=*/run=*/; do
   echo -n "$(basename $d): "
   grep -m1 "Non-2xx" "$d/bench.log" || echo "0 errors"
 done
-```
 
-#### 9.6 Verify kết quả
-
-```bash
+# File count verification
 find results/mode=B_cilium-ebpfkpr -name "bench.log" | wc -l           # phải = 27
 find results/mode=B_cilium-ebpfkpr/scenario=S3 -name "hubble_flows.jsonl" | wc -l  # phải = 12
 find results/mode=B_cilium-ebpfkpr/scenario=S3 -name "deny_case_hubble.log" | wc -l  # phải >= 1
@@ -1012,6 +1161,7 @@ find results/mode=B_cilium-ebpfkpr/scenario=S3 -name "deny_case_hubble.log" | wc
 [ ] Deny case: attacker pod bị DROP, hubble log có DROPPED verdict
 [ ] Deny case: fortio→echo vẫn FORWARDED (không false-positive)
 [ ] Cilium status + Hubble status evidence đầy đủ
+[ ] Grafana screenshots đầy đủ: L1 đại diện, L2 & L3 mỗi run
 [ ] Error rate OK (<1%) cho tất cả runs
 ```
 
@@ -1320,6 +1470,49 @@ Tổng:   2–3 tuần (chủ yếu benchmark chạy nền)
 - [ ] collect_meta.sh đã chạy
 - [ ] collect_hubble.sh đã chạy (Mode B)
 - [ ] Hubble DROPPED verdict count: ____ (S3 deny case)
+
+## Grafana Evidence per Run
+
+> **Nguyên tắc:** L1 = chụp 1 lần đại diện | L2 & L3 = chụp mỗi run
+
+**Screenshot G-A — Namespace CPU + Memory Quota:**
+```
+Dashboard: Kubernetes / Compute Resources / Namespace (Workloads)
+Filter: namespace=benchmark | workload_type=All
+Chụp: CPU Quota table + Memory Quota table
+```
+
+**Screenshot G-B — Echo CPU Throttle** *(L2 & L3 bắt buộc, L1 khuyến khích)*:
+```
+Dashboard: Kubernetes / Compute Resources / Pod
+Filter: namespace=benchmark | pod=echo-xxx
+Chụp: CPU Usage + CPU Throttling (= 0%) + CPU Quota table
+```
+
+### Mode A — Grafana screenshots đã chụp
+
+| Load | S1 | S2 | File đã lưu |
+|---|---|---|---|
+| L1 (đại diện) | [ ] R1 | — | `grafana-ns-B-L1.png`, `grafana-echo-throttle-B-L1.png` |
+| L2 | [ ] R1 [ ] R2 [ ] R3 | [ ] R1 [ ] R2 [ ] R3 | `grafana-ns-B-S1-L2-R*.png` |
+| L3 | [ ] R1 [ ] R2 [ ] R3 | [ ] R1 [ ] R2 [ ] R3 | `grafana-ns-B-S2-L3-R*.png` |
+
+### Mode B — Grafana screenshots đã chụp
+
+| Load | S1 | S2 | S3-off | S3-on | File đã lưu |
+|---|---|---|---|---|---|
+| L1 (đại diện) | [ ] | — | — | — | `grafana-ns-B-L1.png` |
+| L2 | [ ] R1 [ ] R2 [ ] R3 | [ ] R1 [ ] R2 [ ] R3 | [ ] | [ ] | `grafana-ns-B-S*-L2-R*.png` |
+| L3 | [ ] R1 [ ] R2 [ ] R3 | [ ] R1 [ ] R2 [ ] R3 | [ ] | [ ] | `grafana-ns-B-S*-L3-R*.png` |
+
+### Grafana — giá trị ghi nhận cho mỗi run
+
+| Run | echo CPU | echo Limits % | Throttle % | Memory | Mem Limits % |
+|---|---|---|---|---|---|
+| Mode A S1 L2 R1 | ___ | ___% | ___% | ___ MiB | ___% |
+| Mode A S1 L3 R1 | ___ | ___% | ___% | ___ MiB | ___% |
+| Mode B S1 L2 R1 | ___ | ___% | ___% | ___ MiB | ___% |
+| Mode B S1 L3 R1 | ___ | ___% | ___% | ___ MiB | ___% |
 
 ## Overall Assessment
 - Mode A vs Mode B latency direction: _______

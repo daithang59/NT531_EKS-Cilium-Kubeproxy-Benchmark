@@ -1,2 +1,0 @@
-2026-04-12 12:22
-arn:aws:eks:ap-southeast-1:013504659936:cluster/nt531-bm

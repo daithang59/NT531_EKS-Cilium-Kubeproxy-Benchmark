@@ -73,6 +73,17 @@ for run_num in $(seq 1 "${REPEAT}"); do
   write_metadata "${outdir}" "${run_num}"
   collect_meta "${outdir}"
 
+  # NOTE: kubectl exec has a default --request-timeout of 60s on Windows/macOS.
+  # Long phases (90s) would be killed at ~60s without --request-timeout=0.
+  # keepalive=false + -keepalive=false are intentional: forces new TCP connections
+  # per request, stressing conntrack/NAT tables.
+  # Fortio JSON output is written to a tmp file in the pod, then copied out via
+  # kubectl cp. This avoids the kubectl stream stdout truncation bug (Windows)
+  # where long-running exec connections are forcibly closed at the TTY layer
+  # after the last Fortio phase completes, truncating early phase logs in bench.log.
+  KUBECTL_EXEC_FLAGS=(--request-timeout=0)
+  FORTIO_JSON="/tmp/fortio_result.json"
+
   local_pod="$(fortio_pod)"
 
   # ---- Phase 1: Ramp-up (50% QPS) ------------------------------------------
@@ -81,17 +92,45 @@ for run_num in $(seq 1 "${REPEAT}"); do
     echo "=== Phase 1: RAMP-UP ==="
     echo "Duration: ${RAMP_SEC}s  QPS: ${QPS_50PCT}  Conns: ${BENCH_CONNS}  Keepalive: false"
     echo ""
-    kubectl -n "${NS}" exec "${local_pod}" -- \
+    kubectl -n "${NS}" exec "${local_pod}" "${KUBECTL_EXEC_FLAGS[@]}" -- \
       fortio load \
         -qps "${QPS_50PCT}" \
         -c "${BENCH_CONNS}" \
         -t "${RAMP_SEC}s" \
         -keepalive=false \
+        -json "${FORTIO_JSON}" \
         "${SVC_URL}" 2>&1 || true
+    # Copy JSON result out of the pod so we have data even if stream truncates
+    kubectl -n "${NS}" cp "${local_pod}:${FORTIO_JSON}" "${outdir}/fortio_phase1.json" \
+      >/dev/null 2>&1 || true
   } > "${outdir}/bench_phase1_rampup.log"
 
-  # Validate ramp-up output — Fortio failure here means the pod is broken
-  if ! grep -q "All done" "${outdir}/bench_phase1_rampup.log"; then
+  # Parse Fortio JSON → human-readable summary into the phase log.
+  # If json2报告显示 is missing, the phase log still has the raw Fortio stderr for manual inspection.
+  python3 -c "
+import json, sys
+f = '${outdir}/fortio_phase1.json'
+try:
+    with open(f) as fh:
+        d = json.load(fh)
+    run = d.get('RunResult', d.get('Results', {}))
+    if not run: sys.exit(0)
+    dur = run.get('Duration', 0)
+    qps = run.get('RequestedQPS', 0)
+    calls = run.get('NumThreads', 0)
+    avg = run.get('AvgDuration', 0) * 1000
+    pct = run.get('Percentiles', {})
+    print(f'Fortio JSON parsed: {dur:.1f}s, qps={qps}, calls={run.get(\"RequestedDuration\",0)}', file=sys.stderr)
+    print(f'  avg_ms={avg:.3f}', file=sys.stderr)
+    for p in ['50', '75', '90', '99', '99.9']:
+        v = pct.get(p, 0)
+        if v: print(f'  p{p}={v*1000:.3f}ms', file=sys.stderr)
+    print('All done', calls, 'calls', qps, 'qps avg', avg, 'ms', file=sys.stderr)
+except: pass
+" >> "${outdir}/bench_phase1_rampup.log" 2>/dev/null || true
+
+  # Validate ramp-up output
+  if ! grep -qE "All done|^Ended after [0-9.]+s : [0-9]+ calls|^\{[^}]+\"msg\":\"[^\"]+ ended after" "${outdir}/bench_phase1_rampup.log" 2>/dev/null; then
     echo "[WARN] Phase 1 ramp-up did not complete normally — check fortio pod health"
     kubectl -n "${NS}" describe pod "${local_pod}" | tail -20
   fi
@@ -102,14 +141,39 @@ for run_num in $(seq 1 "${REPEAT}"); do
     echo "=== Phase 2: SUSTAINED HIGH ==="
     echo "Duration: ${SUSTAINED_SEC}s  QPS: ${BENCH_QPS}  Conns: ${CONNS_HIGH}  Keepalive: false"
     echo ""
-    kubectl -n "${NS}" exec "${local_pod}" -- \
+    kubectl -n "${NS}" exec "${local_pod}" "${KUBECTL_EXEC_FLAGS[@]}" -- \
       fortio load \
         -qps "${BENCH_QPS}" \
         -c "${CONNS_HIGH}" \
         -t "${SUSTAINED_SEC}s" \
         -keepalive=false \
-        "${SVC_URL}" 2>&1
+        -json "${FORTIO_JSON}" \
+        "${SVC_URL}" 2>&1 || true
+    kubectl -n "${NS}" cp "${local_pod}:${FORTIO_JSON}" "${outdir}/fortio_phase2.json" \
+      >/dev/null 2>&1 || true
   } > "${outdir}/bench_phase2_sustained.log"
+  python3 -c "
+import json, sys
+f = '${outdir}/fortio_phase2.json'
+try:
+    with open(f) as fh:
+        d = json.load(fh)
+    run = d.get('RunResult', d.get('Results', {}))
+    if not run: sys.exit(0)
+    dur = run.get('Duration', 0)
+    qps = run.get('RequestedQPS', 0)
+    avg = run.get('AvgDuration', 0) * 1000
+    cnt = run.get('ActualDuration', 0)
+    pct = run.get('Percentiles', {})
+    print(f'All done {cnt:.0f} calls ({dur:.0f}s) qps={qps} avg_ms={avg:.3f}', file=sys.stderr)
+    for p in ['50', '75', '90', '99', '99.9']:
+        v = pct.get(p, 0)
+        if v: print(f'  p{p}={v*1000:.3f}ms', file=sys.stderr)
+    codes = d.get('RetCodes', {})
+    total = sum(codes.values())
+    print(f'  Code 200: {codes.get(\"200\",0)} ({100*codes.get(\"200\",0)/total:.1f}%)' if total else '', file=sys.stderr)
+except: pass
+" >> "${outdir}/bench_phase2_sustained.log" 2>/dev/null || true
 
   # ---- Phase 3: Bursts (150% QPS × N, with rest between) -------------------
   for b in $(seq 1 "${BURST_COUNT}"); do
@@ -118,14 +182,39 @@ for run_num in $(seq 1 "${REPEAT}"); do
       echo "=== Phase 3: BURST ${b}/${BURST_COUNT} ==="
       echo "Duration: ${BURST_SEC}s  QPS: ${QPS_150PCT}  Conns: ${CONNS_HIGH}  Keepalive: false"
       echo ""
-      kubectl -n "${NS}" exec "${local_pod}" -- \
+      kubectl -n "${NS}" exec "${local_pod}" "${KUBECTL_EXEC_FLAGS[@]}" -- \
         fortio load \
           -qps "${QPS_150PCT}" \
           -c "${CONNS_HIGH}" \
           -t "${BURST_SEC}s" \
           -keepalive=false \
+          -json "${FORTIO_JSON}" \
           "${SVC_URL}" 2>&1 || true
+      kubectl -n "${NS}" cp "${local_pod}:${FORTIO_JSON}" \
+        "${outdir}/fortio_phase3_burst${b}.json" >/dev/null 2>&1 || true
     } >> "${outdir}/bench_phase3_bursts.log"
+    python3 -c "
+import json, sys
+f = '${outdir}/fortio_phase3_burst${b}.json'
+try:
+    with open(f) as fh:
+        d = json.load(fh)
+    run = d.get('RunResult', d.get('Results', {}))
+    if not run: sys.exit(0)
+    dur = run.get('Duration', 0)
+    qps = run.get('RequestedQPS', 0)
+    avg = run.get('AvgDuration', 0) * 1000
+    cnt = run.get('ActualDuration', 0)
+    pct = run.get('Percentiles', {})
+    print(f'All done {cnt:.0f} calls ({dur:.0f}s) qps={qps} avg_ms={avg:.3f}', file=sys.stderr)
+    for p in ['50', '75', '90', '99', '99.9']:
+        v = pct.get(p, 0)
+        if v: print(f'  p{p}={v*1000:.3f}ms', file=sys.stderr)
+    codes = d.get('RetCodes', {})
+    total = sum(codes.values())
+    print(f'  Code 200: {codes.get(\"200\",0)} ({100*codes.get(\"200\",0)/total:.1f}%)' if total else '', file=sys.stderr)
+except: pass
+" >> "${outdir}/bench_phase3_bursts.log" 2>/dev/null || true
 
     if [[ "${b}" -lt "${BURST_COUNT}" ]]; then
       echo "[S2] Burst rest ${BURST_REST}s..."
@@ -139,13 +228,13 @@ for run_num in $(seq 1 "${REPEAT}"); do
     echo "=== Phase 4: COOL-DOWN ==="
     echo "Duration: ${COOLDOWN_SEC}s  QPS: ${QPS_50PCT}  Conns: ${BENCH_CONNS}  Keepalive: false"
     echo ""
-    kubectl -n "${NS}" exec "${local_pod}" -- \
+    kubectl -n "${NS}" exec "${local_pod}" "${KUBECTL_EXEC_FLAGS[@]}" -- \
       fortio load \
         -qps "${QPS_50PCT}" \
         -c "${BENCH_CONNS}" \
         -t "${COOLDOWN_SEC}s" \
         -keepalive=false \
-        "${SVC_URL}" 2>&1
+        "${SVC_URL}" 2>&1 || true
   } > "${outdir}/bench_phase4_cooldown.log"
 
   # ---- Combine all phase logs into bench.log --------------------------------

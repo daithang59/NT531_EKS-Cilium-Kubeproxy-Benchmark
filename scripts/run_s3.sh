@@ -46,7 +46,28 @@ echo "────────────────────────�
 echo " Phase OFF — removing NetworkPolicy"
 echo "────────────────────────────────────"
 kubectl -n "${NS}" delete -f "${REPO_ROOT}/workload/policies/" --ignore-not-found=true
-sleep 5  # settle
+# Wait for Cilium datapath to fully remove policy rules before benchmarking.
+# xDP policy removal can take 10-30s depending on node count.
+sleep 15  # settle
+
+# Verify no policy rules remain — check on the first cilium pod found.
+# If any policy rules are present, the full delete may still be propagating.
+echo "[VERIFY] Checking no residual policy enforcement..."
+local _first_pod
+_first_pod="$(kubectl get pods -n kube-system -l k8s-app=cilium -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
+if [[ -n "${_first_pod}" ]]; then
+  local _policy_lines
+  _policy_lines="$(kubectl -n kube-system exec "${_first_pod}" -- \
+    cilium policy get 2>/dev/null | grep -c "reserved:endpoint" || echo "0")"
+  if [[ "${_policy_lines}" -gt 0 ]]; then
+    echo "[WARN] Residual policy rules detected (${_policy_lines} lines) — waiting 10s more"
+    sleep 10
+  else
+    echo "[VERIFY] OK — no residual policy enforcement detected"
+  fi
+else
+  echo "[WARN] Could not find cilium pod for verification — continuing"
+fi
 
 for i in $(seq 1 "${REPEAT}"); do
   # Override OUTDIR to include phase
@@ -68,11 +89,24 @@ echo "────────────────────────�
 echo " Phase ON — applying NetworkPolicy"
 echo "────────────────────────────────────"
 kubectl apply -f "${REPO_ROOT}/workload/policies/"
-sleep 10  # let policy propagate
+# Wait for Cilium to compile and install policy into datapath.
+# Policy installation involves xDP program update + conntrack table update.
+sleep 20  # let policy propagate
 
-# Policy metadata: 2 CiliumNetworkPolicy files (01-allow-fortio-to-echo + 02-deny-other)
-# Parsed by write_metadata into workload.policy block in metadata.json
-export POLICY_METADATA="enabled=true,type=CiliumNetworkPolicy,complexity_level=simple,rule_count_estimate=2"
+# Verify policy is installed on at least one Cilium agent
+echo "[VERIFY] Checking policy enforcement is active..."
+if kubectl -n kube-system exec ds/cilium -- \
+  cilium policy get 2>/dev/null | grep -q "reserved:endpoint"; then
+  echo "[VERIFY] OK — policy enforcement active"
+else
+  echo "[WARN] cilium policy get returned no rules — policy may not be installed yet"
+  echo "[WARN] Continuing anyway (benchmark will reveal if enforcement is active)"
+fi
+
+# Auto-count policy files for accurate metadata
+POLICY_COUNT=$(find "${REPO_ROOT}/workload/policies/" -name "*.yaml" 2>/dev/null | wc -l | tr -d ' ')
+export POLICY_METADATA="enabled=true,type=CiliumNetworkPolicy,complexity_level=simple,rule_count_estimate=${POLICY_COUNT}"
+echo "[INFO] Policy metadata: rule_count_estimate=${POLICY_COUNT}"
 
 for i in $(seq 1 "${REPEAT}"); do
   export OUTDIR="${REPO_ROOT}/results/mode=${MODE_LABEL}/scenario=${SCENARIO}/load=${LOAD}/phase=on/run=R${i}_$(ts_dir)"
