@@ -16,6 +16,7 @@
 6. [Tổng hợp checklist](#6-tổng-hợp-checklist)
 7. [Hỗ trợ nhanh](#7-hỗ-trợ-nhanh)
 8. [Run Notes Template ★](#8-run-notes-template-) — template cho mỗi ngày chạy
+9. [Tổng hợp Screenshot — Toàn bộ Benchmark](#9-tổng-hợp-screenshot---toàn-bộ-benchmark) — fig-01→fig-18, infra, Grafana, Hubble
 
 ---
 
@@ -203,6 +204,7 @@ cd terraform && terraform init && terraform validate && make fmt
 ```bash
 cd terraform && terraform plan -var-file="envs/dev/terraform.tfvars" -out=tfplan && terraform apply tfplan
 ```
+📸 Screenshot: `docs/figures/infra/fig-A6-terraform-apply-output.png` (sau khi apply xong)
 
 ⏱ Thời gian: **15–25 phút.** Không interrupt trong quá trình apply.
 
@@ -212,6 +214,14 @@ cd terraform && terraform plan -var-file="envs/dev/terraform.tfvars" -out=tfplan
 aws eks update-kubeconfig --name nt531-bm --region ap-southeast-1 && kubectl get nodes
 # Kỳ vọng: 3 node Ready
 ```
+📸 Screenshot: `docs/figures/infra/fig-A6-terraform-apply-output.png` (terraform apply output — `fig-A6-terraform-apply-output.png`)
+📸 Screenshot: `docs/figures/infra/fig-A1-aws-eks-console-cluster.png` (AWS Console → EKS → nt531-bm, status Active — `fig-A1-aws-eks-console-cluster.png`)
+📸 Screenshot: `docs/figures/infra/fig-A2-aws-eks-nodegroup.png` (AWS Console → EKS → nt531-bm → Compute → Node Group — `fig-A2-aws-eks-nodegroup.png`)
+📸 Screenshot: `docs/figures/infra/fig-A3-aws-ec2-instances.png` (AWS Console → EC2 → Instances, 3 m5.large Running — `fig-A3-aws-ec2-instances.png`)
+📸 Screenshot: `docs/figures/infra/fig-A4-aws-vpc-subnets.png` (AWS Console → VPC → Subnets, 2 AZs + NAT GW — `fig-A4-aws-vpc-subnets.png`)
+📸 Screenshot: `docs/figures/infra/fig-A5-aws-security-group-rules.png` (AWS Console → EC2 → Security Groups → nt531-bm-node, VXLAN rules — `fig-A5-aws-security-group-rules.png`)
+📸 Screenshot: `docs/figures/infra/fig-A7-terraform-output-values.png` (terraform output — `fig-A7-terraform-output-values.png`)
+📸 Screenshot: `docs/figures/thesis/fig-01-modeA-cluster-nodes.png` (chụp `kubectl get nodes -o wide` sau khi chạy — `fig-01-modeA-cluster-nodes.png`)
 
 #### ✅ Checklist Phase 2
 
@@ -253,6 +263,13 @@ kubectl get secret -n monitoring -l app.kubernetes.io/component=admin-secret -o 
 
 Truy cập http://localhost:3000
 
+📸 Screenshot: `docs/figures/prometheus/fig-P1-prometheus-targets.png` (Prometheus UI → `Status > Targets` — **chụp ngay sau Phase 3**, tất cả jobs UP bao gồm cilium-agent — `fig-P1-prometheus-targets.png`)
+📸 Screenshot: `docs/figures/prometheus/fig-P2-prometheus-cilium-metrics.png` (Prometheus UI → Graph → `cilium_forward_count_total`, **chọn Table view** — `fig-P2-prometheus-cilium-metrics.png`)
+📸 Screenshot: `fig-G1-grafana-cpu-node-pod.png` (Grafana → Node/Pod CPU Usage, cilium overhead < 0.2% — `fig-G1-grafana-cpu-node-pod.png`)
+📸 Screenshot: `fig-G2-grafana-cpu-quota-table.png` (Grafana → CPU Quota table, tất cả Cilium pods << 1% — `fig-G2-grafana-cpu-quota-table.png`)
+📸 Screenshot: `fig-G3-grafana-memory-node-pod.png` (Grafana → Memory Usage (in cache), Cilium < 300 MiB — `fig-G3-grafana-memory-node-pod.png`)
+📸 Screenshot: `fig-G4-grafana-cluster-overview.png` (Grafana → Cluster CPU/Memory overview, < 30% — `fig-G4-grafana-cluster-overview.png`)
+
 #### ✅ Checklist Phase 3
 
 ```
@@ -286,6 +303,10 @@ kubectl exec -n kube-system ds/cilium -- cilium status && kubectl get ds -n kube
 > ⚠️ **Lưu ý:** Ở Mode A, Cilium vẫn tham gia xử lý ClusterIP Services ở per-packet level.
 > Mode A KHÔNG phải pure kube-proxy baseline — nó là "Cilium hybrid + kube-proxy".
 > Điều này được ghi nhận trong Threats to Validity (Phase 10).
+
+📸 Screenshot: `docs/figures/thesis/fig-03-modeA-cilium-status.png` (cilium status → `KubeProxyReplacement = Disabled`, `IPAM: cluster-pool` — `fig-03-modeA-cilium-status.png`)
+📸 Screenshot: `docs/figures/thesis/fig-04-modeA-kube-proxy-ds.png` (`kubectl get ds kube-proxy -n kube-system` — kube-proxy Running 3/3 — `fig-04-modeA-kube-proxy-ds.png`)
+📸 Screenshot: `docs/figures/infra/fig-A8-values-baseline-yaml.png` (VS Code / terminal `cat helm/cilium/values-baseline.yaml` — `kubeProxyReplacement: false`, `cni.conf: cilium-cni`, `debug: false` — `fig-A8-values-baseline-yaml.png`)
 
 #### ✅ Checklist Phase 4
 
@@ -332,6 +353,9 @@ aws eks wait addon-active --cluster-name "${CLUSTER_NAME}" --region ap-southeast
     --addon-name coredns
 ```
 
+📸 Screenshot: `docs/figures/thesis/fig-02-modeA-pod-placement.png` (`kubectl get pods -n benchmark -o wide` — echo + fortio cùng NODE — `fig-02-modeA-pod-placement.png`)
+📸 Screenshot: `docs/figures/thesis/fig-04-modeA-fortio-smoke.png` (Fortio smoke test summary — `Code 200`, `p50/p90/p99`, `0 errors` — `fig-04-modeA-fortio-smoke.png`)
+
 #### ✅ Checklist Phase 5
 
 ```
@@ -373,12 +397,15 @@ aws eks wait nodegroup-active \
 echo "Node group scaled up to 3. Tiếp tục 5b.1..."
 ```
 
+📸 Screenshot: `docs/figures/thesis/fig-01-modeA-cluster-nodes.png` hoặc `docs/figures/thesis/fig-07-modeB-cluster-nodes.png` (tùy mode hiện tại — `kubectl get nodes -o wide`)
+
 #### 5b.1 Verify nodes up
 
 ```bash
 kubectl get nodes -o wide
 # Kỳ vọng: 3 node Ready, AGE ~5-10 phút (vừa scale lên)
 ```
+📸 Screenshot: `docs/figures/thesis/fig-01-modeA-cluster-nodes.png` hoặc `docs/figures/thesis/fig-07-modeB-cluster-nodes.png` (tùy mode hiện tại)
 
 #### 5b.2 Verify Cilium pods
 
@@ -419,6 +446,8 @@ kubectl -n benchmark get pods -w
 kubectl exec -n benchmark deploy/fortio -- fortio curl http://echo.benchmark.svc.cluster.local:80/echo
 # Kỳ vọng: HTTP 200, response chứa "ok"
 ```
+
+📸 Screenshot: Fortio connectivity test output (HTTP 200 OK)
 
 #### 5b.7 Verify DNS
 
@@ -571,12 +600,13 @@ kubectl exec -n benchmark deploy/fortio -- fortio load -c 1 -n 5 -t 10s http://e
 
 | # | Màn hình cần chụp | Lệnh đang hiển thị | Lưu thành file | Dùng trong thesis | **Ý nghĩa** |
 |---|---|---|---|---|---|
-| **S1** | Terminal sau khi chạy `kubectl get nodes -o wide` | Command output hiển thị 3 nodes Ready | `docs/figures/fig-01-modeA-cluster-nodes.png` | Chương 3 — Experimental Setup | **Chứng minh cluster thật sự gồm 3 node m5.large, ghim cùng 1 AZ.** Reviewer cần thấy cluster tồn tại và đúng cấu hình thiết kế trước khi xem bất kỳ số liệu nào. |
-| **S2** | Terminal sau khi chạy `kubectl get pods -n benchmark -o wide` | echo + fortio cùng cột NODE | `docs/figures/fig-02-modeA-pod-placement.png` | Chương 3 — Methodology (same-node proof) | **Chứng minh traffic chạy cùng node (same-node).** Đây là nền tảng của toàn bộ benchmark — same-node topology loại bỏ cross-AZ latency variability. Nếu khác node, benchmark design bị sai. |
-| **S3** | Terminal sau khi chạy `kubectl exec -n kube-system ds/cilium -- cilium status` | `KubeProxyReplacement = Disabled` hiển thị rõ | `docs/figures/fig-03-modeA-cilium-status.png` | Chương 3 — Cilium Mode A config | **Chứng minh Mode A chạy đúng hybrid datapath với `kubeProxyReplacement=false`.** Không có ảnh này, không prove được mode thực tế đang chạy. |
-| **S4** | Terminal Fortio smoke test — summary output | `Code 200`, p50/p90/p99, 0 errors | `docs/figures/fig-04-modeA-fortio-smoke.png` | Chương 3 — Workload readiness | **Chứng minh workload sẵn sàng trước benchmark.** Error rate = 0, Code 200 → benchmark data sẽ đáng tin, không phải do setup lỗi. |
-| **S5** | Fortio web UI — histogram baseline | Mở `http://localhost:8080` (port-forward đã chạy) | `docs/figures/fig-05-modeA-fortio-histogram.png` | Appendix — Baseline performance | **Cung cấp raw baseline latency distribution cho Mode A.** Appendix reviewer cần thấy baseline p50/p90/p99 thực tế để đối chiếu với Mode B. |
-| **S6** | Grafana dashboard (nếu có metrics-server) | Node CPU usage, Prometheus dashboard | `docs/figures/fig-06-modeA-grafana-nodes.png` | Chương 3 — Environment stability | **Chứng minh không có CPU saturation làm nhiễu kết quả.** Nếu node >85% CPU → results bị bias. Ảnh này tăng credibility của toàn bộ benchmark. |
+| **S1** | Terminal sau khi chạy `kubectl get nodes -o wide` | Command output hiển thị 3 nodes Ready | `docs/figures/thesis/fig-01-modeA-cluster-nodes.png` | Chương 3 — Experimental Setup | **Chứng minh cluster thật sự gồm 3 node m5.large, ghim cùng 1 AZ.** Reviewer cần thấy cluster tồn tại và đúng cấu hình thiết kế trước khi xem bất kỳ số liệu nào. |
+| **S2** | Terminal sau khi chạy `kubectl get pods -n benchmark -o wide` | echo + fortio cùng cột NODE | `docs/figures/thesis/fig-02-modeA-pod-placement.png` | Chương 3 — Methodology (same-node proof) | **Chứng minh traffic chạy cùng node (same-node).** Đây là nền tảng của toàn bộ benchmark — same-node topology loại bỏ cross-AZ latency variability. Nếu khác node, benchmark design bị sai. |
+| **S3** | Terminal sau khi chạy `kubectl exec -n kube-system ds/cilium -- cilium status` | `KubeProxyReplacement = Disabled` hiển thị rõ | `docs/figures/thesis/fig-03-modeA-cilium-status.png` | Chương 3 — Cilium Mode A config | **Chứng minh Mode A chạy đúng hybrid datapath với `kubeProxyReplacement=false`.** Không có ảnh này, không prove được mode thực tế đang chạy. |
+| **S3b** | Terminal `kubectl get ds kube-proxy -n kube-system` | kube-proxy DaemonSet Running 3/3 | `docs/figures/thesis/fig-04-modeA-kube-proxy-ds.png` | Chương 3 — Mode A config | **Chứng minh kube-proxy vẫn active ở Mode A.** Reviewer cần thấy cả hai (cilium + kube-proxy) cùng tồn tại song song. |
+| **S4** | Terminal Fortio smoke test — summary output | `Code 200`, p50/p90/p99, 0 errors | `docs/figures/thesis/fig-04-modeA-fortio-smoke.png` | Chương 3 — Workload readiness | **Chứng minh workload sẵn sàng trước benchmark.** Error rate = 0, Code 200 → benchmark data sẽ đáng tin, không phải do setup lỗi. |
+| **S5** | Fortio web UI — histogram baseline — **port-forward: `kubectl port-forward -n benchmark deploy/fortio 8080:8080 &` → mở http://localhost:8080** | Histogram p50/p90/p99 baseline | `docs/figures/thesis/fig-05-modeA-fortio-histogram.png` | Appendix — Baseline performance | **Cung cấp raw baseline latency distribution cho Mode A.** Appendix reviewer cần thấy baseline p50/p90/p99 thực tế để đối chiếu với Mode B. |
+| **S6** | Grafana dashboard (nếu có metrics-server) | Node CPU usage, Prometheus dashboard | `docs/figures/grafana/fig-06-modeA-grafana-nodes.png` | Chương 3 — Environment stability | **Chứng minh không có CPU saturation làm nhiễu kết quả.** Nếu node >85% CPU → results bị bias. Ảnh này tăng credibility của toàn bộ benchmark. |
 
 > **Lệnh port-forward Fortio web UI (chạy nền terminal riêng):**
 > ```bash
@@ -847,12 +877,13 @@ kubectl exec -n benchmark deploy/fortio -- fortio load -c 1 -n 5 -t 10s http://e
 
 | # | Màn hình cần chụp | Lệnh đang hiển thị | Lưu thành file | Dùng trong thesis | **Ý nghĩa** |
 |---|---|---|---|---|---|
-| **S1** | Terminal sau khi chạy `kubectl get nodes -o wide` | 3 nodes Ready, cùng 1 AZ | `docs/figures/fig-07-modeB-cluster-nodes.png` | Chương 3 | **Chứng minh Mode B vẫn giữ đúng topology.** Cùng 3 node m5.large, same AZ — đảm bảo A và B so sánh công bằng (chỉ datapath khác, infrastructure không đổi). |
-| **S2** | Terminal sau khi chạy `kubectl get pods -n benchmark -o wide` | echo + fortio cùng cột NODE | `docs/figures/fig-08-modeB-pod-placement.png` | Chương 3 (same-node proof) | **Chứng minh same-node topology không bị phá vỡ sau switch A→B.** Prove benchmark design nhất quán: topology đầu cuối giữa A và B chỉ khác datapath, không phải pod placement. |
-| **S3** | Terminal sau khi `cilium status` — PHẦN ĐẦU output | `KubeProxyReplacement = True` (màu xanh) | `docs/figures/fig-09-modeB-kubeproxy-replacement.png` | Chương 3 — Mode B datapath proof | **Ảnh quan trọng nhất của Mode B.** Chứng minh KPR thật sự enabled — không phải "hybrid" hay "partial". Đây là claim chính của mode B. |
-| **S4** | Terminal `cilium status` — PHẦN ROUTING/IPAM | `IPAM: IPv4: X/10 allocated`, `Routing: Native` | `docs/figures/fig-10-modeB-routing-native.png` | Chương 3 — ENI routing proof | **Chứng minh Mode B dùng ENI native routing, không VXLAN tunnel.** Giải thích cơ chế: Mode B bypass iptables → O(1) BPF map lookup thay vì O(n) DNAT traversal. Không có ảnh này → không có bằng chứng cơ chế. |
-| **S5** | Fortio web UI histogram | Port-forward `kubectl port-forward -n benchmark deploy/fortio 8080:8080 &` | `docs/figures/fig-11-modeB-fortio-histogram.png` | Appendix | **Baseline histogram của Mode B để so sánh với Mode A.** Reviewer Appendix cần thấy cả hai modes ở cùng appendix để đối chiếu raw data. |
-| **S6** | Hubble UI dashboard | Port-forward `kubectl port-forward -n kube-system svc/hubble-ui 12000:80 &` | `docs/figures/fig-12-modeB-hubble-status.png` | Chương 3 | **Chứng minh Hubble enabled và Relay connected.** Đây vừa là requirement của S3 (policy verdict) vừa là Threat to Validity (#1) cần thừa nhận. Nếu Hubble không connected → S3 không đo được. |
+| **S1** | Terminal sau khi chạy `kubectl get nodes -o wide` | 3 nodes Ready, cùng 1 AZ | `docs/figures/thesis/fig-07-modeB-cluster-nodes.png` | Chương 3 | **Chứng minh Mode B vẫn giữ đúng topology.** Cùng 3 node m5.large, same AZ — đảm bảo A và B so sánh công bằng (chỉ datapath khác, infrastructure không đổi). |
+| **S2** | Terminal sau khi chạy `kubectl get pods -n benchmark -o wide` | echo + fortio cùng cột NODE | `docs/figures/thesis/fig-08-modeB-pod-placement.png` | Chương 3 (same-node proof) | **Chứng minh same-node topology không bị phá vỡ sau switch A→B.** Prove benchmark design nhất quán: topology đầu cuối giữa A và B chỉ khác datapath, không phải pod placement. |
+| **S3** | Terminal sau khi `cilium status` — PHẦN ĐẦU output | `KubeProxyReplacement = True` (màu xanh) | `docs/figures/thesis/fig-09-modeB-kubeproxy-replacement.png` | Chương 3 — Mode B datapath proof | **Ảnh quan trọng nhất của Mode B.** Chứng minh KPR thật sự enabled — không phải "hybrid" hay "partial". Đây là claim chính của mode B. |
+| **S4** | Terminal `cilium status` — PHẦN ROUTING/IPAM | `IPAM: IPv4: X/10 allocated`, `Routing: Native` | `docs/figures/thesis/fig-10-modeB-routing-native.png` | Chương 3 — ENI routing proof | **Chứng minh Mode B dùng ENI native routing, không VXLAN tunnel.** Giải thích cơ chế: Mode B bypass iptables → O(1) BPF map lookup thay vì O(n) DNAT traversal. Không có ảnh này → không có bằng chứng cơ chế. |
+| **S5** | Fortio web UI histogram — **port-forward: `kubectl port-forward -n benchmark deploy/fortio 8080:8080 &` → mở http://localhost:8080** | Histogram p50/p90/p99 baseline Mode B | `docs/figures/thesis/fig-12-modeB-fortio-histogram.png` | Appendix | **Baseline histogram của Mode B để so sánh với Mode A.** Reviewer Appendix cần thấy cả hai modes ở cùng appendix để đối chiếu raw data. |
+| **S6** | Hubble UI dashboard — **port-forward: `kubectl port-forward -n kube-system svc/hubble-ui 12000:80 &` → mở http://localhost:12000** | Hubble UI connected, relay status | `docs/figures/hubble/fig-12-modeB-hubble-status.png` | Chương 3 | **Chứng minh Hubble enabled và Relay connected.** Đây vừa là requirement của S3 (policy verdict) vừa là Threat to Validity (#1) cần thừa nhận. Nếu Hubble không connected → S3 không đo được. |
+| **S7** | Terminal: `kubectl exec -n kube-system ds/cilium -- hubble status` — **CLI fallback khi Hubble UI 502 Bad Gateway** | `Hubble: Ok`, `Relay: Connected` | `docs/figures/hubble/fig-11-modeB-hubble-ok.png` | Chương 3 — Hubble status | **Proof Hubble Relay kết nối thành công.** Fallback khi UI không hoạt động. |
 
 ##### Bước C — Mở Fortio + Hubble UI (2 terminal nền, chạy TRƯỚC Phase 9.1)
 
@@ -883,7 +914,7 @@ kubectl exec -n benchmark deploy/fortio -- fortio load -c 1 -n 5 -t 10s http://e
 > kubectl exec -n kube-system ds/cilium -- hubble observe \
 >   --namespace benchmark --last 100 -o table \
 >   > evidence/hubble-observe-sample.txt
-> # Chụp terminal → docs/figures/fig-12b-hubble-observe-sample.png
+> # Chụp terminal → docs/figures/hubble/fig-12b-hubble-observe-sample.png
 > ```
 
 #### 9.1 S1 — Steady-state
@@ -935,16 +966,16 @@ grep -c "FORWARDED" results/mode=B_cilium-ebpfkpr/scenario=S3/deny_case_hubble.l
 >
 > Trên Hubble UI:
 > 1. Filter: `namespace=benchmark`, `verdict=DROPPED`
-> 2. Chụp ảnh màn hình → `docs/figures/fig-13-hubble-deny-case.png`
+> 2. Chụp ảnh màn hình → `docs/figures/hubble/fig-13-hubble-deny-case.png`
 > 3. Filter: `namespace=benchmark`, `verdict=FORWARDED`
-> 4. Chụp ảnh → `docs/figures/fig-13b-hubble-forwarded-case.png` (tùy chọn)
+> 4. Chụp ảnh → `docs/figures/hubble/fig-13b-hubble-forwarded-case.png` (tùy chọn)
 >
 > **Nếu Hubble UI không hoạt động**, dùng CLI thay thế:
 > ```bash
 > kubectl exec -n kube-system ds/cilium -- hubble observe \
 >   --namespace benchmark --verdict DROPPED --last 50 -o table \
 >   > evidence/hubble-deny-case.txt
-> # Chụp terminal output → docs/figures/fig-13-hubble-deny-cli.png
+> # Chụp terminal output → docs/figures/hubble/fig-13-hubble-deny-cli.png
 > ```
 
 #### 9.5 Thu thập Evidence Mode B
@@ -986,7 +1017,7 @@ find results/mode=B_cilium-ebpfkpr/scenario=S3 -name "deny_case_hubble.log" | wc
 
 ---
 
-### Phase 10 — Phân tích Thống kê & Viết Báo cáo (1–2 ngày)
+### Phase 11 — Phân tích Thống kê & Viết Báo cáo (1–2 ngày)
 
 #### 10.1 Chạy phân tích tự động
 
@@ -1061,7 +1092,7 @@ Tạo biểu đồ từ `aggregated_summary.csv` và `comparison_AB.csv` (output
 > **Quy tắc đặt tên:** `fig-XX-<mô-tả>.png` / `table-XX-<mô-tả>.png`
 > **Lưu raw CSV source** vào `docs/appendix/` để reviewer có thể reproduce.
 
-#### ✅ Checklist Phase 10
+#### ✅ Checklist Phase 11
 
 ```
 [ ] analyze_results.py chạy thành công
@@ -1074,7 +1105,7 @@ Tạo biểu đồ từ `aggregated_summary.csv` và `comparison_AB.csv` (output
 
 ---
 
-### Phase 11 — Dọn dẹp Hạ tầng (5–10 phút)
+### Phase 12 — Dọn dẹp Hạ tầng (5–10 phút)
 
 #### 11.0 Tạm dừng project (không destroy)
 
@@ -1184,8 +1215,8 @@ results/mode=<A|B>/scenario=<S1|S2|S3>/load=<L?>/[phase=<off|on>/]run=R<#>
 | **7 — Mode A Runs** | [ ] 15 runs (S1=9, S2=6); [ ] Pre-run evidence (Phase 7.0) captured; [ ] Error rate <1% |
 | **8 — Switch A→B ⚠️** | [ ] values-ebpfkpr.yaml k8sServiceHost = endpoint hiện tại (chạy lệnh sed ở runbook §3); [ ] eni.enabled: true có trong values; [ ] kube-proxy DS đã xóa (kubectl get ds kube-proxy → NotFound); [ ] cilium-operator Running; [ ] KubeProxyReplacement=True; [ ] CoreDNS restarted; [ ] Workload pods restarted với ENI IPs; [ ] Hubble relay/UI restarted; [ ] Fortio → Echo 200 OK |
 | **9 — Mode B Runs** | [ ] 27 runs (S1=9, S2=6, S3=12); [ ] Pre-run evidence (Phase 9.0) captured; [ ] hubble_flows.jsonl đầy đủ; [ ] deny case DROPPED verdict; [ ] Error rate <1% |
-| **10 — Phân tích** | [ ] comparison_AB.csv có p-value + Δ%; [ ] RQ1/RQ2/RQ3 trả lời được; [ ] Threats to Validity; [ ] Deny case |
-| **11 — Cleanup** | [ ] Kết quả backup; [ ] terraform destroy OK |
+| **11 — Phân tích** | [ ] comparison_AB.csv có p-value + Δ%; [ ] RQ1/RQ2/RQ3 trả lời được; [ ] Threats to Validity; [ ] Deny case |
+| **12 — Cleanup** | [ ] Kết quả backup; [ ] terraform destroy OK |
 
 ### Tóm tắt thứ tự thực hiện
 
@@ -1263,21 +1294,23 @@ Tổng:   2–3 tuần (chủ yếu benchmark chạy nền)
 ## Screenshot Evidence Captured
 
 **Mode A (fig-01 → fig-06):**
-- [ ] `docs/figures/fig-01-modeA-cluster-nodes.png` — kubectl get nodes -o wide
-- [ ] `docs/figures/fig-02-modeA-pod-placement.png` — kubectl get pods -n benchmark -o wide (same-node proof)
-- [ ] `docs/figures/fig-03-modeA-cilium-status.png` — cilium status (KubeProxyReplacement=Disabled)
-- [ ] `docs/figures/fig-04-modeA-fortio-smoke.png` — Fortio smoke test summary
-- [ ] `docs/figures/fig-05-modeA-fortio-histogram.png` — Fortio web UI histogram
-- [ ] `docs/figures/fig-06-modeA-grafana-nodes.png` — Grafana node metrics (nếu có)
+- [ ] `docs/figures/thesis/fig-01-modeA-cluster-nodes.png` — kubectl get nodes -o wide
+- [ ] `docs/figures/thesis/fig-02-modeA-pod-placement.png` — kubectl get pods -n benchmark -o wide (same-node proof)
+- [ ] `docs/figures/thesis/fig-03-modeA-cilium-status.png` — cilium status (KubeProxyReplacement=Disabled)
+- [ ] `docs/figures/thesis/fig-04-modeA-kube-proxy-ds.png` — kube-proxy DS Running 3/3
+- [ ] `docs/figures/thesis/fig-04-modeA-fortio-smoke.png` — Fortio smoke test summary
+- [ ] `docs/figures/thesis/fig-05-modeA-fortio-histogram.png` — Fortio web UI histogram
+- [ ] `docs/figures/grafana/fig-06-modeA-grafana-nodes.png` — Grafana node metrics (nếu có)
 
 **Mode B (fig-07 → fig-12):**
-- [ ] `docs/figures/fig-07-modeB-cluster-nodes.png`
-- [ ] `docs/figures/fig-08-modeB-pod-placement.png` — same-node proof
-- [ ] `docs/figures/fig-09-modeB-kubeproxy-replacement.png` — KubeProxyReplacement=True
-- [ ] `docs/figures/fig-10-modeB-routing-native.png` — ENI IPAM + Native routing
-- [ ] `docs/figures/fig-11-modeB-fortio-histogram.png` — Fortio histogram
-- [ ] `docs/figures/fig-12-modeB-hubble-status.png` — Hubble UI dashboard (hoặc `hubble status` CLI)
-- [ ] `docs/figures/fig-12b-hubble-observe-sample.png` — Hubble observe FORWARDED verdict (sau Phase 9.3)
+- [ ] `docs/figures/thesis/fig-07-modeB-cluster-nodes.png`
+- [ ] `docs/figures/thesis/fig-08-modeB-pod-placement.png` — same-node proof
+- [ ] `docs/figures/thesis/fig-09-modeB-kubeproxy-replacement.png` — KubeProxyReplacement=True
+- [ ] `docs/figures/thesis/fig-10-modeB-routing-native.png` — ENI IPAM + Native routing
+- [ ] `docs/figures/thesis/fig-12-modeB-fortio-histogram.png` — Fortio histogram
+- [ ] `docs/figures/hubble/fig-12-modeB-hubble-status.png` — Hubble UI dashboard (hoặc `hubble status` CLI)
+- [ ] `docs/figures/hubble/fig-11-modeB-hubble-ok.png` — `hubble status` CLI fallback
+- [ ] `docs/figures/hubble/fig-12b-hubble-observe-sample.png` — Hubble observe FORWARDED verdict (sau Phase 9.3)
 
 ## Anomalies & Observations
 - _______________
@@ -1293,6 +1326,8 @@ Tổng:   2–3 tuần (chủ yếu benchmark chạy nền)
 - Statistical significance: _______ (p-value)
 - Threats to Validity notes: _______
 
+```
+
 ---
 
 ## 9. Tổng hợp Screenshot — Toàn bộ Benchmark
@@ -1305,24 +1340,24 @@ Tổng:   2–3 tuần (chủ yếu benchmark chạy nền)
 
 | File | Chụp gì | Nội dung | Thời điểm | Dùng trong | **Tại sao cần** |
 |---|---|---|---|---|---|
-| `fig-01-modeA-cluster-nodes.png` | Terminal `kubectl get nodes -o wide` | 3 node m5.large, all Ready, cùng 1 AZ | Phase 7.0 | Chương 3 — Infrastructure | **Claim:** "Cluster gồm 3 node m5.large, ghim 1 AZ". Reviewer cần thấy cluster thật sự như mô tả. |
-| `fig-02-modeA-pod-placement.png` | Terminal `kubectl get pods -n benchmark -o wide` | echo + fortio cùng cột NODE | Phase 7.0 | Chương 3 — Methodology | **Claim:** "Traffic cùng node (same-node)". Đây là nền tảng của toàn bộ benchmark design. |
-| `fig-03-modeA-cilium-status.png` | Terminal `cilium status` | `KubeProxyReplacement = Disabled`, `IPAM: cluster-pool` | Phase 7.0 | Chương 3 — Mode A datapath | **Claim:** "Mode A chạy Cilium hybrid với `kubeProxyReplacement=false`". Không có ảnh này → không prove được mode thực tế. |
-| `fig-04-modeA-kube-proxy-ds.png` | Terminal `kubectl get ds kube-proxy -n kube-system` | kube-proxy DaemonSet Running 3/3 | Phase 7.0 | Chương 3 — Mode A config | **Claim:** "kube-proxy vẫn active ở Mode A". Reviewer cần thấy cả hai (cilium + kube-proxy) cùng tồn tại. |
-| `fig-05-modeA-fortio-histogram.png` | Fortio web UI `http://localhost:8080` | Histogram Mode A baseline, p50/p90/p99 | Phase 7.0 | Appendix — Baseline perf | **Claim:** "Baseline latency trước khi đo Mode B". Appendix cần có raw performance data. |
-| `fig-06-modeA-grafana-nodes.png` | Grafana dashboard (port 3000) | Node CPU %, metrics | Phase 7.0 | Chương 3 — Environment stability | **Claim:** "Không có CPU saturation làm nhiễu kết quả". Nếu node quá tải → results không đáng tin. |
-| `fig-07-modeB-cluster-nodes.png` | Terminal `kubectl get nodes -o wide` | 3 node ENI IPs (10.0.x.x) | Phase 9.0 | Chương 3 | **Claim:** "Mode B dùng ENI IPAM thay vì cluster-pool". IP khác nhau → IPAM mode thực tế khác nhau. |
-| `fig-08-modeB-pod-placement.png` | Terminal `kubectl get pods -n benchmark -o wide` | echo + fortio cùng NODE, ENI IPs 10.0.x.x | Phase 9.0 | Chương 3 — same-node proof | **Claim:** "Same-node topology vẫn giữ nguyên sau khi switch mode". Prove benchmark setup không thay đổi giữa A và B. |
-| `fig-09-modeB-kpr-enabled.png` | Terminal `cilium status` phần HEADER | `KubeProxyReplacement = True` ✅ | Phase 9.0 | Chương 3 — Mode B datapath | **Claim:** "Mode B thực sự bật KPR". Đây là ảnh quan trọng nhất — prove mode hoạt động đúng. |
-| `fig-10-modeB-routing-native.png` | Terminal `cilium status` phần IPAM/Routing | `IPAM: IPv4 X/10`, `Routing: Native` | Phase 9.0 | Chương 3 — ENI routing | **Claim:** "Mode B dùng native routing (ENI) chứ không phải VXLAN tunnel". VXLAN overhead sẽ làm Mode A chậm hơn giả — đây là bằng chứng. |
-| `fig-11-modeB-hubble-ok.png` | Terminal `hubble status` CLI | `Hubble: Ok`, relay connected | Phase 9.0 | Chương 3 — Hubble enabled | **Claim:** "Hubble được bật ở Mode B". Threat to Validity: Hubble overhead cần được acknowledge. |
-| `fig-12-modeB-fortio-histogram.png` | Fortio web UI `http://localhost:8080` | Histogram Mode B baseline | Phase 9.0 | Appendix | **Claim:** "Baseline Mode B". Để reviewer so sánh với Mode A ở Appendix đối chiếu. |
-| `fig-12b-hubble-observe-sample.png` | `hubble observe --last 100` CLI | FORWARDED verdict flows | Sau Phase 9.3 | Chương 5 — S3 Enforcement | **Claim:** "Policy đang áp dụng, traffic hợp lệ vẫn đi qua". Proof rằng policy không false-drop legitimate traffic. |
-| `fig-13-hubble-deny-case.png` | Hubble UI / `hubble observe` CLI | DROPPED verdict | Phase 9.4 | Chương 5 — S3 Enforcement | **Claim:** "Policy enforcement thực sự hoạt động". DROPPED verdict = Cilium đang block traffic. Không có ảnh này → không prove S3. |
-| `fig-14-s3-off-vs-on.png` | Terminal S3 off vs on output | p99 overhead Δ% | Phase 9.3 | Chương 5 — S3 Results | **Claim:** "Policy overhead cụ thể là bao nhiêu %". Đây là số cần báo cáo cho S3 RQ. |
-| `fig-15-aggregated-latency.png` | Python matplotlib (từ `comparison_AB.csv`) | Bar chart p50/p90/p99 A vs B | Phase 10 | Chương 5 — Results | **Claim:** "Mode B cải thiện latency". Đây là chart chính để present RQ1. |
-| `fig-16-aggregated-throughput.png` | Python matplotlib | RPS comparison A vs B | Phase 10 | Chương 5 | **Claim:** "Mode B không làm throughput giảm". Throughput comparison. |
-| `fig-17-comparison-table.png` | `comparison_AB.csv` formatted | Δ%, p-value, ✓ sig | Phase 10 | Chương 5 | **Claim:** "Statistical significance đạt p<0.05". Không có bảng này → thesis thiếu phân tích thống kê. |
+| `fig-01-modeA-cluster-nodes.png` | Terminal `kubectl get nodes -o wide` | 3 node m5.large, all Ready, cùng 1 AZ | Phase 7.0 | Chương 3 — Infrastructure | **Claim:** "Cluster gồm 3 node m5.large, ghim 1 AZ". Reviewer cần thấy cluster thật sự như mô tả. → `docs/figures/thesis/fig-01-modeA-cluster-nodes.png` |
+| `fig-02-modeA-pod-placement.png` | Terminal `kubectl get pods -n benchmark -o wide` | echo + fortio cùng cột NODE | Phase 7.0 | Chương 3 — Methodology | **Claim:** "Traffic cùng node (same-node)". Đây là nền tảng của toàn bộ benchmark design. → `docs/figures/thesis/fig-02-modeA-pod-placement.png` |
+| `fig-03-modeA-cilium-status.png` | Terminal `cilium status` | `KubeProxyReplacement = Disabled`, `IPAM: cluster-pool` | Phase 7.0 | Chương 3 — Mode A datapath | **Claim:** "Mode A chạy Cilium hybrid với `kubeProxyReplacement=false`". Không có ảnh này → không prove được mode thực tế. → `docs/figures/thesis/fig-03-modeA-cilium-status.png` |
+| `fig-04-modeA-kube-proxy-ds.png` | Terminal `kubectl get ds kube-proxy -n kube-system` | kube-proxy DaemonSet Running 3/3 | Phase 7.0 | Chương 3 — Mode A config | **Claim:** "kube-proxy vẫn active ở Mode A". Reviewer cần thấy cả hai (cilium + kube-proxy) cùng tồn tại. → `docs/figures/thesis/fig-04-modeA-kube-proxy-ds.png` |
+| `fig-05-modeA-fortio-histogram.png` | Fortio web UI `http://localhost:8080` | Histogram Mode A baseline, p50/p90/p99 | Phase 7.0 / 5b.6 | Appendix — Baseline perf | **Claim:** "Baseline latency trước khi đo Mode B". Appendix cần có raw performance data. → `docs/figures/thesis/fig-05-modeA-fortio-histogram.png` |
+| `fig-06-modeA-grafana-nodes.png` | Grafana dashboard (port 3000) | Node CPU %, metrics | Phase 7.0 | Chương 3 — Environment stability | **Claim:** "Không có CPU saturation làm nhiễu kết quả". → `docs/figures/grafana/fig-06-modeA-grafana-nodes.png` |
+| `fig-07-modeB-cluster-nodes.png` | Terminal `kubectl get nodes -o wide` | 3 node ENI IPs (10.0.x.x) | Phase 9.0 | Chương 3 | **Claim:** "Mode B dùng ENI IPAM thay vì cluster-pool". IP khác nhau → IPAM mode thực tế khác nhau. → `docs/figures/thesis/fig-07-modeB-cluster-nodes.png` |
+| `fig-08-modeB-pod-placement.png` | Terminal `kubectl get pods -n benchmark -o wide` | echo + fortio cùng NODE, ENI IPs 10.0.x.x | Phase 9.0 | Chương 3 — same-node proof | **Claim:** "Same-node topology vẫn giữ nguyên sau khi switch mode". Prove benchmark setup không thay đổi giữa A và B. → `docs/figures/thesis/fig-08-modeB-pod-placement.png` |
+| `fig-09-modeB-kpr-enabled.png` | Terminal `cilium status` phần HEADER | `KubeProxyReplacement = True` ✅ | Phase 9.0 | Chương 3 — Mode B datapath | **Claim:** "Mode B thực sự bật KPR". Đây là ảnh quan trọng nhất — prove mode hoạt động đúng. → `docs/figures/thesis/fig-09-modeB-kpr-enabled.png` |
+| `fig-10-modeB-routing-native.png` | Terminal `cilium status` phần IPAM/Routing | `IPAM: IPv4 X/10`, `Routing: Native` | Phase 9.0 | Chương 3 — ENI routing | **Claim:** "Mode B dùng native routing (ENI) chứ không phải VXLAN tunnel". VXLAN overhead sẽ làm Mode A chậm hơn giả — đây là bằng chứng. → `docs/figures/thesis/fig-10-modeB-routing-native.png` |
+| `fig-11-modeB-hubble-ok.png` | Terminal `hubble status` CLI | `Hubble: Ok`, relay connected | Phase 9.0 | Chương 3 — Hubble enabled | **Claim:** "Hubble được bật ở Mode B". Threat to Validity: Hubble overhead cần được acknowledge. → `docs/figures/hubble/fig-11-modeB-hubble-ok.png` |
+| `fig-12-modeB-fortio-histogram.png` | Fortio web UI `http://localhost:8080` | Histogram Mode B baseline | Phase 9.0 | Appendix | **Claim:** "Baseline Mode B". Để reviewer so sánh với Mode A ở Appendix đối chiếu. → `docs/figures/thesis/fig-12-modeB-fortio-histogram.png` |
+| `fig-12b-hubble-observe-sample.png` | `hubble observe --last 100` CLI | FORWARDED verdict flows | Sau Phase 9.3 | Chương 5 — S3 Enforcement | **Claim:** "Policy đang áp dụng, traffic hợp lệ vẫn đi qua". Proof rằng policy không false-drop legitimate traffic. → `docs/figures/hubble/fig-12b-hubble-observe-sample.png` |
+| `fig-13-hubble-deny-case.png` | Hubble UI / `hubble observe` CLI | DROPPED verdict | Phase 9.4 | Chương 5 — S3 Enforcement | **Claim:** "Policy enforcement thực sự hoạt động". DROPPED verdict = Cilium đang block traffic. Không có ảnh này → không prove S3. → `docs/figures/hubble/fig-13-hubble-deny-case.png` |
+| `fig-14-s3-off-vs-on.png` | Terminal S3 off vs on output | p99 overhead Δ% | Phase 9.3 | Chương 5 — S3 Results | **Claim:** "Policy overhead cụ thể là bao nhiêu %". Đây là số cần báo cáo cho S3 RQ. → `docs/figures/thesis/fig-14-s3-off-vs-on.png` |
+| `fig-15-aggregated-latency.png` | Python matplotlib (từ `comparison_AB.csv`) | Bar chart p50/p90/p99 A vs B | Phase 10 | Chương 5 — Results | **Claim:** "Mode B cải thiện latency". Đây là chart chính để present RQ1. → `docs/figures/thesis/fig-15-aggregated-latency.png` |
+| `fig-16-aggregated-throughput.png` | Python matplotlib | RPS comparison A vs B | Phase 10 | Chương 5 | **Claim:** "Mode B không làm throughput giảm". Throughput comparison. → `docs/figures/thesis/fig-16-aggregated-throughput.png` |
+| `fig-17-comparison-table.png` | `comparison_AB.csv` formatted | Δ%, p-value, ✓ sig | Phase 10 | Chương 5 | **Claim:** "Statistical significance đạt p<0.05". Không có bảng này → thesis thiếu phân tích thống kê. → `docs/figures/thesis/fig-17-comparison-table.png` |
 | `fig-18-calibration-chart.png` | `calibrate.sh` output | QPS vs latency, L1/L2/L3 marked | Phase 6 | Chương 4 — Load Levels | **Claim:** "L1/L2/L3 được xác định qua calibration, không phải guesswork". Proof reproducibility của load levels. |
 
 ### ẢNH CHỤP CHO SLIDE THUYẾT TRÌNH (bên cạnh thesis)
@@ -1338,15 +1373,113 @@ Tổng:   2–3 tuần (chủ yếu benchmark chạy nền)
 | `slide-threats.png` | Threats to Validity table/list | Slide 7 | **Claim:** "Thừa nhận hạn chế của benchmark". Tăng credibility thesis. |
 | `slide-conclusion.png` | Kết luận + recommendation (khi nào dùng Cilium eBPF) | Slide 8 | **Claim:** "Thesis có kết luận rõ ràng dựa trên dữ liệu". |
 
-### CHECKLIST ẢNH HOÀN TẤT
+### ẢNH HẠ TẦNG (AWS / Terraform) — Ngữ cảnh cho Report
+
+> Các ảnh benchmark chứng minh **kết quả**, nhưng thesis cần thêm **ngữ cảnh hạ tầng** để reviewer tin rằng infrastructure được tạo thật trên AWS, không phải chỉ mô tả trong code.
+
+#### BẮT BUỘC — Proof hạ tầng tồn tại thật trên AWS
+
+| File | Chụp gì | Nội dung cần thấy | Thời điểm | Dùng ở đâu | **Ý nghĩa** |
+|---|---|---|---|---|---|
+| `fig-A1-aws-eks-console-cluster.png` | AWS Console → EKS → Clusters → nt531-bm | Tên cluster, Kubernetes version 1.34, API server endpoint, ARN, status Active — **chụp ngay sau khi terraform apply xong** | Phase 2 (sau `terraform apply`) | Chương 3 — Infrastructure | **Proof cluster tồn tại trên AWS thật.** Terraform code + EKS console = verify resource thật được tạo. Không có ảnh này → chỉ là claim, không có bằng chứng. → `docs/figures/infra/fig-A1-aws-eks-console-cluster.png` |
+| `fig-A2-aws-eks-nodegroup.png` | AWS Console → EKS → nt531-bm → Compute → Node Group | m5.large × 3, scaling config (min/max/desired = 3/3/3), AMI version, subnet assignment — **chụp sau khi node group ready** | Phase 2 (sau node group ready) | Chương 3 — Instance Decision | **Proof instance type đúng thiết kế.** m5.large là non-burstable → benchmark không bị t3 credit exhaustion. Đây là lý do chọn instance, cần proof bằng ảnh. → `docs/figures/infra/fig-A2-aws-eks-nodegroup.png` |
+| `fig-A3-aws-ec2-instances.png` | AWS Console → EC2 → Instances | 3 nodes Running, instance type m5.large, private IP (10.0.x.x ENI), AZ — **chụp lại mỗi Phase 7.0 & 9.0 để verify nodes đang chạy khi benchmark** | Phase 2 + Phase 7.0/9.0 | Chương 3 (Appendix) | **Proof nodes đang chạy khi benchmark.** Khớp với `kubectl get nodes` trong thesis. → `docs/figures/infra/fig-A3-aws-ec2-instances.png` |
+| `fig-A4-aws-vpc-subnets.png` | AWS Console → VPC → Subnets | 2 AZs, public + private subnets per AZ, NAT Gateway attached, route tables visible — **chụp 1 lần sau terraform apply** | Phase 2 (sau terraform apply) | Chương 3 — Topology | **Proof network topology như mô tả trong thesis.** Đặc biệt quan trọng nếu thesis có topology diagram — diagram phải khớp với thực tế AWS. → `docs/figures/infra/fig-A4-aws-vpc-subnets.png` |
+| `fig-A5-aws-security-group-rules.png` | AWS Console → EC2 → Security Groups → nt531-bm-node | Inbound rules: Protocol 4 (IP-in-IP), UDP 8472 (VXLAN) self-referenced — **chụp ngay sau terraform apply, trước khi cài Cilium** | Phase 2 (sau terraform apply) | Chương 3 (Appendix) | **Proof Cilium datapath có thể hoạt động.** VXLAN mode cần these rules. Nếu thiếu → Mode A cross-node traffic bị ảnh hưởng. Đây là security group do Terraform tạo — proof infrastructure-as-code hoạt động. → `docs/figures/infra/fig-A5-aws-security-group-rules.png` |
+
+#### NÊN CÓ — Proof config và tooling thật được dùng
+
+| File | Chụp gì | Nội dung cần thấy | Thời điểm | Dùng ở đâu | **Ý nghĩa** |
+|---|---|---|---|---|---|
+| `fig-A6-terraform-apply-output.png` | Terminal `terraform apply` cuối cùng | Resource count summary (3x instance, 1x EKS cluster, NAT GW, etc.), `Apply complete!` — **chụp ngay sau khi apply, dùng cho Phase 2** | Phase 2 | Chương 3 (Appendix) | **Proof infrastructure được provision đúng.** Thể hiện Terraform chạy thành công — best practice documentation. → `docs/figures/infra/fig-A6-terraform-apply-output.png` |
+| `fig-A7-terraform-output-values.png` | Terminal `terraform output` | EKS cluster endpoint, node role ARN, cluster_name — **dùng để verify k8sServiceHost khớp** | Phase 2 | Chương 3 (Appendix) | **Proof outputs khớp với config.** Endpoint phải khớp với `k8sServiceHost` trong values-ebpfkpr.yaml. → `docs/figures/infra/fig-A7-terraform-output-values.png` |
+| `fig-A8-values-baseline-yaml.png` | VS Code / terminal `cat helm/cilium/values-baseline.yaml` | `kubeProxyReplacement: false`, `cni.conf: cilium-cni`, `debug: false` — **chụp ngay sau Phase 4** | Phase 4 | Chương 3 — Methodology | **Proof Mode A config thật sự được dùng.** Reviewer nhìn thấy config chứ không phải giả. Đặc biệt thấy rõ `kubeProxyReplacement: false`. → `docs/figures/infra/fig-A8-values-baseline-yaml.png` |
+| `fig-A9-values-ebpfkpr-yaml.png` | VS Code / terminal `cat helm/cilium/values-ebpfkpr.yaml` | `kubeProxyReplacement: strict`, `eni.enabled: true`, `k8sServiceHost: nt531-bm.xxxx.ap-southeast-1.eks.amazonaws.com` — **chụp SAU khi update endpoint (Phase 8.1)** | Phase 8 (sau khi update endpoint) | Chương 3 — Methodology | **Proof Mode B config thật sự được dùng.** Thấy rõ `k8sServiceHost` đã được điền giá trị thực (không phải placeholder). → `docs/figures/infra/fig-A9-values-ebpfkpr-yaml.png` |
+| `fig-A10-project-structure.png` | Terminal `tree` hoặc VS Code sidebar | Cấu trúc thư mục terraform/, workload/, scripts/, helm/, docs/ — **chụp 1 lần khi bắt đầu** | Phase 1 (trước terraform apply) | Chương 3 (Appendix) hoặc GitHub README | **Proof toàn bộ project được tổ chức rõ ràng.** Reviewer muốn reproduce cần thấy cấu trúc thực tế. → `docs/figures/infra/fig-A10-project-structure.png` |
+
+### ẢNH GRAFANA — Proof Resource Usage (Mode A & B)
+
+> **Grafana port-forward:** `kubectl port-forward -n monitoring svc/prometheus-grafana 3000:80 &`
+> **Mở trình duyệt:** http://localhost:3000 (user: `admin`, pass: `benchmarkAdmin`)
+> **Cách chụp panel:** Click panel title → "More" → "View" (mở panel riêng) → chụp panel đó. **Không chụp toàn màn hình dashboard** vì nhiều panels không vừa ảnh.
+> **Chọn node đúng:** Grafana dashboard có variable dropdown ở góc trên — chọn **node chạy workload** (node có fortio pod, ví dụ: `ip-10-0-10-247.ap-southeast-1.compute.internal`). Dashboard `Compute Resources / Node / Pod` cần chọn node cụ thể mới hiển thị data.
+
+#### BẮT BUỘC
+
+| File | Chụp gì | Nội dung cần thấy | Thời điểm | Dùng ở đâu | **Ý nghĩa** |
+|---|---|---|---|---|---|
+| `fig-G1-grafana-cpu-node-pod.png` | Grafana: `Home > Dashboards > Kubernetes / Compute Resources / Node / Pod` → panel **CPU Usage** (time-series) | Series: `cilium-bpf` (≈ 0.00007 cores ≈ 0.07%), `cilium-envoy` (≈ 0.00011 cores ≈ 0.11%), `kube-proxy` (≈ 0.097%), `max capacity` line ≈ 2.0 cores — **chụp panel riêng: click title → "More" → "View"** | Phase 7.0 (Mode A) + Phase 9.0 (Mode B) — chụp mỗi mode 1 lần | Chương 3 — Environment stability | **Proof:** Cilium eBPF + Envoy tiêu thụ CPU ≈ 0.18% tổng cộng — overhead rất nhỏ, không làm nhiễu benchmark. Chart flat line → proof không CPU saturation. → `docs/figures/grafana/fig-G1-grafana-cpu-node-pod.png` |
+| `fig-G2-grafana-cpu-quota-table.png` | Grafana: same dashboard → panel **CPU Quota** (table) | Bảng: Pod / CPU Requests / CPU Requests % / CPU Limits % — hàng `cilium-bpf` (~0.00595), `cilium-envoy` (~0.00194), `kube-proxy` (~0.0972%), `cilium-operator` — **cuộn xuống dưới bảng để thấy tất cả rows** | Phase 7.0 & 9.0 | Chương 3 — Resource usage | **Proof:** CPU request % của tất cả Cilium components << 1% → không phải bottleneck. kube-proxy chiếm 0.097% (Mode A). → `docs/figures/grafana/fig-G2-grafana-cpu-quota-table.png` |
+| `fig-G3-grafana-memory-node-pod.png` | Grafana: same dashboard → panel **Memory Usage (in cache)** (time-series) | `cilium-bpf` ≈ 143 MiB, `cilium-envoy` ≈ 128 MiB, `max capacity` ≈ 7.64 GiB, flat lines — **chụp panel riêng** | Phase 7.0 & 9.0 | Chương 3 — Memory overhead | **Proof:** Cilium + Envoy memory < 300 MiB trên m5.large (7.64 GiB) → overhead không đáng kể. → `docs/figures/grafana/fig-G3-grafana-memory-node-pod.png` |
+| `fig-G4-grafana-cluster-overview.png` | Grafana: `Home > Dashboards > Kubernetes / Compute Resources / Cluster` → **Cluster CPU Usage** + **Cluster Memory Usage** | CPU % < 30% cho cả 3 nodes, Memory % ổn định — **chụp mỗi panel riêng** | Phase 7.0 & 9.0 | Chương 3 — Cluster health | **Proof:** Không node nào bị saturation toàn cluster. → `docs/figures/grafana/fig-G4-grafana-cluster-overview.png` |
+| `fig-G5-grafana-node-network.png` | Grafana: `Home > Dashboards > Node Exporter / Dashboard` → **Network IO** panel | Network bytes/sec, 0 saturation — **chụp panel riêng** | Phase 7.0 & 9.0 | Chương 3 — Network stability | **Proof:** Không network saturation → throughput results không bị bias. → `docs/figures/grafana/fig-G5-grafana-node-network.png` |
+
+### ẢNH PROMETHEUS — Proof Observability Pipeline
+
+> **Prometheus port-forward:** `kubectl port-forward -n monitoring svc/prometheus-prometheus 9090:9090 &`
+> **Mở trình duyệt:** http://localhost:9090
+
+#### BẮT BUỘC
+
+| File | Chụp gì | Nội dung cần thấy | Thời điểm | Dùng ở đâu | **Ý nghĩa** |
+|---|---|---|---|---|---|
+| `fig-P1-prometheus-targets.png` | Prometheus UI → `Status > Targets` | Tất cả jobs `UP`: `kubernetes-nodes`, `kubernetes-pods`, `kubelet`, `coredns`, **`cilium-agent`** (1/1 active) — **chụp ngay sau Phase 3** | Phase 3 (sau cài monitoring) | Chương 3 — Observability setup | **Proof:** Prometheus scrape Cilium metrics thành công. Không có ảnh này → reviewer không biết Cilium metrics có vào Prometheus không. → `docs/figures/prometheus/fig-P1-prometheus-targets.png` |
+| `fig-P2-prometheus-cilium-metrics.png` | Prometheus UI → Graph tab → query **`cilium_forward_count_total`** → **Table view** (không phải Graph) | Table: metric name, labels, value (ví dụ: `cilium_forward_count_total{...}` = non-zero value) — **chụp ở Table view, không phải Graph** | Phase 9.0 (Mode B) | Chương 3 (Appendix) | **Proof:** Cilium datapath metrics đổ vào Prometheus. Table view dễ đọc hơn graph — thấy số forward count cụ thể. → `docs/figures/prometheus/fig-P2-prometheus-cilium-metrics.png` |
+
+### ẢNH HUBBLE UI — Proof S3 Enforcement (Mode B only)
+
+> **Hubble UI port-forward:** `kubectl port-forward -n kube-system svc/hubble-ui 12000:80 &`
+> **Mở trình duyệt:** http://localhost:12000
+> **Cách filter:** Nhấn nút **"Filter"** góc trái → nhập filter key (ví dụ: `namespace=benchmark`) → nhấn **Apply**. Filter bar hiện màu xanh khi đang active.
+> **Nếu Hubble UI 502 Bad Gateway:** Dùng CLI fallback (fig-H4, fig-H5). Không cần chụp UI.
+> **Lưu ý:** Hubble chỉ có ở Mode B. Mode A không có Hubble → không chụp phần này cho Mode A.
+
+#### BẮT BUỘC
+
+| File | Chụp gì | Nội dung cần thấy | Thời điểm | Dùng ở đâu | **Ý nghĩa** |
+|---|---|---|---|---|---|
+| `fig-H1-hubble-ui-all-flows.png` | Hubble UI → default flows list (không filter) — **port-forward: `kubectl port-forward -n kube-system svc/hubble-ui 12000:80 &`** | Table: `Verdict`, `Source`, `Destination`, `Protocol` — có FORWARDED rows, namespace=benchmark — **filter: click "Filter" → nhập `namespace=benchmark` → Apply** | Phase 9.0 (Mode B) | Chương 3 — Hubble enabled | **Proof:** Hubble UI connected + đang nhận flows thật từ benchmark workload. Không empty → Hubble hoạt động. → `docs/figures/hubble/fig-H1-hubble-ui-all-flows.png` |
+| `fig-H2-hubble-ui-forwarded-flows.png` | Hubble UI → Filter **`verdict=FORWARDED`** → Apply — **dùng khi S1/S2 đã chạy** | Chỉ thấy FORWARDED rows; source = fortio pod IP → destination = echo pod IP — **filter bar màu xanh khi active** | Sau S1 hoặc S2 | Chương 5 — S3 Enforcement | **Proof:** Legit traffic (fortio→echo) được FORWARD thành công — policy không false-drop legitimate traffic. → `docs/figures/hubble/fig-H2-hubble-ui-forwarded-flows.png` |
+| `fig-H3-hubble-ui-dropped-flows.png` | Hubble UI → Filter **`verdict=DROPPED`** → Apply — **chụp SAU khi attacker pod chạy ở Phase 9.4** | DROPPED rows từ attacker pod IP → echo pod — **dùng khi NetworkPolicy đang enable** | Phase 9.4 (S3 deny case, sau khi chạy attacker pod) | Chương 5 — S3 Enforcement | **Proof:** Cilium thật sự DROP traffic không hợp lệ. Đây là claim chính của S3. → `docs/figures/hubble/fig-H3-hubble-ui-dropped-flows.png` |
+| `fig-H4-hubble-cli-status.png` | Terminal: `kubectl exec -n kube-system ds/cilium -c cilium-agent -- hubble status` — **fallback khi Hubble UI 502** | `Hubble: Ok`, `Relay: Connected` (Connected, không phải Disconnected) — **chụp output** | Phase 9.0 — fallback khi Hubble UI 502 | Chương 3 — Hubble status | **Proof:** Hubble Relay kết nối thành công. Fallback CLI khi UI không hoạt động. → `docs/figures/hubble/fig-H4-hubble-cli-status.png` |
+| `fig-H5-hubble-cli-observe.png` | Terminal: `kubectl exec -n kube-system ds/cilium -c cilium-agent -- hubble observe --namespace benchmark --last 50 -o table` — **fallback** | Table: `Verdict`, `Source`, `Destination`, `Protocol` — thấy FORWARDED rows — **chụp output** | Phase 9.0/9.4 — fallback | Chương 5 (Appendix) | **Proof:** Raw CLI evidence backup cho H1/H2/H3. Đặc biệt dùng khi Hubble UI không hoạt động. → `docs/figures/hubble/fig-H5-hubble-cli-observe.png` |
+
+#### TÙY CHỌN — Không cần cho thesis, chỉ cho slide/GitHub
+
+| File | Chụp gì | Dùng ở đâu |
+|---|---|---|
+| `fig-A11-aws-cost-explorer.png` | AWS Console → Cost Explorer → Chi phí EKS + EC2 | Slide cuối (cost analysis), thesis bỏ qua → `docs/figures/infra/fig-A11-aws-cost-explorer.png` |
+| `fig-A12-helm-list.png` | Terminal `helm list -n kube-system` | Appendix — proof Cilium + Prometheus được cài đúng namespace → `docs/figures/infra/fig-A12-helm-list.png` |
+| `fig-A13-kubectl-config-context.png` | Terminal `kubectl config current-context` | Phase 7.0/9.0 proof — kubectl trỏ đúng cluster → `docs/figures/infra/fig-A13-kubectl-config-context.png` |
+
+#### CHECKLIST ẢNH HOÀN TẤT
 
 ```
-Thesis figures (fig-01 → fig-18, fig-12b = 19 total):  [ ] /19 captured
-Slide figures (slide-*.png = 8):                    [ ] /8 captured
-Evidence text files (evidence/):                     [ ] all captured
-Raw CSV (docs/appendix/):                          [ ] aggregated_summary.csv, comparison_AB.csv
+Thesis figures (fig-01 → fig-18, fig-12b = 19 total):          [ ] /19
+Infrastructure figures (fig-A1 → fig-A10 = 10 total):           [ ] /10
+Optional infra (fig-A11 → fig-A13 = 3 total):                   [ ] /3
+Grafana figures (fig-G1 → fig-G5 = 5 total):                    [ ] /5
+Prometheus figures (fig-P1 → fig-P2 = 2 total):                 [ ] /2
+Hubble figures (fig-H1 → fig-H5 = 5 total):                     [ ] /5
+──────────────────────────────────────────────────────────────────────
+Tổng thesis figures: 44  ảnh (19 + 10 + 3 + 5 + 2 + 5)
+
+Slide figures (slide-*.png = 8):                                 [ ] /8
+Evidence text files (evidence/):                               [ ] all
+Raw CSV (docs/appendix/):                                       [ ] aggregated_summary.csv, comparison_AB.csv
 ```
 
+**Tổng cộng cần chụp: 52 ảnh (44 thesis + 8 slides, chưa kể optional)** — tất cả có ý nghĩa rõ ràng cho thesis.
 
-
-
+> **Cấu trúc lưu ảnh:**
+> ```
+> docs/figures/
+> ├── thesis/      # fig-01 → fig-18, fig-12b              (19 ảnh)
+> ├── infra/      # fig-A1 → fig-A10 + fig-A11→A13 opt.  (10+3 ảnh)
+> ├── grafana/    # fig-G1 → fig-G5                        (5 ảnh)
+> ├── prometheus/ # fig-P1 → fig-P2                       (2 ảnh)
+> └── hubble/     # fig-H1 → fig-H5                       (5 ảnh)
+> docs/figures/slides/  # slide-*.png                       (8 ảnh)
+> ```
+>
+> ⚠️ **Cập nhật đường dẫn trong thesis** sau khi sắp xếp xong.
