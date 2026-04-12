@@ -234,8 +234,33 @@ except: pass
         -c "${BENCH_CONNS}" \
         -t "${COOLDOWN_SEC}s" \
         -keepalive=false \
+        -json "${FORTIO_JSON}" \
         "${SVC_URL}" 2>&1 || true
+    kubectl -n "${NS}" cp "${local_pod}:${FORTIO_JSON}" "${outdir}/fortio_phase4.json" \
+      >/dev/null 2>&1 || true
   } > "${outdir}/bench_phase4_cooldown.log"
+  python3 -c "
+import json, sys
+f = '${outdir}/fortio_phase4.json'
+try:
+    with open(f) as fh:
+        d = json.load(fh)
+    run = d.get('RunResult', d.get('Results', {}))
+    if not run: sys.exit(0)
+    dur = run.get('Duration', 0)
+    qps = run.get('RequestedQPS', 0)
+    avg = run.get('AvgDuration', 0) * 1000
+    cnt = run.get('ActualDuration', 0)
+    pct = run.get('Percentiles', {})
+    print(f'All done {cnt:.0f} calls ({dur:.0f}s) qps={qps} avg_ms={avg:.3f}', file=sys.stderr)
+    for p in ['50', '75', '90', '99', '99.9']:
+        v = pct.get(p, 0)
+        if v: print(f'  p{p}={v*1000:.3f}ms', file=sys.stderr)
+    codes = d.get('RetCodes', {})
+    total = sum(codes.values())
+    print(f'  Code 200: {codes.get(\"200\",0)} ({100*codes.get(\"200\",0)/total:.1f}%)' if total else '', file=sys.stderr)
+except: pass
+" >> "${outdir}/bench_phase4_cooldown.log" 2>/dev/null || true
 
   # ---- Combine all phase logs into bench.log --------------------------------
   cat "${outdir}"/bench_phase*.log > "${outdir}/bench.log"
