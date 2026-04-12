@@ -282,7 +282,13 @@ resume_cluster() {
     if [[ -n "${prev_min}" && -n "${prev_max}" && -n "${prev_desired}" ]]; then
       min_size="${prev_min}"
       max_size="${prev_max}"
-      desired_size="${prev_desired}"
+      if [[ "${prev_desired}" -eq 0 ]]; then
+        # Cluster was paused (scaled to zero) — state file stores 0 as the
+        # desiredSize at pause time. Restore to TARGET_NODES, not 0.
+        desired_size="${TARGET_NODES}"
+      else
+        desired_size="${prev_desired}"
+      fi
     else
       min_size="${TARGET_NODES}"
       max_size="${TARGET_NODES}"

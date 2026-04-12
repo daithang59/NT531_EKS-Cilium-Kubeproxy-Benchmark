@@ -38,19 +38,19 @@ REST_BETWEEN_RUNS="${REST_BETWEEN_RUNS:-60}"
 
 # ---- Load-level profiles (Fortio params) -------------------------------------
 # L1 — Light: stable, near-zero errors
-# Calibrated Mode A (2026-04-07): QPS=100, p99=0.51ms, err=0%, stable near-zero tail
+# Calibrated Mode A (2026-04-12): QPS=100, p99=0.385ms, err=0%, stable near-zero tail
 L1_QPS="${L1_QPS:-100}"
 L1_CONNS="${L1_CONNS:-8}"
 L1_THREADS="${L1_THREADS:-2}"
 
 # L2 — Medium: visible tail, no saturation
-# Calibrated Mode A (2026-04-07): QPS=400, p99=2.65ms, err=0%, visible tail, no saturation
+# Calibrated Mode A (2026-04-12): QPS=400, p99=2.11ms, err=0%, visible tail, no saturation
 L2_QPS="${L2_QPS:-400}"
 L2_CONNS="${L2_CONNS:-32}"
 L2_THREADS="${L2_THREADS:-4}"
 
 # L3 — High: near saturation (p99 spike ~15× vs L2)
-# Calibrated Mode A (2026-04-07): QPS=800, p99=38.77ms, err=0%, p99 spike approaching saturation
+# Calibrated Mode A (2026-04-12): QPS=800, p99=30-38ms, err=0%, p99 spike approaching saturation
 L3_QPS="${L3_QPS:-800}"
 L3_CONNS="${L3_CONNS:-64}"
 L3_THREADS="${L3_THREADS:-8}"
@@ -168,6 +168,25 @@ preflight_checks() {
     else
       echo "OK"
     fi
+    # B5. kube-proxy MUST be absent for Mode B — silent coexistence corrupts results
+    echo -n "[CHECK] kube-proxy absent (Mode B requirement)... "
+    if kubectl -n kube-system get ds kube-proxy &>/dev/null; then
+      echo "FAIL"
+      echo "[FATAL] kube-proxy DaemonSet still exists. Delete it before Mode B:" >&2
+      echo "[FATAL]   kubectl delete ds kube-proxy -n kube-system" >&2
+      exit 1
+    fi
+    echo "OK (absent)"
+    # B6. Verify live KubeProxyReplacement is enabled
+    echo -n "[CHECK] KubeProxyReplacement enabled... "
+    local kpr
+    kpr="$(kubectl -n kube-system exec ds/cilium -- \
+      cilium status --brief 2>/dev/null | grep -i 'kubeproxyreplacement' | awk '{print $2}' || true)"
+    if [[ "${kpr}" != "True" && "${kpr}" != "Strict" ]]; then
+      echo "WARN (KubeProxyReplacement=${kpr} — expected True/Strict)"
+    else
+      echo "OK (${kpr})"
+    fi
   fi
 
   echo "========================================"
@@ -219,7 +238,7 @@ check_cluster_dns() {
   echo -n "[CHECK] DNS resolution from fortio pod... "
   local pod
   pod="$(fortio_pod)"
-  if ! kubectl -n "${NS}" exec "${pod}" -- \
+  if ! kubectl -n "${NS}" exec "${pod}" --request-timeout=30 -- \
     fortio curl -timeout 5s "http://echo.${NS}.svc.cluster.local:80/echo" >/dev/null 2>&1; then
     echo "FAIL"
     echo "[FATAL] DNS/Service probe failed from fortio pod." >&2
@@ -237,8 +256,12 @@ run_fortio() {
   local pod
   pod="$(fortio_pod)"
 
+  # NOTE: --request-timeout=0 prevents kubectl client from killing exec after 60s.
+  # Fortio benchmarks (up to 180s) must complete fully to capture valid data.
+  local _pod
+  _pod="$(fortio_pod)"
   echo "[INFO] Warmup ${WARMUP_SEC}s @ QPS=${BENCH_QPS} CONNS=${BENCH_CONNS}"
-  kubectl -n "${NS}" exec "${pod}" -- \
+  kubectl -n "${NS}" exec "${_pod}" --request-timeout=0 -- \
     fortio load \
       -qps "${BENCH_QPS}" \
       -c "${BENCH_CONNS}" \
@@ -247,91 +270,40 @@ run_fortio() {
       "${SVC_URL}" >/dev/null 2>&1 || true
 
   echo "[INFO] Measurement ${DURATION_SEC}s @ QPS=${BENCH_QPS} CONNS=${BENCH_CONNS}"
-  kubectl -n "${NS}" exec "${pod}" -- \
+  kubectl -n "${NS}" exec "${_pod}" --request-timeout=0 -- \
     fortio load \
       -qps "${BENCH_QPS}" \
       -c "${BENCH_CONNS}" \
       -t "${DURATION_SEC}s" \
       "${extra_flags[@]+"${extra_flags[@]}"}" \
       "${SVC_URL}" \
-    2>&1 | tee "${outdir}/bench.log" || true
+    2>&1 | tee "${outdir}/bench.log" || exit 1
 }
 
 # ======================== metadata.json generation ============================
 
-# Derive human-readable scenario name from SCENARIO id
-_scenario_name() {
-  case "${SCENARIO}" in
-    S1) echo "Service Baseline" ;;
-    S2) echo "Stress + Churn" ;;
-    S3) echo "NetworkPolicy Overhead" ;;
-    *)  echo "${SCENARIO}" ;;
-  esac
-}
-
 write_metadata() {
   local outdir="$1"
   local run_num="${2:-1}"
-  local ts_start ts_end
-  ts_start="$(ts_iso)"
+  local policy_meta="${POLICY_METADATA:-}"
 
-  local scenario_name
-  scenario_name="$(_scenario_name)"
-
-  # POLICY_METADATA: comma-separated "key=value" pairs written by the caller
-  # Supported keys: enabled, type, complexity_level, rule_count_estimate
-  # Example: "enabled=true,type=CiliumNetworkPolicy,complexity_level=simple,rule_count_estimate=3"
-  # If unset or empty, falls back to template defaults (no policy).
-  local pm_enabled pm_type pm_complexity pm_rule_count
-  if [[ -n "${POLICY_METADATA:-}" ]]; then
-    # Parse key=value pairs from POLICY_METADATA
-    while IFS=',' read -r -d ',' pair; do
-      case "${pair}" in
-        enabled=*)    pm_enabled="${pair#*=}" ;;
-        type=*)       pm_type="${pair#*=}" ;;
-        complexity_level=*) pm_complexity="${pair#*=}" ;;
-        rule_count_estimate=*) pm_rule_count="${pair#*=}" ;;
-      esac
-    done <<< "${POLICY_METADATA},"
-
-    # Apply policy block substitutions; use captured values or fall back to template defaults
-    sed \
-      -e "s|\"run_id\": \"\"|\"run_id\": \"R${run_num}_$(ts_dir)\"|" \
-      -e "s|\"timestamp_start_utc\": \"\"|\"timestamp_start_utc\": \"${ts_start}\"|" \
-      -e "s|\"id\": \"A\"|\"id\": \"${MODE}\"|" \
-      -e "s|\"name\": \"kube-proxy baseline\"|\"name\": \"${MODE_LABEL}\"|" \
-      -e "s|\"id\": \"S1\"|\"id\": \"${SCENARIO}\"|" \
-      -e "s|\"name\": \"Service Baseline\"|\"name\": \"${scenario_name}\"|" \
-      -e "s|\"id\": \"L1\"|\"id\": \"${LOAD}\"|" \
-      -e "s|\"qps\": 0|\"qps\": ${BENCH_QPS}|" \
-      -e "s|\"concurrency\": 32|\"concurrency\": ${BENCH_CONNS}|" \
-      -e "s|\"duration_seconds\": 120|\"duration_seconds\": ${DURATION_SEC}|" \
-      -e "s|\"warmup_seconds\": 60|\"warmup_seconds\": ${WARMUP_SEC}|" \
-      -e "s|\"output_dir\": \"\"|\"output_dir\": \"${outdir}\"|" \
-      -e "s|\"enabled\": false,|\"enabled\": ${pm_enabled},|" \
-      -e "s|\"type\": \"none\"|\"type\": \"${pm_type}\"|" \
-      -e "s|\"complexity_level\": \"off\"|\"complexity_level\": \"${pm_complexity}\"|" \
-      -e "s|\"rule_count_estimate\": 0,|\"rule_count_estimate\": ${pm_rule_count},|" \
-      "${REPO_ROOT}/results/metadata.template.json.txt" \
-      > "${outdir}/metadata.json"
-  else
-    # No policy metadata — apply only structural substitutions (backward-compatible)
-    sed \
-      -e "s|\"run_id\": \"\"|\"run_id\": \"R${run_num}_$(ts_dir)\"|" \
-      -e "s|\"timestamp_start_utc\": \"\"|\"timestamp_start_utc\": \"${ts_start}\"|" \
-      -e "s|\"id\": \"A\"|\"id\": \"${MODE}\"|" \
-      -e "s|\"name\": \"kube-proxy baseline\"|\"name\": \"${MODE_LABEL}\"|" \
-      -e "s|\"id\": \"S1\"|\"id\": \"${SCENARIO}\"|" \
-      -e "s|\"name\": \"Service Baseline\"|\"name\": \"${scenario_name}\"|" \
-      -e "s|\"id\": \"L1\"|\"id\": \"${LOAD}\"|" \
-      -e "s|\"qps\": 0|\"qps\": ${BENCH_QPS}|" \
-      -e "s|\"concurrency\": 32|\"concurrency\": ${BENCH_CONNS}|" \
-      -e "s|\"duration_seconds\": 120|\"duration_seconds\": ${DURATION_SEC}|" \
-      -e "s|\"warmup_seconds\": 60|\"warmup_seconds\": ${WARMUP_SEC}|" \
-      -e "s|\"output_dir\": \"\"|\"output_dir\": \"${outdir}\"|" \
-      "${REPO_ROOT}/results/metadata.template.json.txt" \
-      > "${outdir}/metadata.json"
+  local policy_flag=()
+  if [[ -n "${policy_meta}" ]]; then
+    policy_flag=("--policy-metadata" "${policy_meta}")
   fi
+
+  python3 "${REPO_ROOT}/scripts/write_metadata.py" \
+    --outdir "${outdir}" \
+    --run-num "${run_num}" \
+    --mode "${MODE}" \
+    --scenario "${SCENARIO}" \
+    --load "${LOAD}" \
+    --bench-qps "${BENCH_QPS}" \
+    --bench-conns "${BENCH_CONNS}" \
+    --duration-sec "${DURATION_SEC}" \
+    --warmup-sec "${WARMUP_SEC}" \
+    "${policy_flag[@]}" \
+    --write "${outdir}/metadata.json"
 
   echo "[INFO] metadata.json written to ${outdir}"
 }
@@ -392,15 +364,32 @@ collect_cilium_hubble() {
     echo "[WARN] hubble status not available"
   fi
 
-  # hubble flows (last 5000 in namespace, jsonpb format)
+  # hubble flows: prefer local CLI first, then port-forward relay.
+  # NOTE: 'kubectl exec ds/cilium -c cilium-agent -- hubble' does NOT work —
+  # hubble is not installed inside the cilium-agent container in Cilium 1.18.x.
+  # Correct path: local hubble CLI → hubble-relay service (port 4245).
   if command -v hubble &>/dev/null; then
     hubble observe --namespace "${NS}" --last 5000 -o jsonpb > "${outdir}/hubble_flows.jsonl" 2>&1 || true
-    echo "[INFO] hubble_flows.jsonl written"
-  elif kubectl -n kube-system exec ds/cilium -c cilium-agent -- hubble observe --namespace "${NS}" --last 5000 -o jsonpb > "${outdir}/hubble_flows.jsonl" 2>&1; then
-    echo "[INFO] hubble_flows.jsonl written (via cilium pod)"
+    echo "[INFO] hubble_flows.jsonl written (local hubble CLI)"
   else
-    echo "[WARN] hubble observe failed — hubble_flows.jsonl may be empty"
-    echo "hubble observe not available" > "${outdir}/hubble_flows.jsonl"
+    # Fallback: port-forward hubble-relay and collect via localhost
+    local relay_port=4245
+    # Start port-forward in background
+    kubectl -n kube-system port-forward svc/hubble-relay "${relay_port}:443" \
+      >"${outdir}/hubble_relay_forward.log" 2>&1 &
+    local pf_pid=$!
+    # Wait for port-forward to be ready
+    sleep 3
+    if kill -0 "${pf_pid}" 2>/dev/null; then
+      hubble observe --server "localhost:${relay_port}" \
+        --namespace "${NS}" --last 5000 -o jsonpb \
+        > "${outdir}/hubble_flows.jsonl" 2>&1 || true
+      echo "[INFO] hubble_flows.jsonl written (via relay port-forward)"
+    else
+      echo "port-forward hubble-relay failed" > "${outdir}/hubble_flows.jsonl"
+      echo "[WARN] hubble relay port-forward failed — hubble_flows.jsonl may be empty"
+    fi
+    kill "${pf_pid}" 2>/dev/null || true
   fi
 }
 

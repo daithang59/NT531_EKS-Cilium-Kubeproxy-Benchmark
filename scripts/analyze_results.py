@@ -230,70 +230,47 @@ def welch_ttest(a: list[float], b: list[float]) -> dict:
 
 
 def _t_cdf_two_tailed(t: float, df: int) -> float:
-    """Approximate two-tailed p-value for Student's t using regularized incomplete beta."""
-    import math
-    from math import gamma as gamma_fn, log as ln
+    """
+    Two-tailed p-value for Student's t via numerical integration of the PDF.
 
-    x = df / (df + t * t)
-    try:
-        p = _beta_inc(df / 2.0, 0.5, x)
-        return p
-    except Exception:
+    Integrates the t-distribution PDF from 0 to |t| using Simpson's rule (1001 points),
+    then maps to a two-tailed p-value. Accurate across all |t| and df values.
+
+    PDF: f(x) = Γ((df+1)/2) / (√(df·π) · Γ(df/2)) · (1 + x²/df)^(-(df+1)/2)
+    CDF(0→|t|) = 0.5 + ∫₀^{|t|} f(x) dx
+    Two-tailed p = 2 · (1 − CDF(|t|))
+    """
+    import math
+    if t == 0:
+        return 1.0
+    if df < 1:
         return float("nan")
 
+    try:
+        t_abs = abs(t)
+        half_df = df / 2.0
+        # log-gamma is numerically stable for large parameters
+        ln_coef = (
+            math.lgamma(half_df + 0.5)
+            - 0.5 * math.log(df * math.pi)
+            - math.lgamma(half_df)
+        )
+        coef = math.exp(ln_coef)
 
-def _beta_inc(a: float, b: float, x: float) -> float:
-    """Regularized incomplete beta function I_x(a,b) -- using continued fraction."""
-    import math
-    if x == 0:
-        return 0.0
-    if x == 1:
-        return 1.0
+        def pdf(x: float) -> float:
+            return coef * math.pow(1.0 + x * x / df, -(half_df + 0.5))
 
-    # Use the relationship: I_x(a,b) = 1 - I_{1-x}(b,a)
-    if x > (a + 1) / (a + b + 2):
-        return 1.0 - _beta_inc(b, a, 1.0 - x)
-
-    # Continued fraction (Numerical Recipes)
-    qab = a + b
-    qap = a + 1.0
-    qam = a - 1.0
-    c = 1.0
-    d = 1.0 - qab * x / qap
-    if abs(d) < 1e-30:
-        d = 1e-30
-    d = 1.0 / d
-    h = d
-
-    for m in range(1, 200):
-        m2 = 2 * m
-        aa = m * (b - m) * x / ((qam + m2) * (a + m2))
-        d = 1.0 + aa * d
-        if abs(d) < 1e-30:
-            d = 1e-30
-        c = 1.0 + aa / c
-        if abs(c) < 1e-30:
-            c = 1e-30
-        d = 1.0 / d
-        h *= d * c
-
-        aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2))
-        d = 1.0 + aa * d
-        if abs(d) < 1e-30:
-            d = 1e-30
-        c = 1.0 + aa / c
-        if abs(c) < 1e-30:
-            c = 1e-30
-        d = 1.0 / d
-        delta = d * c
-        h *= delta
-        if abs(delta - 1.0) < 1e-9:
-            break
-
-    from math import gamma as gamma_fn, exp as exp_fn, log as ln
-    return (exp_fn(
-        ln(x) * a + ln(1 - x) * b - ln(a) - ln(gamma_fn(a + b)) + ln(gamma_fn(a)) + ln(gamma_fn(b))
-    ) * h) / a if a != 0 else float("nan")
+        # Simpson's rule with 1001 points (1000 intervals) — sufficient for p < 0.05
+        n = 1000
+        h = t_abs / n
+        s = pdf(0.0) + pdf(t_abs)
+        for i in range(1, n):
+            xi = i * h
+            s += pdf(xi) * (4.0 if i % 2 == 1 else 2.0)
+        cdf_upper = 0.5 + s * h / 3.0  # ∫₀^{|t|} pdf dx  (one-tailed)
+        return 2.0 * (1.0 - cdf_upper)  # two-tailed
+    except Exception:
+        return float("nan")
 
 
 # --- t-critical lookup (two-tailed, for n=2..30) ------------------------------
@@ -362,48 +339,51 @@ class RunResult:
 # --- Directory scanning --------------------------------------------------------
 
 def scan_results(results_dir: Path) -> list[RunResult]:
-    """Walk results/ and collect all run results grouped by (mode x scenario x load x phase)."""
+    """Walk results/ and collect all run results grouped by (mode x scenario x load x phase).
+    Matches two directory layouts:
+      - Flat (S1/S2):  results/mode=A_kube-proxy/scenario=S1/load=L1/run=R1_timestamp/bench.log
+      - Phase (S3):     results/mode=B_cilium-ebpfkpr/scenario=S3/load=L2/phase=off/run=R1_timestamp/bench.log
+    Both are found by scanning recursively for bench.log and parsing path components.
+    """
     runs: list[RunResult] = []
 
-    # Pattern: results/mode=A_kube-proxy/scenario=S1/load=L1/run=R1_2026-02-27T14-30-00+07-00/
-    # or with phase: results/mode=.../scenario=S3/load=.../phase=off/run=.../
-    pattern = results_dir / "mode=*" / "scenario=*" / "load=*" / "run=*" / "bench.log"
-    for bench_log in glob.glob(str(pattern), recursive=False):
-        # Try both flat and phase-subdirectory layouts
-        run_dir = Path(bench_log).parent
+    for bench_log in glob.glob(str(results_dir / "**" / "bench.log"), recursive=True):
+        if "/calibration/" in bench_log or "/pilot/" in bench_log:
+            continue
 
-        # Parse directory name to infer mode/scenario/load
+        run_dir = Path(bench_log).parent
         parts = run_dir.parts
+
         try:
             mode = next(p.split("=")[1] for p in parts if p.startswith("mode="))
             scenario = next(p.split("=")[1] for p in parts if p.startswith("scenario="))
             load = next(p.split("=")[1] for p in parts if p.startswith("load="))
-        except StopError:
+        except StopIteration:
             continue
 
+        # Phase subdirectory sits between run_id dir and bench.log (S3 layout)
         phase = None
         run_id = run_dir.name
-        # Check if bench.log is inside a phase subdirectory
         if run_dir.parent.name.startswith("phase="):
             phase = run_dir.parent.name.split("=")[1]
-            run_id = run_dir.name
 
-        # Check for multiple repeats under run subdir (e.g. bench_R1.log, bench_R2.log)
-        bench_files = list(run_dir.glob("bench*.log")) + list(run_dir.glob("*.log"))
-        # Also look for bench_R{1,2,3}.log at run_dir level
-        for bench_file in sorted(run_dir.glob("bench_R*.log")):
-            sub_run_id = bench_file.stem  # e.g. "bench_R1"
-            metrics = parse_fortio_log(bench_file)
-            if metrics:
-                rr = RunResult(run_dir=run_dir, mode=mode, scenario=scenario,
-                               load=load, phase=phase, run_id=sub_run_id)
-                for m in METRICS:
-                    v = metrics.get(m)
-                    if v is not None:
-                        getattr(rr, m).append(v)
-                runs.append(rr)
+        # S2 multi-phase: bench_phase1.log, bench_phase2.log, ...
+        phase_bench_logs = sorted(run_dir.glob("bench_phase*.log"))
+        if phase_bench_logs:
+            for pb in phase_bench_logs:
+                phase_label = pb.stem  # "bench_phase1_rampup"
+                metrics = parse_fortio_log(pb)
+                if metrics:
+                    rr = RunResult(run_dir=run_dir, mode=mode, scenario=scenario,
+                                   load=load, phase=phase, run_id=phase_label)
+                    for m in METRICS:
+                        v = metrics.get(m)
+                        if v is not None:
+                            getattr(rr, m).append(v)
+                    runs.append(rr)
+            continue  # S2 already handled by phase logs
 
-        # Single bench.log
+        # Single bench.log (S1, S3) — no merge needed, each run_dir is unique
         metrics = parse_fortio_log(Path(bench_log))
         if metrics:
             rr = RunResult(run_dir=run_dir, mode=mode, scenario=scenario,
@@ -412,17 +392,7 @@ def scan_results(results_dir: Path) -> list[RunResult]:
                 v = metrics.get(m)
                 if v is not None:
                     getattr(rr, m).append(v)
-            # Merge if we already have a run with same run_id
-            existing = next((r for r in runs
-                             if r.run_dir == run_dir and r.run_id == run_id and r.mode == mode
-                             and r.scenario == scenario and r.load == load), None)
-            if existing:
-                for m in METRICS:
-                    vals = getattr(rr, m)
-                    if vals:
-                        getattr(existing, m).extend(vals)
-            else:
-                runs.append(rr)
+            runs.append(rr)
 
     return runs
 
@@ -492,7 +462,22 @@ def aggregate(runs: list[RunResult], group_by: str = "mode+scenario+load") -> di
 
 # --- Comparison (A vs B) ------------------------------------------------------
 
-def compare_ab(summaries: dict, scenario: str, load: str, metric: str) -> dict:
+def collect_raw_values(runs: list[RunResult], scenario: str, load: str,
+                      metric: str, mode: str) -> list[float]:
+    """
+    Extract raw sample values from runs for a specific (scenario, load, metric, mode).
+    Each RunResult may contain multiple measurements (e.g. from multiple bench_R*.log files).
+    """
+    vals: list[float] = []
+    for r in runs:
+        if r.mode == mode and r.scenario == scenario and r.load == load:
+            m_vals = getattr(r, metric, [])
+            vals.extend(m_vals)
+    return vals
+
+
+def compare_ab(summaries: dict, runs: list[RunResult],
+               scenario: str, load: str, metric: str) -> dict:
     """Compare Mode A vs Mode B for a given (scenario, load, metric)."""
     key_a = f"A_kube-proxy+{scenario}+{load}"
     key_b = f"B_cilium-ebpfkpr+{scenario}+{load}"
@@ -511,8 +496,11 @@ def compare_ab(summaries: dict, scenario: str, load: str, metric: str) -> dict:
     delta_pct = (val_b - val_a) / abs(val_a) * 100 if val_a != 0 else float("nan")
     improvement = val_a - val_b  # positive = A is slower = B is faster
 
-    # Raw values for t-test
-    # We need individual run values -- reconstruct from summaries
+    # Collect raw values for Welch's t-test
+    a_vals = collect_raw_values(runs, scenario, load, metric, "A_kube-proxy")
+    b_vals = collect_raw_values(runs, scenario, load, metric, "B_cilium-ebpfkpr")
+    tt = welch_ttest(a_vals, b_vals)
+
     return {
         "scenario": scenario, "load": load, "metric": metric,
         "A_mean": val_a, "A_ci_lo": s_a.get(f"{metric}_ci_lo"),
@@ -528,6 +516,10 @@ def compare_ab(summaries: dict, scenario: str, load: str, metric: str) -> dict:
         "delta_pct": delta_pct,
         "improvement_ms": improvement,
         "winner": "B" if improvement > 0 else ("A" if improvement < 0 else "tie"),
+        "t_stat": tt["t_stat"],
+        "df": tt["df"],
+        "p_value": tt["p_value"],
+        "significant": tt["significant"],
     }
 
 
@@ -549,7 +541,8 @@ def fmt_ci(lo: float, hi: float, decimals: int = 3) -> str:
 
 import math
 
-def print_summary_table(summaries: dict, scenarios: list[str], loads: list[str]):
+def print_summary_table(summaries: dict, runs: list[RunResult],
+                       scenarios: list[str], loads: list[str]):
     print("")
     print("=" * 120)
     print(" SUMMARY TABLE -- ALL RUNS")
@@ -587,14 +580,15 @@ def print_summary_table(summaries: dict, scenarios: list[str], loads: list[str])
 
             # A vs B comparison for p99
             for m in ["p99_ms", "p50_ms", "error_rate_pct"]:
-                comp = compare_ab(summaries, scenario, load, m)
+                comp = compare_ab(summaries, runs, scenario, load, m)
                 if comp:
                     winner_icon = "[B]" if comp["winner"] == "B" else ("[A]" if comp["winner"] == "A" else "  tie")
                     delta_str = f"delta={fmt(comp['delta_pct'])}%  ({winner_icon})"
                     print(f"\n  {METRIC_LABELS.get(m,m)} A vs B: A={fmt(comp['A_mean'])} B={fmt(comp['B_mean'])} {delta_str}")
 
 
-def print_comparison_table(summaries: dict, scenarios: list[str], loads: list[str]):
+def print_comparison_table(summaries: dict, runs: list[RunResult],
+                          scenarios: list[str], loads: list[str]):
     print("")
     print("=" * 130)
     print(" COMPARISON TABLE -- Mode A vs Mode B")
@@ -608,7 +602,7 @@ def print_comparison_table(summaries: dict, scenarios: list[str], loads: list[st
     for scenario in scenarios:
         for load in loads:
             for m in ["p50_ms", "p90_ms", "p99_ms", "p999_ms", "error_rate_pct", "rps"]:
-                comp = compare_ab(summaries, scenario, load, m)
+                comp = compare_ab(summaries, runs, scenario, load, m)
                 if comp:
                     all_comps.append(comp)
 
@@ -631,7 +625,8 @@ def print_comparison_table(summaries: dict, scenarios: list[str], loads: list[st
             )
 
 
-def export_csv(summaries: dict, scenarios: list[str], loads: list[str], output_dir: Path):
+def export_csv(summaries: dict, runs: list[RunResult],
+              scenarios: list[str], loads: list[str], output_dir: Path):
     """Export aggregated results to CSV."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -658,7 +653,7 @@ def export_csv(summaries: dict, scenarios: list[str], loads: list[str], output_d
     for scenario in scenarios:
         for load in loads:
             for m in METRICS:
-                comp = compare_ab(summaries, scenario, load, m)
+                comp = compare_ab(summaries, runs, scenario, load, m)
                 if comp:
                     comp_rows.append({
                         "scenario": scenario, "load": load, "metric": m,
@@ -748,12 +743,12 @@ def main():
     scenarios = sorted(set(r.scenario for r in runs))
     loads = sorted(set(r.load for r in runs))
 
-    # Aggregate
-    summaries = aggregate(runs)
+    # Aggregate by mode+scenario+load+phase so S3 off/on and S2 phases are kept separate
+    summaries = aggregate(runs, group_by="mode+scenario+load+phase")
 
     # Print tables
-    print_summary_table(summaries, scenarios, loads)
-    print_comparison_table(summaries, scenarios, loads)
+    print_summary_table(summaries, runs, scenarios, loads)
+    print_comparison_table(summaries, runs, scenarios, loads)
 
     # Calibration
     cal_dir = results_dir / "calibration"
@@ -762,7 +757,7 @@ def main():
         print_calibration_table(cal_results)
 
     # Export CSVs
-    export_csv(summaries, scenarios, loads, output_dir)
+    export_csv(summaries, runs, scenarios, loads, output_dir)
 
     print("")
     print(f" Analysis complete. Results written to: {output_dir}")

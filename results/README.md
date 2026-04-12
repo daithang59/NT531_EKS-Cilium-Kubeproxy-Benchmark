@@ -104,3 +104,22 @@ results/
 - Mỗi `(mode × scenario × load × run)` là một **đơn vị đo lường độc lập** (independent trial).
 - Scripts (`run_s1.sh`, `run_s2.sh`, `run_s3.sh`) tự động tạo đúng cấu trúc khi được gọi
   với env vars `MODE`, `SCENARIO`, `LOAD`, `REPEAT`.
+
+---
+
+## Cấu trúc tổng quan
+
+```
+results/
+├── pilot/                    ← Pilot / smoke test runs (đã xong)
+│   ├── mode=A_kube-proxy/     15 runs (S1: 9, S2: 6)
+│   └── mode=B_cilium-ebpfkpr/ 27 runs (S1: 9, S2: 6, S3: 12)
+├── mode=A_kube-proxy/         ← Official Mode A benchmark (chạy vào đây)
+└── mode=B_cilium-ebpfkpr/   ← Official Mode B benchmark (chạy vào đây)
+
+results_analysis/               ← Phân tích thống kê (từ official runs)
+├── aggregated_summary.csv      p50/p90/p99/... per mode×scenario×load
+└── comparison_AB.csv          Δ%, p-value, significance
+```
+
+> `analyze_results.py` tự động bỏ qua `/pilot/` — chỉ phân tích official runs.

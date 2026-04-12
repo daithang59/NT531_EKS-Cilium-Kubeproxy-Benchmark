@@ -34,7 +34,7 @@ module "eks" {
 
   # Disable automatic VPC CNI management — Cilium manages CNI via its own DaemonSet.
   # Without this, the module installs aws-node DaemonSet regardless of cluster_addons.
-  manage_vpc_cni = false
+  # Note: manage_vpc_cni removed in module v20.x — VPC CNI not in cluster_addons so it's not installed.
 
   # Managed Node Group
   eks_managed_node_groups = {
@@ -78,4 +78,35 @@ module "eks" {
     Project   = var.project_name
     ManagedBy = "terraform"
   }
+
+  # Extend node security group with rules needed by Cilium CNI.
+  # Without these, Cilium datapath traffic (VXLAN UDP 8472 + IP-in-IP protocol 4)
+  # is blocked by the restrictive default SG, causing cross-node pod communication to fail.
+  node_security_group_tags = {
+    "kubernetes.io/cluster/${var.project_name}" = "owned"
+    Project                                             = var.project_name
+  }
+}
+
+# IP-in-IP (protocol 4) — used by Cilium when kubeProxyReplacement=false (native routing).
+# Allows Cilium to encapsulate pod traffic over the VPC network.
+resource "aws_security_group_rule" "cilium_ipip" {
+  description            = "Allow IP-in-IP encapsulated traffic between Cilium nodes"
+  type                  = "ingress"
+  from_port             = -1
+  to_port               = -1
+  protocol              = 4  # IP-in-IP
+  security_group_id     = module.eks.node_security_group_id
+  source_security_group_id = module.eks.node_security_group_id
+}
+
+# UDP 8472 — VXLAN tunnel used by Cilium cluster-pool IPAM for cross-node pod traffic.
+resource "aws_security_group_rule" "cilium_vxlan" {
+  description            = "Allow VXLAN tunnel traffic between Cilium nodes"
+  type                  = "ingress"
+  from_port             = 8472
+  to_port               = 8472
+  protocol              = "udp"
+  security_group_id     = module.eks.node_security_group_id
+  source_security_group_id = module.eks.node_security_group_id
 }

@@ -26,9 +26,9 @@ MODE="${MODE:-A}"
 REPEAT="${REPEAT:-2}"
 
 # Overwrite common.sh defaults for calibration (shorter, more granular)
-CAL_DURATION_SEC="${CAL_DURATION_SEC:-30}"
-CAL_WARMUP_SEC="${CAL_WARMUP_SEC:-10}"
-CAL_REST_SEC="${CAL_REST_SEC:-15}"
+CAL_DURATION_SEC="${CAL_DURATION_SEC:-120}"
+CAL_WARMUP_SEC="${CAL_WARMUP_SEC:-30}"
+CAL_REST_SEC="${CAL_REST_SEC:-30}"
 
 # QPS sweep range (will be combined with conns/profile)
 # Default: 50 → 1600 QPS (multiplicative doubling: 50→100→200→400→800→1600)
@@ -470,7 +470,9 @@ with open(report_path, "a", encoding="utf-8") as rp:
     # Thresholds (in seconds, not ms):
     #   L1 (Light):   err < 0.1% and p99 < 0.001s (1ms)
     #   L2 (Medium):  err < 0.1% and p99 < 0.005s (5ms)
-    #   L3 (High):    err < 1.0% and p99 < 0.020s (20ms)
+    #   L3 (High):    err < 1.0% and p99 < 0.050s (50ms) — relaxed from 20ms
+    #                 because m5.large non-burstable CPU sustains stable p99 well above 20ms
+    #                 under high-load; the 50ms threshold ensures saturation without errors.
     cl1, cl2, cl3 = [], [], []
     for qps in sorted(by_qps.keys()):
         d = by_qps[qps]
@@ -480,7 +482,7 @@ with open(report_path, "a", encoding="utf-8") as rp:
             cl1.append((qps, p99_med, err_med))
         if err_med < 0.1 and p99_med < 0.005:
             cl2.append((qps, p99_med, err_med))
-        if err_med < 1.0 and p99_med < 0.020:
+        if err_med < 1.0 and p99_med < 0.050:
             cl3.append((qps, p99_med, err_med))
 
     def write_rec(label, candidates, hint=""):

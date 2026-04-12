@@ -12,10 +12,28 @@ spec:
     metadata:
       labels:
         app: echo
+        app.benchmark/pair: workload
     spec:
       # Pin to benchmark nodes (plan §4.5: nodeSelector/affinity)
       nodeSelector:
         role: benchmark
+      # podAffinity: echo and fortio are attracted to the same node via the
+      # shared label 'app.benchmark/pair: workload', forcing them onto the same
+      # node so we measure pure datapath overhead (kube-proxy vs eBPF) without
+      # VXLAN tunnel overhead from cross-node traffic.
+      # NOTE: ClusterIP traffic still goes through iptables/BPF regardless of
+      # same/cross-node, but same-node eliminates network-level noise (jitter,
+      # SG rules, encapsulation) for cleaner benchmark results.
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchExpressions:
+                  - key: app.benchmark/pair
+                    operator: In
+                    values:
+                      - workload
       containers:
         - name: echo
           image: hashicorp/http-echo:1.0
