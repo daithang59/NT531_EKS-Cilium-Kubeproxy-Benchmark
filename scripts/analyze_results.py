@@ -95,8 +95,14 @@ def parse_fortio_log(log_path: Path) -> dict:
     error_rate = (non_2xx / total_requests * 100) if total_requests > 0 else 0.0
 
     # Try Fortio JSON export if available
+    # S1/S3: bench.log -> fortio.json
+    # S2:   bench_phaseN_*.log -> fortio_phaseN_*.json
     json_data = None
-    json_path = log_path.with_suffix(".json")
+    if log_path.name.startswith("bench_phase"):
+        phase_suffix = log_path.stem.replace("bench_", "fortio_")  # bench_phase1_rampup -> fortio_phase1_rampup
+        json_path = log_path.parent / f"{phase_suffix}.json"
+    else:
+        json_path = log_path.parent / "fortio.json"
     if json_path.exists():
         try:
             json_data = json.loads(json_path.read_text())
@@ -104,15 +110,21 @@ def parse_fortio_log(log_path: Path) -> dict:
             pass
 
     if json_data:
-        h = json_data.get("Histogram", json_data.get("h", {}))
-        rps = json_data.get("RequestedQPS", 0)
+        dh = json_data.get("DurationHistogram", json_data.get("Histogram", json_data.get("h", {})))
+        rps = json_data.get("ActualQPS", 0) or json_data.get("RequestedQPS", 0)
+        # Fortio 1.74.x: Percentiles is a list of {"Percentile": N, "Value": s}
+        pcts = dh.get("Percentiles", [])
+        if isinstance(pcts, list):
+            pcts = {str(p["Percentile"]): p["Value"] for p in pcts}
+        else:
+            pcts = pcts or {}
         return {
-            "p50_ms":  h.get("Percentile", {}).get("50.0") or get_target_pct("50%"),
-            "p90_ms":  h.get("Percentile", {}).get("90.0") or get_target_pct("90%"),
-            "p99_ms":  h.get("Percentile", {}).get("99.0") or get_target_pct("99%"),
-            "p999_ms": h.get("Percentile", {}).get("99.9") or get_target_pct("99.9%"),
-            "max_ms":  h.get("Max") or get_aggregated_max(),
-            "rps":     json_data.get("ActualQPS", rps) or get_qps(),
+            "p50_ms":  pcts.get("50") or pcts.get("50.0") or get_target_pct("50%"),
+            "p90_ms":  pcts.get("90") or pcts.get("90.0") or get_target_pct("90%"),
+            "p99_ms":  pcts.get("99") or pcts.get("99.0") or get_target_pct("99%"),
+            "p999_ms": pcts.get("99.9") or pcts.get("99.9") or get_target_pct("99.9%"),
+            "max_ms":  (dh.get("Max") * 1000.0) if dh.get("Max") is not None else get_aggregated_max(),
+            "rps":     rps or get_qps(),
             "error_rate_pct": error_rate,
         }
 

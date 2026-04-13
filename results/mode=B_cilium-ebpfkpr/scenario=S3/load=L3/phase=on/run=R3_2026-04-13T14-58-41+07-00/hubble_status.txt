@@ -1,0 +1,3 @@
+Healthcheck (via unix:///var/run/cilium/hubble.sock): Ok
+Current/Max Flows: 4,095/4,095 (100.00%)
+Flows/s: 15.37
