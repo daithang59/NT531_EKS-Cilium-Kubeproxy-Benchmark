@@ -67,7 +67,8 @@
       "Bash(touch /c/Users/THANG/bin/writable_test)",
       "Bash(rm /c/Users/THANG/bin/writable_test)",
       "Bash(wsl.exe -d Ubuntu -e bash -c \"ldd /usr/bin/tmux 2>/dev/null | head -5; file /usr/bin/tmux\")",
-      "Bash(terraform destroy:*)"
+      "Bash(terraform destroy:*)",
+      "mcp__plugin_ecc_exa__web_search_exa"
     ]
   }
 }

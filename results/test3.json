@@ -1,0 +1,258 @@
+{"ts":1776014439.751634,"level":"info","r":1,"file":"scli.go","line":124,"msg":"Starting","command":"Φορτίο","version":"1.74.0 h1:bo6CcSH+gpdNfgcVAnL3MMLT/QPWCnFMsqaX1o4VFUA= go1.24.13 amd64 linux","go-max-procs":2}
+HTTP/1.1 200 OK
+Content-Type: application/json
+Date: Sun, 12 Apr 2026 17:21:09 GMT
+Transfer-Encoding: chunked
+
+113a
+{
+  "RunType": "HTTP",
+  "Labels": "",
+  "StartTime": "2026-04-12T17:20:39.805065954Z",
+  "RequestedQPS": "200",
+  "RequestedDuration": "30s",
+  "ActualQPS": 199.95197403523642,
+  "ActualDuration": 29927186410,
+  "NumThreads": 32,
+  "Version": "1.74.0",
+  "DurationHistogram": {
+    "Count": 5984,
+    "Min": 0.000075864,
+    "Max": 0.006694843,
+    "Sum": 8.889312251,
+    "Avg": 0.0014855134109291444,
+    "StdDev": 0.0007963392185664339,
+    "Data": [
+      {
+        "Start": 0.000075864,
+        "End": 0.001,
+        "Percent": 21.189839572192515,
+        "Count": 1268
+      },
+      {
+        "Start": 0.001,
+        "End": 0.002,
+        "Percent": 80.68181818181819,
+        "Count": 3560
+      },
+      {
+        "Start": 0.002,
+        "End": 0.003,
+        "Percent": 95.27072192513369,
+        "Count": 873
+      },
+      {
+        "Start": 0.003,
+        "End": 0.004,
+        "Percent": 99.08088235294117,
+        "Count": 228
+      },
+      {
+        "Start": 0.004,
+        "End": 0.005,
+        "Percent": 99.48195187165776,
+        "Count": 24
+      },
+      {
+        "Start": 0.006,
+        "End": 0.006694843,
+        "Percent": 100,
+        "Count": 31
+      }
+    ],
+    "Percentiles": [
+      {
+        "Percentile": 50,
+        "Value": 0.0014842696629213483
+      },
+      {
+        "Percentile": 75,
+        "Value": 0.0019044943820224719
+      },
+      {
+        "Percentile": 90,
+        "Value": 0.0026387170675830473
+      },
+      {
+        "Percentile": 99,
+        "Value": 0.003978771929824562
+      },
+      {
+        "Percentile": 99.9,
+        "Value": 0.006560715886709685
+      }
+    ]
+  },
+  "ErrorsDurationHistogram": {
+    "Count": 0,
+    "Min": 0,
+    "Max": 0,
+    "Sum": 0,
+    "Avg": 0,
+    "StdDev": 0,
+    "Data": null
+  },
+  "Exactly": 0,
+  "Jitter": false,
+  "Uniform": false,
+  "NoCatchUp": false,
+  "RunID": 41,
+  "AccessLoggerInfo": "",
+  "ID": "2026-04-12-172039_41",
+  "RetCodes": {
+    "200": 5984
+  },
+  "IPCountMap": {
+    "172.20.112.35:80": 32
+  },
+  "Insecure": false,
+  "MTLS": false,
+  "CACert": "",
+  "Cert": "",
+  "Key": "",
+  "UnixDomainSocket": "",
+  "URL": "http://echo.benchmark.svc.cluster.local/",
+  "NumConnections": 1,
+  "Compression": false,
+  "DisableFastClient": false,
+  "HTTP10": false,
+  "H2": false,
+  "DisableKeepAlive": false,
+  "AllowHalfClose": false,
+  "FollowRedirects": false,
+  "Resolve": "",
+  "HTTPReqTimeOut": 3000000000,
+  "UserCredentials": "",
+  "ContentType": "",
+  "Payload": "",
+  "MethodOverride": "",
+  "LogErrors": false,
+  "SequentialWarmup": false,
+  "ConnReuseRange": [
+    0,
+    0
+  ],
+  "NoResolveEachConn": false,
+  "Offset": 0,
+  "Resolution": 0.001,
+  "Sizes": {
+    "Count": 5984,
+    "Min": 164,
+    "Max": 164,
+    "Sum": 981376,
+    "Avg": 164,
+    "StdDev": 0,
+    "Data": [
+      {
+        "Start": 164,
+        "End": 164,
+        "Percent": 100,
+        "Count": 5984
+      }
+    ]
+  },
+  "HeaderSizes": {
+    "Count": 5984,
+    "Min": 161,
+    "Max": 161,
+    "Sum": 963424,
+    "Avg": 161,
+    "StdDev": 0,
+    "Data": [
+      {
+        "Start": 161,
+        "End": 161,
+        "Percent": 100,
+        "Count": 5984
+      }
+    ]
+  },
+  "Sockets": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "SocketCount": 32,
+  "ConnectionStats": {
+    "Count": 32,
+    "Min": 0.000130376,
+    "Max": 0.002503931,
+    "Sum": 0.049426362,
+    "Avg": 0.0015445738125,
+    "StdDev": 0.0006553223619593853,
+    "Data": [
+      {
+        "Start": 0.000130376,
+        "End": 0.001,
+        "Percent": 25,
+        "Count": 8
+      },
+      {
+        "Start": 0.001,
+        "End": 0.002,
+        "Percent": 71.875,
+        "Count": 15
+      },
+      {
+        "Start": 0.002,
+        "End": 0.002503931,
+        "Percent": 100,
+        "Count": 9
+      }
+    ],
+    "Percentiles": [
+      {
+        "Percentile": 50,
+        "Value": 0.0015333333333333334
+      },
+      {
+        "Percentile": 75,
+        "Value": 0.0020559923333333336
+      },
+      {
+        "Percentile": 90,
+        "Value": 0.0023247555333333336
+      },
+      {
+        "Percentile": 99,
+        "Value": 0.002486013453333333
+      },
+      {
+        "Percentile": 99.9,
+        "Value": 0.0025021392453333335
+      }
+    ]
+  },
+  "AbortOn": 0
+}
+0
+

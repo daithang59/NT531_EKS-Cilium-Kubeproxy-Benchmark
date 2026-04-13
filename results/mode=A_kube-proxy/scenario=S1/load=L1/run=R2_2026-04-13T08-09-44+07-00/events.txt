@@ -1,0 +1,250 @@
+NAMESPACE     LAST SEEN   TYPE      REASON                    OBJECT                                                     MESSAGE
+monitoring    59m         Warning   FailedScheduling          pod/prometheus-kube-prometheus-operator-5bd97f6986-zf7b4   no nodes available to schedule pods
+monitoring    59m         Warning   FailedScheduling          pod/prometheus-grafana-5875d7786f-kjddx                    no nodes available to schedule pods
+kube-system   59m         Warning   FailedScheduling          pod/coredns-7889d86cb8-h79c7                               no nodes available to schedule pods
+benchmark     59m         Warning   FailedScheduling          pod/echo-ffc5c485d-gh84b                                   no nodes available to schedule pods
+kube-system   60m         Warning   FailedScheduling          pod/cilium-operator-8c598ddf5-94j9j                        no nodes available to schedule pods
+kube-system   60m         Warning   FailedScheduling          pod/cilium-operator-8c598ddf5-n2jpd                        no nodes available to schedule pods
+monitoring    59m         Warning   FailedScheduling          pod/prometheus-prometheus-kube-prometheus-prometheus-0     no nodes available to schedule pods
+monitoring    59m         Warning   FailedScheduling          pod/prometheus-kube-state-metrics-7cdf9894f9-67vrk         no nodes available to schedule pods
+benchmark     59m         Warning   FailedScheduling          pod/fortio-cf9999755-5h8nt                                 no nodes available to schedule pods
+kube-system   59m         Normal    SuccessfulCreate          daemonset/cilium                                           Created pod: cilium-6dt5x
+kube-system   59m         Normal    SuccessfulCreate          daemonset/cilium-envoy                                     Created pod: cilium-envoy-8hk8m
+monitoring    59m         Normal    Scheduled                 pod/prometheus-prometheus-node-exporter-7w79c              Successfully assigned monitoring/prometheus-prometheus-node-exporter-7w79c to ip-10-0-10-206.ap-southeast-1.compute.internal
+default       59m         Normal    Starting                  node/ip-10-0-10-206.ap-southeast-1.compute.internal        Starting kubelet.
+kube-system   59m         Normal    Scheduled                 pod/kube-proxy-4hn9s                                       Successfully assigned kube-system/kube-proxy-4hn9s to ip-10-0-10-206.ap-southeast-1.compute.internal
+kube-system   59m         Warning   FailedScheduling          pod/cilium-envoy-8hk8m                                     0/1 nodes are available: 1 node(s) didn't match pod affinity rules. no new claims to deallocate, preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.
+kube-system   59m         Normal    Scheduled                 pod/cilium-envoy-8hk8m                                     Successfully assigned kube-system/cilium-envoy-8hk8m to ip-10-0-10-206.ap-southeast-1.compute.internal
+monitoring    59m         Normal    SuccessfulCreate          daemonset/prometheus-prometheus-node-exporter              Created pod: prometheus-prometheus-node-exporter-7w79c
+kube-system   59m         Normal    Scheduled                 pod/cilium-6dt5x                                           Successfully assigned kube-system/cilium-6dt5x to ip-10-0-10-206.ap-southeast-1.compute.internal
+kube-system   59m         Normal    SuccessfulCreate          daemonset/kube-proxy                                       Created pod: kube-proxy-4hn9s
+default       59m         Normal    NodeAllocatableEnforced   node/ip-10-0-10-206.ap-southeast-1.compute.internal        Updated Node Allocatable limit across pods
+default       59m         Normal    NodeHasSufficientPID      node/ip-10-0-10-206.ap-southeast-1.compute.internal        Node ip-10-0-10-206.ap-southeast-1.compute.internal status is now: NodeHasSufficientPID
+default       59m         Normal    NodeHasNoDiskPressure     node/ip-10-0-10-206.ap-southeast-1.compute.internal        Node ip-10-0-10-206.ap-southeast-1.compute.internal status is now: NodeHasNoDiskPressure
+default       59m         Normal    NodeHasSufficientMemory   node/ip-10-0-10-206.ap-southeast-1.compute.internal        Node ip-10-0-10-206.ap-southeast-1.compute.internal status is now: NodeHasSufficientMemory
+default       59m         Warning   InvalidDiskCapacity       node/ip-10-0-10-206.ap-southeast-1.compute.internal        invalid capacity 0 on image filesystem
+kube-system   59m         Normal    Scheduled                 pod/cilium-tl4xr                                           Successfully assigned kube-system/cilium-tl4xr to ip-10-0-10-72.ap-southeast-1.compute.internal
+default       59m         Normal    Starting                  node/ip-10-0-10-72.ap-southeast-1.compute.internal         Starting kubelet.
+kube-system   59m         Warning   FailedScheduling          pod/cilium-envoy-j4ll6                                     0/2 nodes are available: 1 node(s) didn't match pod affinity rules, 1 node(s) didn't satisfy plugin(s) [NodeAffinity]. no new claims to deallocate, preemption: 0/2 nodes are available: 2 Preemption is not helpful for scheduling.
+kube-system   59m         Normal    Scheduled                 pod/cilium-envoy-j4ll6                                     Successfully assigned kube-system/cilium-envoy-j4ll6 to ip-10-0-10-72.ap-southeast-1.compute.internal
+kube-system   59m         Normal    SuccessfulCreate          daemonset/cilium-envoy                                     Created pod: cilium-envoy-j4ll6
+kube-system   59m         Normal    SuccessfulCreate          daemonset/cilium                                           Created pod: cilium-tl4xr
+default       59m         Normal    Synced                    node/ip-10-0-10-206.ap-southeast-1.compute.internal        Node synced successfully
+default       59m         Normal    NodeAllocatableEnforced   node/ip-10-0-10-72.ap-southeast-1.compute.internal         Updated Node Allocatable limit across pods
+default       59m         Normal    NodeHasSufficientPID      node/ip-10-0-10-72.ap-southeast-1.compute.internal         Node ip-10-0-10-72.ap-southeast-1.compute.internal status is now: NodeHasSufficientPID
+default       59m         Normal    NodeHasNoDiskPressure     node/ip-10-0-10-72.ap-southeast-1.compute.internal         Node ip-10-0-10-72.ap-southeast-1.compute.internal status is now: NodeHasNoDiskPressure
+default       59m         Normal    NodeHasSufficientMemory   node/ip-10-0-10-72.ap-southeast-1.compute.internal         Node ip-10-0-10-72.ap-southeast-1.compute.internal status is now: NodeHasSufficientMemory
+default       59m         Warning   InvalidDiskCapacity       node/ip-10-0-10-72.ap-southeast-1.compute.internal         invalid capacity 0 on image filesystem
+kube-system   59m         Normal    Scheduled                 pod/cilium-operator-8c598ddf5-n2jpd                        Successfully assigned kube-system/cilium-operator-8c598ddf5-n2jpd to ip-10-0-10-206.ap-southeast-1.compute.internal
+kube-system   59m         Warning   FailedScheduling          pod/cilium-envoy-2llwx                                     0/3 nodes are available: 1 node(s) didn't match pod affinity rules, 2 node(s) didn't satisfy plugin(s) [NodeAffinity]. no new claims to deallocate, preemption: 0/3 nodes are available: 3 Preemption is not helpful for scheduling.
+default       59m         Normal    NodeHasSufficientPID      node/ip-10-0-10-244.ap-southeast-1.compute.internal        Node ip-10-0-10-244.ap-southeast-1.compute.internal status is now: NodeHasSufficientPID
+default       59m         Normal    NodeAllocatableEnforced   node/ip-10-0-10-244.ap-southeast-1.compute.internal        Updated Node Allocatable limit across pods
+default       59m         Normal    Synced                    node/ip-10-0-10-244.ap-southeast-1.compute.internal        Node synced successfully
+kube-system   59m         Normal    Pulling                   pod/cilium-envoy-8hk8m                                     Pulling image "quay.io/cilium/cilium-envoy:v1.35.9-1770554954-8ce3bb4eca04188f4a0a1bfbd0a06a40f90883de@sha256:da85124deeb42c8e56e55e9e6e155740f5df00e1064759a244bc246c3addb45d"
+kube-system   59m         Normal    Scheduled                 pod/kube-proxy-mtbmp                                       Successfully assigned kube-system/kube-proxy-mtbmp to ip-10-0-10-72.ap-southeast-1.compute.internal
+kube-system   59m         Normal    Scheduled                 pod/kube-proxy-2b69v                                       Successfully assigned kube-system/kube-proxy-2b69v to ip-10-0-10-244.ap-southeast-1.compute.internal
+default       59m         Normal    NodeHasSufficientMemory   node/ip-10-0-10-244.ap-southeast-1.compute.internal        Node ip-10-0-10-244.ap-southeast-1.compute.internal status is now: NodeHasSufficientMemory
+default       59m         Warning   InvalidDiskCapacity       node/ip-10-0-10-244.ap-southeast-1.compute.internal        invalid capacity 0 on image filesystem
+default       59m         Normal    Starting                  node/ip-10-0-10-244.ap-southeast-1.compute.internal        Starting kubelet.
+kube-system   59m         Normal    SuccessfulCreate          daemonset/cilium-envoy                                     Created pod: cilium-envoy-2llwx
+kube-system   59m         Normal    Scheduled                 pod/cilium-envoy-2llwx                                     Successfully assigned kube-system/cilium-envoy-2llwx to ip-10-0-10-244.ap-southeast-1.compute.internal
+default       59m         Normal    NodeHasNoDiskPressure     node/ip-10-0-10-244.ap-southeast-1.compute.internal        Node ip-10-0-10-244.ap-southeast-1.compute.internal status is now: NodeHasNoDiskPressure
+default       59m         Normal    Synced                    node/ip-10-0-10-72.ap-southeast-1.compute.internal         Node synced successfully
+kube-system   59m         Normal    Scheduled                 pod/cilium-operator-8c598ddf5-94j9j                        Successfully assigned kube-system/cilium-operator-8c598ddf5-94j9j to ip-10-0-10-72.ap-southeast-1.compute.internal
+kube-system   59m         Normal    Pulling                   pod/cilium-operator-8c598ddf5-n2jpd                        Pulling image "quay.io/cilium/operator-generic:v1.18.7@sha256:244306c5e7c6b73dc7193424f46ed8a0530767b03f03baac80dd717a3a3f0ad7"
+monitoring    59m         Normal    Scheduled                 pod/prometheus-prometheus-node-exporter-vswnt              Successfully assigned monitoring/prometheus-prometheus-node-exporter-vswnt to ip-10-0-10-72.ap-southeast-1.compute.internal
+kube-system   59m         Normal    Pulling                   pod/cilium-6dt5x                                           Pulling image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c"
+monitoring    59m         Normal    SuccessfulCreate          daemonset/prometheus-prometheus-node-exporter              Created pod: prometheus-prometheus-node-exporter-vwctc
+kube-system   59m         Normal    SuccessfulCreate          daemonset/kube-proxy                                       Created pod: kube-proxy-mtbmp
+kube-system   59m         Normal    SuccessfulCreate          daemonset/kube-proxy                                       Created pod: kube-proxy-2b69v
+kube-system   59m         Normal    Scheduled                 pod/cilium-p7tcv                                           Successfully assigned kube-system/cilium-p7tcv to ip-10-0-10-244.ap-southeast-1.compute.internal
+monitoring    59m         Normal    SuccessfulCreate          daemonset/prometheus-prometheus-node-exporter              Created pod: prometheus-prometheus-node-exporter-vswnt
+kube-system   59m         Normal    SuccessfulCreate          daemonset/cilium                                           Created pod: cilium-p7tcv
+monitoring    59m         Normal    Scheduled                 pod/prometheus-prometheus-node-exporter-vwctc              Successfully assigned monitoring/prometheus-prometheus-node-exporter-vwctc to ip-10-0-10-244.ap-southeast-1.compute.internal
+monitoring    59m         Normal    Pulling                   pod/prometheus-prometheus-node-exporter-7w79c              Pulling image "quay.io/prometheus/node-exporter:v1.8.0"
+kube-system   59m         Normal    Pulling                   pod/kube-proxy-4hn9s                                       Pulling image "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/kube-proxy:v1.34.6-eksbuild.2"
+default       59m         Normal    RegisteredNode            node/ip-10-0-10-72.ap-southeast-1.compute.internal         Node ip-10-0-10-72.ap-southeast-1.compute.internal event: Registered Node ip-10-0-10-72.ap-southeast-1.compute.internal in Controller
+monitoring    59m         Normal    Pulling                   pod/prometheus-prometheus-node-exporter-vswnt              Pulling image "quay.io/prometheus/node-exporter:v1.8.0"
+kube-system   59m         Normal    Pulling                   pod/cilium-envoy-j4ll6                                     Pulling image "quay.io/cilium/cilium-envoy:v1.35.9-1770554954-8ce3bb4eca04188f4a0a1bfbd0a06a40f90883de@sha256:da85124deeb42c8e56e55e9e6e155740f5df00e1064759a244bc246c3addb45d"
+kube-system   59m         Normal    Pulling                   pod/cilium-tl4xr                                           Pulling image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c"
+kube-system   59m         Normal    Pulling                   pod/cilium-envoy-2llwx                                     Pulling image "quay.io/cilium/cilium-envoy:v1.35.9-1770554954-8ce3bb4eca04188f4a0a1bfbd0a06a40f90883de@sha256:da85124deeb42c8e56e55e9e6e155740f5df00e1064759a244bc246c3addb45d"
+default       59m         Normal    RegisteredNode            node/ip-10-0-10-206.ap-southeast-1.compute.internal        Node ip-10-0-10-206.ap-southeast-1.compute.internal event: Registered Node ip-10-0-10-206.ap-southeast-1.compute.internal in Controller
+kube-system   59m         Normal    Pulling                   pod/cilium-p7tcv                                           Pulling image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c"
+default       59m         Normal    RegisteredNode            node/ip-10-0-10-244.ap-southeast-1.compute.internal        Node ip-10-0-10-244.ap-southeast-1.compute.internal event: Registered Node ip-10-0-10-244.ap-southeast-1.compute.internal in Controller
+kube-system   59m         Normal    Pulling                   pod/kube-proxy-mtbmp                                       Pulling image "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/kube-proxy:v1.34.6-eksbuild.2"
+monitoring    59m         Normal    Pulling                   pod/prometheus-prometheus-node-exporter-vwctc              Pulling image "quay.io/prometheus/node-exporter:v1.8.0"
+kube-system   59m         Normal    Pulling                   pod/cilium-operator-8c598ddf5-94j9j                        Pulling image "quay.io/cilium/operator-generic:v1.18.7@sha256:244306c5e7c6b73dc7193424f46ed8a0530767b03f03baac80dd717a3a3f0ad7"
+default       59m         Normal    Starting                  node/ip-10-0-10-206.ap-southeast-1.compute.internal        
+kube-system   59m         Normal    Pulled                    pod/kube-proxy-4hn9s                                       Successfully pulled image "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/kube-proxy:v1.34.6-eksbuild.2" in 1.848s (1.848s including waiting). Image size: 31773277 bytes.
+kube-system   59m         Normal    Pulling                   pod/kube-proxy-2b69v                                       Pulling image "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/kube-proxy:v1.34.6-eksbuild.2"
+kube-system   59m         Normal    Started                   pod/kube-proxy-4hn9s                                       Started container kube-proxy
+kube-system   59m         Normal    Created                   pod/kube-proxy-4hn9s                                       Created container: kube-proxy
+kube-system   59m         Normal    Started                   pod/kube-proxy-mtbmp                                       Started container kube-proxy
+kube-system   59m         Normal    Started                   pod/kube-proxy-2b69v                                       Started container kube-proxy
+default       59m         Normal    Starting                  node/ip-10-0-10-72.ap-southeast-1.compute.internal         
+kube-system   59m         Normal    Pulled                    pod/kube-proxy-mtbmp                                       Successfully pulled image "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/kube-proxy:v1.34.6-eksbuild.2" in 1.819s (1.819s including waiting). Image size: 31773277 bytes.
+kube-system   59m         Normal    Pulled                    pod/kube-proxy-2b69v                                       Successfully pulled image "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/kube-proxy:v1.34.6-eksbuild.2" in 1.95s (1.95s including waiting). Image size: 31773277 bytes.
+kube-system   59m         Normal    Created                   pod/kube-proxy-mtbmp                                       Created container: kube-proxy
+kube-system   59m         Normal    Created                   pod/kube-proxy-2b69v                                       Created container: kube-proxy
+monitoring    59m         Normal    Started                   pod/prometheus-prometheus-node-exporter-vswnt              Started container node-exporter
+default       59m         Normal    Starting                  node/ip-10-0-10-244.ap-southeast-1.compute.internal        
+monitoring    59m         Normal    Created                   pod/prometheus-prometheus-node-exporter-vswnt              Created container: node-exporter
+monitoring    59m         Normal    Pulled                    pod/prometheus-prometheus-node-exporter-vswnt              Successfully pulled image "quay.io/prometheus/node-exporter:v1.8.0" in 3.62s (3.62s including waiting). Image size: 12039592 bytes.
+kube-system   59m         Normal    Pulled                    pod/cilium-envoy-j4ll6                                     Successfully pulled image "quay.io/cilium/cilium-envoy:v1.35.9-1770554954-8ce3bb4eca04188f4a0a1bfbd0a06a40f90883de@sha256:da85124deeb42c8e56e55e9e6e155740f5df00e1064759a244bc246c3addb45d" in 12.423s (12.423s including waiting). Image size: 77064915 bytes.
+kube-system   59m         Normal    Pulled                    pod/cilium-operator-8c598ddf5-94j9j                        Successfully pulled image "quay.io/cilium/operator-generic:v1.18.7@sha256:244306c5e7c6b73dc7193424f46ed8a0530767b03f03baac80dd717a3a3f0ad7" in 11.897s (11.897s including waiting). Image size: 32956456 bytes.
+kube-system   59m         Normal    Started                   pod/cilium-operator-8c598ddf5-94j9j                        Started container cilium-operator
+kube-system   59m         Normal    Created                   pod/cilium-operator-8c598ddf5-94j9j                        Created container: cilium-operator
+kube-system   59m         Normal    Created                   pod/cilium-envoy-j4ll6                                     Created container: cilium-envoy
+kube-system   59m         Normal    Started                   pod/cilium-envoy-j4ll6                                     Started container cilium-envoy
+kube-system   59m         Warning   Unhealthy                 pod/cilium-envoy-j4ll6                                     Startup probe failed: Get "http://127.0.0.1:9878/healthz": dial tcp 127.0.0.1:9878: connect: connection refused
+kube-system   59m         Normal    Started                   pod/cilium-tl4xr                                           Started container config
+kube-system   59m         Normal    Created                   pod/cilium-tl4xr                                           Created container: config
+kube-system   59m         Normal    Pulled                    pod/cilium-tl4xr                                           Successfully pulled image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" in 17.159s (17.159s including waiting). Image size: 250480611 bytes.
+kube-system   59m         Normal    Pulled                    pod/cilium-tl4xr                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Created                   pod/cilium-tl4xr                                           Created container: mount-cgroup
+kube-system   59m         Normal    Started                   pod/cilium-tl4xr                                           Started container mount-cgroup
+kube-system   59m         Normal    Created                   pod/cilium-tl4xr                                           Created container: apply-sysctl-overwrites
+kube-system   59m         Normal    Started                   pod/cilium-tl4xr                                           Started container apply-sysctl-overwrites
+kube-system   59m         Normal    Pulled                    pod/cilium-tl4xr                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Pulled                    pod/cilium-tl4xr                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Created                   pod/cilium-tl4xr                                           Created container: mount-bpf-fs
+kube-system   59m         Normal    Created                   pod/cilium-tl4xr                                           Created container: clean-cilium-state
+kube-system   59m         Normal    Started                   pod/cilium-tl4xr                                           Started container clean-cilium-state
+kube-system   59m         Normal    Started                   pod/cilium-envoy-8hk8m                                     Started container cilium-envoy
+kube-system   59m         Normal    Created                   pod/cilium-envoy-8hk8m                                     Created container: cilium-envoy
+kube-system   59m         Normal    Pulled                    pod/cilium-envoy-8hk8m                                     Successfully pulled image "quay.io/cilium/cilium-envoy:v1.35.9-1770554954-8ce3bb4eca04188f4a0a1bfbd0a06a40f90883de@sha256:da85124deeb42c8e56e55e9e6e155740f5df00e1064759a244bc246c3addb45d" in 26.063s (26.063s including waiting). Image size: 77064915 bytes.
+kube-system   59m         Normal    Started                   pod/cilium-tl4xr                                           Started container mount-bpf-fs
+kube-system   59m         Normal    Pulled                    pod/cilium-tl4xr                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Started                   pod/cilium-tl4xr                                           Started container install-cni-binaries
+kube-system   59m         Normal    Started                   pod/cilium-envoy-2llwx                                     Started container cilium-envoy
+kube-system   59m         Normal    Created                   pod/cilium-envoy-2llwx                                     Created container: cilium-envoy
+kube-system   59m         Normal    Pulled                    pod/cilium-envoy-2llwx                                     Successfully pulled image "quay.io/cilium/cilium-envoy:v1.35.9-1770554954-8ce3bb4eca04188f4a0a1bfbd0a06a40f90883de@sha256:da85124deeb42c8e56e55e9e6e155740f5df00e1064759a244bc246c3addb45d" in 26.175s (26.175s including waiting). Image size: 77064915 bytes.
+monitoring    59m         Normal    Created                   pod/prometheus-prometheus-node-exporter-vwctc              Created container: node-exporter
+monitoring    59m         Normal    Started                   pod/prometheus-prometheus-node-exporter-vwctc              Started container node-exporter
+kube-system   59m         Normal    Pulled                    pod/cilium-tl4xr                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Created                   pod/cilium-tl4xr                                           Created container: install-cni-binaries
+monitoring    59m         Normal    Pulled                    pod/prometheus-prometheus-node-exporter-vwctc              Successfully pulled image "quay.io/prometheus/node-exporter:v1.8.0" in 25.942s (25.942s including waiting). Image size: 12039592 bytes.
+monitoring    59m         Normal    Created                   pod/prometheus-prometheus-node-exporter-7w79c              Created container: node-exporter
+kube-system   59m         Normal    Pulled                    pod/cilium-tl4xr                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Created                   pod/cilium-tl4xr                                           Created container: cilium-agent
+kube-system   59m         Normal    Started                   pod/cilium-tl4xr                                           Started container cilium-agent
+monitoring    59m         Normal    Pulled                    pod/prometheus-prometheus-node-exporter-7w79c              Successfully pulled image "quay.io/prometheus/node-exporter:v1.8.0" in 27.871s (27.871s including waiting). Image size: 12039592 bytes.
+monitoring    59m         Normal    Started                   pod/prometheus-prometheus-node-exporter-7w79c              Started container node-exporter
+default       59m         Normal    NodeReady                 node/ip-10-0-10-72.ap-southeast-1.compute.internal         Node ip-10-0-10-72.ap-southeast-1.compute.internal status is now: NodeReady
+kube-system   58m         Warning   Unhealthy                 pod/cilium-envoy-8hk8m                                     Startup probe failed: Get "http://127.0.0.1:9878/healthz": dial tcp 127.0.0.1:9878: connect: connection refused
+kube-system   59m         Normal    Pulled                    pod/cilium-operator-8c598ddf5-n2jpd                        Successfully pulled image "quay.io/cilium/operator-generic:v1.18.7@sha256:244306c5e7c6b73dc7193424f46ed8a0530767b03f03baac80dd717a3a3f0ad7" in 30.521s (30.521s including waiting). Image size: 32956456 bytes.
+kube-system   59m         Normal    Started                   pod/cilium-operator-8c598ddf5-n2jpd                        Started container cilium-operator
+kube-system   59m         Normal    Created                   pod/cilium-operator-8c598ddf5-n2jpd                        Created container: cilium-operator
+kube-system   58m         Warning   Unhealthy                 pod/cilium-envoy-2llwx                                     Startup probe failed: Get "http://127.0.0.1:9878/healthz": dial tcp 127.0.0.1:9878: connect: connection refused
+monitoring    59m         Normal    Scheduled                 pod/prometheus-kube-prometheus-operator-5bd97f6986-zf7b4   Successfully assigned monitoring/prometheus-kube-prometheus-operator-5bd97f6986-zf7b4 to ip-10-0-10-72.ap-southeast-1.compute.internal
+benchmark     59m         Normal    Scheduled                 pod/fortio-cf9999755-5h8nt                                 Successfully assigned benchmark/fortio-cf9999755-5h8nt to ip-10-0-10-72.ap-southeast-1.compute.internal
+monitoring    59m         Normal    Scheduled                 pod/prometheus-kube-state-metrics-7cdf9894f9-67vrk         Successfully assigned monitoring/prometheus-kube-state-metrics-7cdf9894f9-67vrk to ip-10-0-10-72.ap-southeast-1.compute.internal
+benchmark     59m         Normal    Scheduled                 pod/echo-ffc5c485d-gh84b                                   Successfully assigned benchmark/echo-ffc5c485d-gh84b to ip-10-0-10-72.ap-southeast-1.compute.internal
+kube-system   59m         Normal    Scheduled                 pod/coredns-7889d86cb8-h79c7                               Successfully assigned kube-system/coredns-7889d86cb8-h79c7 to ip-10-0-10-72.ap-southeast-1.compute.internal
+monitoring    59m         Normal    Scheduled                 pod/prometheus-grafana-5875d7786f-kjddx                    Successfully assigned monitoring/prometheus-grafana-5875d7786f-kjddx to ip-10-0-10-72.ap-southeast-1.compute.internal
+monitoring    59m         Normal    Scheduled                 pod/prometheus-prometheus-kube-prometheus-prometheus-0     Successfully assigned monitoring/prometheus-prometheus-kube-prometheus-prometheus-0 to ip-10-0-10-72.ap-southeast-1.compute.internal
+kube-system   59m         Normal    Pulling                   pod/coredns-7889d86cb8-h79c7                               Pulling image "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.13.2-eksbuild.4"
+monitoring    59m         Normal    Pulling                   pod/prometheus-prometheus-kube-prometheus-prometheus-0     Pulling image "quay.io/prometheus-operator/prometheus-config-reloader:v0.74.0"
+monitoring    59m         Normal    Pulling                   pod/prometheus-kube-prometheus-operator-5bd97f6986-zf7b4   Pulling image "quay.io/prometheus-operator/prometheus-operator:v0.74.0"
+benchmark     59m         Normal    Pulling                   pod/echo-ffc5c485d-gh84b                                   Pulling image "hashicorp/http-echo:1.0"
+benchmark     59m         Normal    Pulling                   pod/fortio-cf9999755-5h8nt                                 Pulling image "fortio/fortio:1.74.0"
+monitoring    59m         Normal    Pulling                   pod/prometheus-grafana-5875d7786f-kjddx                    Pulling image "quay.io/kiwigrid/k8s-sidecar:1.26.1"
+monitoring    59m         Normal    Pulling                   pod/prometheus-kube-state-metrics-7cdf9894f9-67vrk         Pulling image "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0"
+kube-system   59m         Normal    Created                   pod/coredns-7889d86cb8-h79c7                               Created container: coredns
+kube-system   59m         Normal    Started                   pod/coredns-7889d86cb8-h79c7                               Started container coredns
+kube-system   59m         Normal    Pulled                    pod/coredns-7889d86cb8-h79c7                               Successfully pulled image "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.13.2-eksbuild.4" in 2.59s (2.59s including waiting). Image size: 25994393 bytes.
+monitoring    59m         Normal    Started                   pod/prometheus-prometheus-kube-prometheus-prometheus-0     Started container init-config-reloader
+monitoring    59m         Normal    Created                   pod/prometheus-prometheus-kube-prometheus-prometheus-0     Created container: init-config-reloader
+monitoring    59m         Normal    Pulled                    pod/prometheus-prometheus-kube-prometheus-prometheus-0     Successfully pulled image "quay.io/prometheus-operator/prometheus-config-reloader:v0.74.0" in 5.394s (5.394s including waiting). Image size: 14015494 bytes.
+monitoring    59m         Normal    Created                   pod/prometheus-kube-prometheus-operator-5bd97f6986-zf7b4   Created container: kube-prometheus-stack
+monitoring    59m         Normal    Started                   pod/prometheus-kube-prometheus-operator-5bd97f6986-zf7b4   Started container kube-prometheus-stack
+monitoring    59m         Normal    Pulled                    pod/prometheus-kube-prometheus-operator-5bd97f6986-zf7b4   Successfully pulled image "quay.io/prometheus-operator/prometheus-operator:v0.74.0" in 6.255s (6.255s including waiting). Image size: 17110567 bytes.
+monitoring    59m         Normal    Pulled                    pod/prometheus-kube-state-metrics-7cdf9894f9-67vrk         Successfully pulled image "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0" in 5.533s (5.533s including waiting). Image size: 13702190 bytes.
+monitoring    59m         Normal    Created                   pod/prometheus-kube-state-metrics-7cdf9894f9-67vrk         Created container: kube-state-metrics
+monitoring    59m         Normal    Started                   pod/prometheus-kube-state-metrics-7cdf9894f9-67vrk         Started container kube-state-metrics
+benchmark     59m         Normal    Pulled                    pod/echo-ffc5c485d-gh84b                                   Successfully pulled image "hashicorp/http-echo:1.0" in 7.051s (7.051s including waiting). Image size: 4631705 bytes.
+benchmark     59m         Normal    Created                   pod/echo-ffc5c485d-gh84b                                   Created container: echo
+benchmark     59m         Normal    Started                   pod/echo-ffc5c485d-gh84b                                   Started container echo
+monitoring    59m         Normal    Pulling                   pod/prometheus-prometheus-kube-prometheus-prometheus-0     Pulling image "quay.io/prometheus/prometheus:v2.52.0"
+kube-system   59m         Normal    Pulled                    pod/cilium-6dt5x                                           Successfully pulled image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" in 44.944s (44.945s including waiting). Image size: 250480611 bytes.
+benchmark     59m         Normal    Created                   pod/fortio-cf9999755-5h8nt                                 Created container: fortio
+kube-system   59m         Normal    Started                   pod/cilium-p7tcv                                           Started container config
+kube-system   59m         Normal    Started                   pod/cilium-6dt5x                                           Started container config
+kube-system   59m         Normal    Created                   pod/cilium-6dt5x                                           Created container: config
+benchmark     59m         Normal    Pulled                    pod/fortio-cf9999755-5h8nt                                 Successfully pulled image "fortio/fortio:1.74.0" in 7.918s (7.918s including waiting). Image size: 7520463 bytes.
+kube-system   59m         Normal    Created                   pod/cilium-p7tcv                                           Created container: config
+kube-system   59m         Normal    Pulled                    pod/cilium-p7tcv                                           Successfully pulled image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" in 44.091s (44.091s including waiting). Image size: 250480611 bytes.
+benchmark     59m         Normal    Started                   pod/fortio-cf9999755-5h8nt                                 Started container fortio
+monitoring    59m         Normal    Pulled                    pod/prometheus-grafana-5875d7786f-kjddx                    Successfully pulled image "quay.io/kiwigrid/k8s-sidecar:1.26.1" in 8.047s (8.047s including waiting). Image size: 23978952 bytes.
+monitoring    59m         Normal    Started                   pod/prometheus-grafana-5875d7786f-kjddx                    Started container grafana-sc-datasources
+monitoring    59m         Normal    Created                   pod/prometheus-grafana-5875d7786f-kjddx                    Created container: grafana-sc-dashboard
+monitoring    59m         Normal    Pulling                   pod/prometheus-grafana-5875d7786f-kjddx                    Pulling image "docker.io/grafana/grafana:11.0.0"
+monitoring    59m         Normal    Created                   pod/prometheus-grafana-5875d7786f-kjddx                    Created container: grafana-sc-datasources
+monitoring    59m         Normal    Pulled                    pod/prometheus-grafana-5875d7786f-kjddx                    Container image "quay.io/kiwigrid/k8s-sidecar:1.26.1" already present on machine
+monitoring    59m         Normal    Started                   pod/prometheus-grafana-5875d7786f-kjddx                    Started container grafana-sc-dashboard
+kube-system   59m         Normal    Pulled                    pod/cilium-p7tcv                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Created                   pod/cilium-p7tcv                                           Created container: mount-cgroup
+kube-system   59m         Normal    Pulled                    pod/cilium-6dt5x                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Created                   pod/cilium-6dt5x                                           Created container: mount-cgroup
+kube-system   59m         Normal    Started                   pod/cilium-p7tcv                                           Started container mount-cgroup
+kube-system   59m         Normal    Pulled                    pod/cilium-6dt5x                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Started                   pod/cilium-p7tcv                                           Started container apply-sysctl-overwrites
+kube-system   59m         Normal    Started                   pod/cilium-6dt5x                                           Started container mount-cgroup
+kube-system   59m         Normal    Created                   pod/cilium-6dt5x                                           Created container: apply-sysctl-overwrites
+kube-system   59m         Normal    Pulled                    pod/cilium-p7tcv                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Created                   pod/cilium-p7tcv                                           Created container: apply-sysctl-overwrites
+kube-system   59m         Normal    Started                   pod/cilium-6dt5x                                           Started container apply-sysctl-overwrites
+kube-system   59m         Normal    Pulled                    pod/cilium-6dt5x                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Created                   pod/cilium-6dt5x                                           Created container: mount-bpf-fs
+kube-system   59m         Normal    Started                   pod/cilium-p7tcv                                           Started container mount-bpf-fs
+kube-system   59m         Normal    Created                   pod/cilium-p7tcv                                           Created container: mount-bpf-fs
+kube-system   59m         Normal    Pulled                    pod/cilium-p7tcv                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Created                   pod/cilium-6dt5x                                           Created container: clean-cilium-state
+kube-system   59m         Normal    Started                   pod/cilium-p7tcv                                           Started container clean-cilium-state
+kube-system   59m         Normal    Created                   pod/cilium-p7tcv                                           Created container: clean-cilium-state
+kube-system   59m         Normal    Pulled                    pod/cilium-6dt5x                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Started                   pod/cilium-6dt5x                                           Started container mount-bpf-fs
+kube-system   59m         Normal    Pulled                    pod/cilium-p7tcv                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   58m         Normal    Pulled                    pod/cilium-6dt5x                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   58m         Normal    Created                   pod/cilium-6dt5x                                           Created container: install-cni-binaries
+monitoring    58m         Normal    Created                   pod/prometheus-prometheus-kube-prometheus-prometheus-0     Created container: config-reloader
+monitoring    58m         Normal    Pulled                    pod/prometheus-prometheus-kube-prometheus-prometheus-0     Container image "quay.io/prometheus-operator/prometheus-config-reloader:v0.74.0" already present on machine
+monitoring    58m         Normal    Started                   pod/prometheus-prometheus-kube-prometheus-prometheus-0     Started container prometheus
+kube-system   58m         Normal    Pulled                    pod/cilium-p7tcv                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   58m         Normal    Created                   pod/cilium-p7tcv                                           Created container: install-cni-binaries
+kube-system   58m         Normal    Started                   pod/cilium-p7tcv                                           Started container install-cni-binaries
+monitoring    58m         Normal    Created                   pod/prometheus-prometheus-kube-prometheus-prometheus-0     Created container: prometheus
+monitoring    58m         Normal    Pulled                    pod/prometheus-prometheus-kube-prometheus-prometheus-0     Successfully pulled image "quay.io/prometheus/prometheus:v2.52.0" in 10.312s (10.312s including waiting). Image size: 107216079 bytes.
+kube-system   58m         Normal    Started                   pod/cilium-6dt5x                                           Started container clean-cilium-state
+kube-system   58m         Normal    Started                   pod/cilium-6dt5x                                           Started container install-cni-binaries
+kube-system   58m         Normal    Pulled                    pod/cilium-6dt5x                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   58m         Normal    Pulled                    pod/cilium-p7tcv                                           Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   58m         Normal    Created                   pod/cilium-p7tcv                                           Created container: cilium-agent
+kube-system   58m         Normal    Started                   pod/cilium-p7tcv                                           Started container cilium-agent
+monitoring    58m         Normal    Started                   pod/prometheus-prometheus-kube-prometheus-prometheus-0     Started container config-reloader
+kube-system   58m         Normal    Created                   pod/cilium-6dt5x                                           Created container: cilium-agent
+default       58m         Normal    NodeReady                 node/ip-10-0-10-206.ap-southeast-1.compute.internal        Node ip-10-0-10-206.ap-southeast-1.compute.internal status is now: NodeReady
+default       58m         Normal    NodeReady                 node/ip-10-0-10-244.ap-southeast-1.compute.internal        Node ip-10-0-10-244.ap-southeast-1.compute.internal status is now: NodeReady
+kube-system   58m         Normal    Started                   pod/cilium-6dt5x                                           Started container cilium-agent
+kube-system   58m         Normal    Scheduled                 pod/coredns-7889d86cb8-qng5b                               Successfully assigned kube-system/coredns-7889d86cb8-qng5b to ip-10-0-10-72.ap-southeast-1.compute.internal
+monitoring    58m         Normal    Created                   pod/prometheus-grafana-5875d7786f-kjddx                    Created container: grafana
+monitoring    58m         Normal    Pulled                    pod/prometheus-grafana-5875d7786f-kjddx                    Successfully pulled image "docker.io/grafana/grafana:11.0.0" in 13.158s (13.158s including waiting). Image size: 120709951 bytes.
+kube-system   58m         Normal    SuccessfulCreate          replicaset/coredns-7889d86cb8                              Created pod: coredns-7889d86cb8-qng5b
+kube-system   58m         Normal    ScalingReplicaSet         deployment/coredns                                         Scaled up replica set coredns-7889d86cb8 from 1 to 2
+kube-system   58m         Normal    Created                   pod/coredns-7889d86cb8-qng5b                               Created container: coredns
+monitoring    58m         Warning   Unhealthy                 pod/prometheus-grafana-5875d7786f-kjddx                    Readiness probe failed: Get "http://10.96.0.233:3000/api/health": dial tcp 10.96.0.233:3000: connect: connection refused
+kube-system   58m         Normal    Pulled                    pod/coredns-7889d86cb8-qng5b                               Container image "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.13.2-eksbuild.4" already present on machine
+monitoring    58m         Normal    Started                   pod/prometheus-grafana-5875d7786f-kjddx                    Started container grafana
+kube-system   58m         Normal    Started                   pod/coredns-7889d86cb8-qng5b                               Started container coredns
+benchmark     34m         Normal    Scheduled                 pod/fortio-cf9999755-fs7vv                                 Successfully assigned benchmark/fortio-cf9999755-fs7vv to ip-10-0-10-72.ap-southeast-1.compute.internal
+benchmark     34m         Normal    SuccessfulCreate          replicaset/fortio-cf9999755                                Created pod: fortio-cf9999755-fs7vv
+benchmark     34m         Normal    Killing                   pod/fortio-cf9999755-5h8nt                                 Stopping container fortio
+benchmark     34m         Normal    Created                   pod/fortio-cf9999755-fs7vv                                 Created container: fortio
+benchmark     34m         Normal    Pulled                    pod/fortio-cf9999755-fs7vv                                 Container image "fortio/fortio:1.74.0" already present on machine
+benchmark     34m         Normal    Started                   pod/fortio-cf9999755-fs7vv                                 Started container fortio
+benchmark     12m         Normal    SuccessfulCreate          replicaset/fortio-cf9999755                                Created pod: fortio-cf9999755-5gdv8
+benchmark     12m         Normal    Killing                   pod/fortio-cf9999755-fs7vv                                 Stopping container fortio
+benchmark     12m         Normal    Scheduled                 pod/fortio-cf9999755-5gdv8                                 Successfully assigned benchmark/fortio-cf9999755-5gdv8 to ip-10-0-10-72.ap-southeast-1.compute.internal
+benchmark     12m         Normal    Started                   pod/fortio-cf9999755-5gdv8                                 Started container fortio
+benchmark     12m         Normal    Created                   pod/fortio-cf9999755-5gdv8                                 Created container: fortio
+benchmark     12m         Normal    Pulled                    pod/fortio-cf9999755-5gdv8                                 Container image "fortio/fortio:1.74.0" already present on machine

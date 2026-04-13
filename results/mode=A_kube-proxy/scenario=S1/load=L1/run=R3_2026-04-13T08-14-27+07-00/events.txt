@@ -1,0 +1,22 @@
+NAMESPACE     LAST SEEN   TYPE      REASON             OBJECT                                                     MESSAGE
+kube-system   64m         Warning   FailedScheduling   pod/cilium-operator-8c598ddf5-n2jpd                        no nodes available to schedule pods
+kube-system   64m         Warning   FailedScheduling   pod/cilium-operator-8c598ddf5-94j9j                        no nodes available to schedule pods
+monitoring    64m         Warning   FailedScheduling   pod/prometheus-prometheus-kube-prometheus-prometheus-0     no nodes available to schedule pods
+monitoring    64m         Warning   FailedScheduling   pod/prometheus-kube-state-metrics-7cdf9894f9-67vrk         no nodes available to schedule pods
+monitoring    64m         Warning   FailedScheduling   pod/prometheus-kube-prometheus-operator-5bd97f6986-zf7b4   no nodes available to schedule pods
+benchmark     64m         Warning   FailedScheduling   pod/fortio-cf9999755-5h8nt                                 no nodes available to schedule pods
+monitoring    64m         Warning   FailedScheduling   pod/prometheus-grafana-5875d7786f-kjddx                    no nodes available to schedule pods
+kube-system   64m         Warning   FailedScheduling   pod/coredns-7889d86cb8-h79c7                               no nodes available to schedule pods
+benchmark     64m         Warning   FailedScheduling   pod/echo-ffc5c485d-gh84b                                   no nodes available to schedule pods
+benchmark     39m         Normal    Killing            pod/fortio-cf9999755-5h8nt                                 Stopping container fortio
+benchmark     39m         Normal    Scheduled          pod/fortio-cf9999755-fs7vv                                 Successfully assigned benchmark/fortio-cf9999755-fs7vv to ip-10-0-10-72.ap-southeast-1.compute.internal
+benchmark     39m         Normal    SuccessfulCreate   replicaset/fortio-cf9999755                                Created pod: fortio-cf9999755-fs7vv
+benchmark     39m         Normal    Created            pod/fortio-cf9999755-fs7vv                                 Created container: fortio
+benchmark     39m         Normal    Pulled             pod/fortio-cf9999755-fs7vv                                 Container image "fortio/fortio:1.74.0" already present on machine
+benchmark     39m         Normal    Started            pod/fortio-cf9999755-fs7vv                                 Started container fortio
+benchmark     17m         Normal    Scheduled          pod/fortio-cf9999755-5gdv8                                 Successfully assigned benchmark/fortio-cf9999755-5gdv8 to ip-10-0-10-72.ap-southeast-1.compute.internal
+benchmark     17m         Normal    Killing            pod/fortio-cf9999755-fs7vv                                 Stopping container fortio
+benchmark     17m         Normal    SuccessfulCreate   replicaset/fortio-cf9999755                                Created pod: fortio-cf9999755-5gdv8
+benchmark     17m         Normal    Started            pod/fortio-cf9999755-5gdv8                                 Started container fortio
+benchmark     17m         Normal    Created            pod/fortio-cf9999755-5gdv8                                 Created container: fortio
+benchmark     17m         Normal    Pulled             pod/fortio-cf9999755-5gdv8                                 Container image "fortio/fortio:1.74.0" already present on machine

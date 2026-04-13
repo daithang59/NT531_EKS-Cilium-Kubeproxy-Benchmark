@@ -1,0 +1,133 @@
+[
+  {
+    "endpointSelector": {
+      "matchLabels": {
+        "any:app": "echo",
+        "k8s:io.kubernetes.pod.namespace": "benchmark"
+      }
+    },
+    "ingress": [
+      {
+        "fromEndpoints": [
+          {
+            "matchLabels": {
+              "any:app": "fortio",
+              "k8s:io.kubernetes.pod.namespace": "benchmark"
+            }
+          }
+        ],
+        "toPorts": [
+          {
+            "ports": [
+              {
+                "port": "5678",
+                "protocol": "TCP"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "labels": [
+      {
+        "key": "io.cilium.k8s.policy.derived-from",
+        "value": "CiliumNetworkPolicy",
+        "source": "k8s"
+      },
+      {
+        "key": "io.cilium.k8s.policy.name",
+        "value": "allow-fortio-to-echo",
+        "source": "k8s"
+      },
+      {
+        "key": "io.cilium.k8s.policy.namespace",
+        "value": "benchmark",
+        "source": "k8s"
+      },
+      {
+        "key": "io.cilium.k8s.policy.uid",
+        "value": "4b2a4476-e155-42a0-977e-a37e8a8b7f18",
+        "source": "k8s"
+      }
+    ],
+    "enableDefaultDeny": {
+      "ingress": true,
+      "egress": false
+    }
+  },
+  {
+    "endpointSelector": {
+      "matchLabels": {
+        "any:app": "echo",
+        "k8s:io.kubernetes.pod.namespace": "benchmark"
+      }
+    },
+    "egress": [
+      {
+        "toEndpoints": [
+          {
+            "matchLabels": {
+              "k8s:io.kubernetes.pod.namespace": "benchmark"
+            }
+          }
+        ],
+        "toPorts": [
+          {
+            "ports": [
+              {
+                "port": "53",
+                "protocol": "UDP"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "toEndpoints": [
+          {
+            "matchLabels": {
+              "k8s:io.kubernetes.pod.namespace": "benchmark"
+            }
+          }
+        ],
+        "toPorts": [
+          {
+            "ports": [
+              {
+                "port": "53",
+                "protocol": "TCP"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "labels": [
+      {
+        "key": "io.cilium.k8s.policy.derived-from",
+        "value": "CiliumNetworkPolicy",
+        "source": "k8s"
+      },
+      {
+        "key": "io.cilium.k8s.policy.name",
+        "value": "deny-all-to-echo",
+        "source": "k8s"
+      },
+      {
+        "key": "io.cilium.k8s.policy.namespace",
+        "value": "benchmark",
+        "source": "k8s"
+      },
+      {
+        "key": "io.cilium.k8s.policy.uid",
+        "value": "7de39313-0a1a-450e-ba8b-6fc47836078a",
+        "source": "k8s"
+      }
+    ],
+    "enableDefaultDeny": {
+      "ingress": false,
+      "egress": true
+    }
+  }
+]
+Revision: 11

@@ -28,7 +28,7 @@
 kubeProxyReplacement: true
 
 # ← CẬP NHẬT EKS API endpoint mỗi lần chạy Mode B sau terraform apply
-k8sServiceHost: "472A12F53EF9ACDEC758451AF350C0D6.gr7.ap-southeast-1.eks.amazonaws.com"
+k8sServiceHost: "8E57874E8F7C2154EC6DA09DEAD405F4.gr7.ap-southeast-1.eks.amazonaws.com"
 k8sServicePort: 443
 
 eks:
@@ -63,33 +63,41 @@ hubble:
     enabled: true
     # Một relay replica là đủ cho 3-node benchmark cluster
     replicas: 1
-    # Anti-affinity: buộc relay pod chạy cùng node với cilium-agent
-    # → đảm bảo relay luôn nhận ENI IP (10.0.x.x), không giữ cluster-pool IP cũ
+    # Anti-affinity: ưu tiên relay pod chạy cùng node với cilium-agent
+    # Dùng preferred (weight=100) thay vì required để tránh conflict khi 3 cilium pods
+    # chiếm hết 3 nodes → hubble relay/ui không có chỗ schedule.
+    # Scheduler sẽ cố gắng đặt relay cùng node cilium, nhưng nếu không được sẽ fallback.
     affinity:
       podAntiAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-                - key: k8s-app
-                  operator: In
-                  values:
-                    - cilium
-            topologyKey: kubernetes.io/hostname
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: k8s-app
+                    operator: In
+                    values:
+                      - cilium
+              topologyKey: kubernetes.io/hostname
     tolerations:
       - operator: Exists
   ui:
     enabled: true
-    # Hubble UI cũng cần ENI IP — same affinity treatment
+    # Hubble UI: same preferred anti-affinity
+    # (Không bắt buộc cùng node vì hubble relay là nơi collect flows chính,
+    # UI chỉ kết nối tới relay, không cần ENI IP trực tiếp.)
     affinity:
       podAntiAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-                - key: k8s-app
-                  operator: In
-                  values:
-                    - cilium
-            topologyKey: kubernetes.io/hostname
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                  - key: k8s-app
+                    operator: In
+                    values:
+                      - cilium
+              topologyKey: kubernetes.io/hostname
     tolerations:
       - operator: Exists
 

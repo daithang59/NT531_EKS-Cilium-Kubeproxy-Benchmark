@@ -1,0 +1,85 @@
+NAMESPACE     LAST SEEN   TYPE      REASON             OBJECT                                                         MESSAGE
+kube-system   14m         Normal    Killing            pod/hubble-relay-7cf68b958c-2lhv6                              Container hubble-relay failed startup probe, will be restarted
+kube-system   18s         Normal    Pulled             pod/hubble-relay-7cf68b958c-2lhv6                              Container image "quay.io/cilium/hubble-relay:v1.18.7@sha256:9bb9b2b1a4f4bef12a77738756cfbf970daa701e536e42f0a9c64a621bc7c9d5" already present on machine
+kube-system   3m54s       Warning   BackOff            pod/hubble-relay-7cf68b958c-2lhv6                              Back-off restarting failed container hubble-relay in pod hubble-relay-7cf68b958c-2lhv6_kube-system(f15fac60-33cb-49e9-ab49-ccc9114cbbc0)
+kube-system   2m21s       Warning   Unhealthy          pod/hubble-ui-576dcd986f-9bpbs                                 Readiness probe failed: Get "http://10.96.1.230:8081/": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring    16m         Warning   Unhealthy          pod/prometheus-grafana-5875d7786f-fppqk                        Readiness probe failed: Get "http://10.96.0.171:3000/api/health": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+kube-system   56m         Normal    Killing            pod/hubble-ui-576dcd986f-9bpbs                                 Container frontend failed liveness probe, will be restarted
+kube-system   3m13s       Normal    Pulled             pod/hubble-ui-576dcd986f-9bpbs                                 Container image "quay.io/cilium/hubble-ui:v0.13.3@sha256:661d5de7050182d495c6497ff0b007a7a1e379648e60830dd68c4d78ae21761d" already present on machine
+monitoring    16m         Normal    Created            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Created container: prometheus
+monitoring    16m         Normal    Started            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Started container prometheus
+monitoring    16m         Normal    Pulled             pod/prometheus-prometheus-kube-prometheus-prometheus-0         Container image "quay.io/prometheus/prometheus:v2.52.0" already present on machine
+monitoring    60m         Normal    Created            pod/prometheus-kube-state-metrics-7cdf9894f9-xqqxh             Created container: kube-state-metrics
+monitoring    60m         Normal    Started            pod/prometheus-kube-state-metrics-7cdf9894f9-xqqxh             Started container kube-state-metrics
+monitoring    24m         Normal    Pulled             pod/prometheus-kube-state-metrics-7cdf9894f9-xqqxh             Container image "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0" already present on machine
+monitoring    7m4s        Warning   Unhealthy          pod/prometheus-prometheus-kube-prometheus-prometheus-0         Startup probe failed: Get "http://10.96.0.201:9090/-/ready": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring    7m2s        Warning   Unhealthy          pod/prometheus-grafana-5875d7786f-fppqk                        Liveness probe failed: Get "http://10.96.0.171:3000/api/health": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring    26m         Warning   BackOff            pod/prometheus-kube-state-metrics-7cdf9894f9-xqqxh             Back-off restarting failed container kube-state-metrics in pod prometheus-kube-state-metrics-7cdf9894f9-xqqxh_monitoring(1bd6fda7-402e-40a4-93c6-bdfa49ecb66b)
+kube-system   14m         Warning   Unhealthy          pod/hubble-relay-7cf68b958c-2lhv6                              Startup probe failed: timeout: failed to connect service "10.96.1.123:4222" within 1s: context deadline exceeded
+monitoring    30m         Normal    Created            pod/prometheus-grafana-5875d7786f-fppqk                        Created container: grafana
+monitoring    30m         Normal    Started            pod/prometheus-grafana-5875d7786f-fppqk                        Started container grafana
+monitoring    12m         Normal    Pulled             pod/prometheus-grafana-5875d7786f-fppqk                        Container image "docker.io/grafana/grafana:11.0.0" already present on machine
+monitoring    6m2s        Normal    Killing            pod/prometheus-grafana-5875d7786f-fppqk                        Container grafana failed liveness probe, will be restarted
+kube-system   7m13s       Warning   BackOff            pod/hubble-ui-576dcd986f-9bpbs                                 Back-off restarting failed container frontend in pod hubble-ui-576dcd986f-9bpbs_kube-system(b19ca7ec-22a0-454e-b4b6-8511b883cd32)
+monitoring    16m         Normal    Killing            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Container prometheus failed startup probe, will be restarted
+benchmark     53m         Normal    Killing            pod/echo-6b966c8588-klgn7                                      Stopping container echo
+benchmark     53m         Normal    SuccessfulCreate   replicaset/echo-6b966c8588                                     Created pod: echo-6b966c8588-kq9vt
+benchmark     53m         Normal    SuccessfulCreate   replicaset/fortio-86dcc7d967                                   Created pod: fortio-86dcc7d967-7sprp
+benchmark     53m         Normal    Scheduled          pod/fortio-86dcc7d967-7sprp                                    Successfully assigned benchmark/fortio-86dcc7d967-7sprp to ip-10-0-10-178.ap-southeast-1.compute.internal
+benchmark     53m         Normal    Killing            pod/fortio-86dcc7d967-rtdf5                                    Stopping container fortio
+benchmark     53m         Normal    Scheduled          pod/echo-6b966c8588-kq9vt                                      Successfully assigned benchmark/echo-6b966c8588-kq9vt to ip-10-0-10-178.ap-southeast-1.compute.internal
+benchmark     53m         Normal    Pulling            pod/fortio-86dcc7d967-7sprp                                    Pulling image "fortio/fortio:1.74.0"
+benchmark     53m         Normal    Pulling            pod/echo-6b966c8588-kq9vt                                      Pulling image "hashicorp/http-echo:1.0"
+benchmark     53m         Normal    Started            pod/fortio-86dcc7d967-7sprp                                    Started container fortio
+benchmark     53m         Normal    Created            pod/echo-6b966c8588-kq9vt                                      Created container: echo
+benchmark     53m         Normal    Started            pod/echo-6b966c8588-kq9vt                                      Started container echo
+benchmark     53m         Normal    Pulled             pod/echo-6b966c8588-kq9vt                                      Successfully pulled image "hashicorp/http-echo:1.0" in 5.158s (5.158s including waiting). Image size: 4631705 bytes.
+benchmark     53m         Normal    Created            pod/fortio-86dcc7d967-7sprp                                    Created container: fortio
+benchmark     53m         Normal    Pulled             pod/fortio-86dcc7d967-7sprp                                    Successfully pulled image "fortio/fortio:1.74.0" in 5.289s (5.289s including waiting). Image size: 7520463 bytes.
+monitoring    22m         Normal    Pulling            pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z             Pulling image "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0"
+monitoring    22m         Normal    SuccessfulCreate   replicaset/prometheus-kube-state-metrics-7cdf9894f9            Created pod: prometheus-kube-state-metrics-7cdf9894f9-pz47z
+monitoring    22m         Normal    Scheduled          pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z             Successfully assigned monitoring/prometheus-kube-state-metrics-7cdf9894f9-pz47z to ip-10-0-10-104.ap-southeast-1.compute.internal
+monitoring    8m16s       Normal    Started            pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z             Started container kube-state-metrics
+monitoring    2m39s       Normal    Created            pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z             Created container: kube-state-metrics
+monitoring    22m         Normal    Pulled             pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z             Successfully pulled image "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0" in 1.866s (1.866s including waiting). Image size: 13702190 bytes.
+monitoring    2m25s       Warning   Unhealthy          pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z             Liveness probe failed: Get "http://10.0.10.247:8080/healthz": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring    20m         Warning   Unhealthy          pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z             Readiness probe failed: Get "http://10.0.10.247:8080/": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring    2m39s       Normal    Pulled             pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z             Container image "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0" already present on machine
+monitoring    7m32s       Warning   BackOff            pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z             Back-off restarting failed container kube-state-metrics in pod prometheus-kube-state-metrics-7cdf9894f9-pz47z_monitoring(8aef6b18-48f3-480b-a3f5-f4c8fa38716b)
+monitoring    16m         Normal    Killing            pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z             Container kube-state-metrics failed liveness probe, will be restarted
+monitoring    3m53s       Normal    SuccessfulCreate   replicaset/prometheus-grafana-5875d7786f                       Created pod: prometheus-grafana-5875d7786f-xtnj7
+monitoring    3m52s       Normal    Pulling            pod/prometheus-grafana-5875d7786f-xtnj7                        Pulling image "quay.io/kiwigrid/k8s-sidecar:1.26.1"
+monitoring    3m52s       Normal    Scheduled          pod/prometheus-grafana-5875d7786f-xtnj7                        Successfully assigned monitoring/prometheus-grafana-5875d7786f-xtnj7 to ip-10-0-10-104.ap-southeast-1.compute.internal
+monitoring    3m51s       Normal    SuccessfulCreate   replicaset/prometheus-kube-prometheus-operator-5bd97f6986      Created pod: prometheus-kube-prometheus-operator-5bd97f6986-vf27j
+monitoring    3m51s       Normal    Scheduled          pod/prometheus-kube-prometheus-operator-5bd97f6986-vf27j       Successfully assigned monitoring/prometheus-kube-prometheus-operator-5bd97f6986-vf27j to ip-10-0-10-39.ap-southeast-1.compute.internal
+monitoring    3m51s       Normal    Killing            pod/prometheus-kube-prometheus-operator-5bd97f6986-kgw4x       Stopping container kube-prometheus-stack
+monitoring    26s         Normal    Started            pod/prometheus-kube-prometheus-operator-5bd97f6986-vf27j       Started container kube-prometheus-stack
+monitoring    26s         Normal    Created            pod/prometheus-kube-prometheus-operator-5bd97f6986-vf27j       Created container: kube-prometheus-stack
+monitoring    26s         Normal    Pulled             pod/prometheus-kube-prometheus-operator-5bd97f6986-vf27j       Container image "quay.io/prometheus-operator/prometheus-operator:v0.74.0" already present on machine
+monitoring    3m49s       Normal    Killing            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Stopping container prometheus
+monitoring    3m49s       Normal    Killing            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Stopping container config-reloader
+monitoring    3m48s       Normal    SuccessfulCreate   statefulset/prometheus-prometheus-kube-prometheus-prometheus   create Pod prometheus-prometheus-kube-prometheus-prometheus-0 in StatefulSet prometheus-prometheus-kube-prometheus-prometheus successful
+monitoring    3m48s       Normal    Scheduled          pod/prometheus-prometheus-kube-prometheus-prometheus-0         Successfully assigned monitoring/prometheus-prometheus-kube-prometheus-prometheus-0 to ip-10-0-10-39.ap-southeast-1.compute.internal
+monitoring    3m47s       Normal    Pulled             pod/prometheus-prometheus-kube-prometheus-prometheus-0         Container image "quay.io/prometheus/prometheus:v2.52.0" already present on machine
+monitoring    3m47s       Normal    Pulling            pod/prometheus-grafana-5875d7786f-xtnj7                        Pulling image "docker.io/grafana/grafana:11.0.0"
+monitoring    3m47s       Normal    Pulled             pod/prometheus-grafana-5875d7786f-xtnj7                        Container image "quay.io/kiwigrid/k8s-sidecar:1.26.1" already present on machine
+monitoring    3m47s       Normal    Started            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Started container config-reloader
+monitoring    3m47s       Normal    Started            pod/prometheus-grafana-5875d7786f-xtnj7                        Started container grafana-sc-dashboard
+monitoring    3m47s       Normal    Created            pod/prometheus-grafana-5875d7786f-xtnj7                        Created container: grafana-sc-dashboard
+monitoring    3m47s       Normal    Pulled             pod/prometheus-grafana-5875d7786f-xtnj7                        Successfully pulled image "quay.io/kiwigrid/k8s-sidecar:1.26.1" in 4.574s (4.574s including waiting). Image size: 23978952 bytes.
+monitoring    3m47s       Normal    Created            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Created container: config-reloader
+monitoring    3m47s       Normal    Pulled             pod/prometheus-prometheus-kube-prometheus-prometheus-0         Container image "quay.io/prometheus-operator/prometheus-config-reloader:v0.74.0" already present on machine
+monitoring    3m47s       Normal    Started            pod/prometheus-grafana-5875d7786f-xtnj7                        Started container grafana-sc-datasources
+monitoring    3m47s       Normal    Started            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Started container prometheus
+monitoring    3m47s       Normal    Created            pod/prometheus-grafana-5875d7786f-xtnj7                        Created container: grafana-sc-datasources
+monitoring    3m47s       Normal    Pulled             pod/prometheus-prometheus-kube-prometheus-prometheus-0         Container image "quay.io/prometheus-operator/prometheus-config-reloader:v0.74.0" already present on machine
+monitoring    3m47s       Normal    Created            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Created container: init-config-reloader
+monitoring    3m47s       Normal    Started            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Started container init-config-reloader
+monitoring    3m47s       Normal    Created            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Created container: prometheus
+monitoring    3m38s       Normal    Pulled             pod/prometheus-grafana-5875d7786f-xtnj7                        Successfully pulled image "docker.io/grafana/grafana:11.0.0" in 9.375s (9.376s including waiting). Image size: 120709951 bytes.
+monitoring    3m38s       Normal    Created            pod/prometheus-grafana-5875d7786f-xtnj7                        Created container: grafana
+monitoring    3m37s       Normal    Started            pod/prometheus-grafana-5875d7786f-xtnj7                        Started container grafana
+monitoring    35s         Warning   Unhealthy          pod/prometheus-grafana-5875d7786f-xtnj7                        Readiness probe failed: Get "http://10.0.10.122:3000/api/health": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring    15s         Warning   Unhealthy          pod/prometheus-prometheus-kube-prometheus-prometheus-0         Startup probe failed: Get "http://10.0.10.57:9090/-/ready": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring    37s         Warning   BackOff            pod/prometheus-kube-prometheus-operator-5bd97f6986-vf27j       Back-off restarting failed container kube-prometheus-stack in pod prometheus-kube-prometheus-operator-5bd97f6986-vf27j_monitoring(18646a26-3244-4d24-a14d-9baa3f7c0190)
+monitoring    32s         Warning   Unhealthy          pod/prometheus-grafana-5875d7786f-xtnj7                        Liveness probe failed: Get "http://10.0.10.122:3000/api/health": context deadline exceeded (Client.Timeout exceeded while awaiting headers)

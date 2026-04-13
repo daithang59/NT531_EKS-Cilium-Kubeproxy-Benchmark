@@ -249,35 +249,61 @@ check_cluster_dns() {
 }
 
 # run_fortio <outdir> [extra_fortio_flags...]
-# Runs warmup + measurement; output goes to <outdir>/bench.log
+# Runs warmup + measurement; writes <outdir>/bench.log and <outdir>/fortio.json.
+#
+# FIX (wsarecv race): kubectl exec streaming over SSH/WebSocket on Windows is
+# unreliable — the connection gets forcibly closed just as Fortio finishes and
+# writes its JSON summary, causing JSON to be lost mid-stream.
+#
+# Strategy: Delegate to run_fortio_rest.py (same approach as S2/S3).
+# The Python script uses subprocess.run(capture_output=True) to capture the REST
+# response body in-memory — no shell pipes, no streaming truncation.
 run_fortio() {
   local outdir="$1"; shift
-  local extra_flags=("$@")
-  local pod
-  pod="$(fortio_pod)"
+  local extra_flags=("$@")  # currently unused; reserved for future flags
 
-  # NOTE: --request-timeout=0 prevents kubectl client from killing exec after 60s.
-  # Fortio benchmarks (up to 180s) must complete fully to capture valid data.
-  local _pod
-  _pod="$(fortio_pod)"
   echo "[INFO] Warmup ${WARMUP_SEC}s @ QPS=${BENCH_QPS} CONNS=${BENCH_CONNS}"
-  kubectl -n "${NS}" exec "${_pod}" --request-timeout=0 -- \
-    fortio load \
-      -qps "${BENCH_QPS}" \
-      -c "${BENCH_CONNS}" \
-      -t "${WARMUP_SEC}s" \
-      "${extra_flags[@]+"${extra_flags[@]}"}" \
-      "${SVC_URL}" >/dev/null 2>&1 || true
+
+  # Warmup via REST API (fast path, no output file needed)
+  python3 "${REPO_ROOT}/scripts/run_fortio_rest.py" \
+    --pod    "$(fortio_pod)" \
+    --ns     "${NS}" \
+    --outdir "${outdir}" \
+    --phase  "warmup" \
+    --qps    "${BENCH_QPS}" \
+    --conns  "${BENCH_CONNS}" \
+    --duration "${WARMUP_SEC}" \
+    --url    "${SVC_URL}" \
+    --keepalive false \
+    >/dev/null 2>&1 || true
+  # Discard warmup artifacts (only keep measurement results)
+  rm -f "${outdir}"/bench_warmup.* "${outdir}"/fortio_warmup.* 2>/dev/null || true
 
   echo "[INFO] Measurement ${DURATION_SEC}s @ QPS=${BENCH_QPS} CONNS=${BENCH_CONNS}"
-  kubectl -n "${NS}" exec "${_pod}" --request-timeout=0 -- \
-    fortio load \
-      -qps "${BENCH_QPS}" \
-      -c "${BENCH_CONNS}" \
-      -t "${DURATION_SEC}s" \
-      "${extra_flags[@]+"${extra_flags[@]}"}" \
-      "${SVC_URL}" \
-    2>&1 | tee "${outdir}/bench.log" || exit 1
+
+  # Measurement: reuse run_fortio_rest.py.  It saves:
+  #   <outdir>/bench_warmup.log  (warmup — discard)
+  #   <outdir>/fortio_warmup.json (warmup — discard)
+  #   <outdir>/bench.log          (measurement, human-readable)
+  #   <outdir>/fortio.json        (measurement, machine-readable)
+  python3 "${REPO_ROOT}/scripts/run_fortio_rest.py" \
+    --pod    "$(fortio_pod)" \
+    --ns     "${NS}" \
+    --outdir "${outdir}" \
+    --phase  "measurement" \
+    --qps    "${BENCH_QPS}" \
+    --conns  "${BENCH_CONNS}" \
+    --duration "${DURATION_SEC}" \
+    --url    "${SVC_URL}" \
+    --keepalive false
+
+  # Rename measurement output to expected names (bench.log + fortio.json)
+  if [[ -f "${outdir}/bench_measurement.log" ]]; then
+    mv "${outdir}/bench_measurement.log" "${outdir}/bench.log"
+  fi
+  if [[ -f "${outdir}/fortio_measurement.json" ]]; then
+    mv "${outdir}/fortio_measurement.json" "${outdir}/fortio.json"
+  fi
 }
 
 # ======================== metadata.json generation ============================
@@ -364,32 +390,40 @@ collect_cilium_hubble() {
     echo "[WARN] hubble status not available"
   fi
 
-  # hubble flows: prefer local CLI first, then port-forward relay.
-  # NOTE: 'kubectl exec ds/cilium -c cilium-agent -- hubble' does NOT work —
-  # hubble is not installed inside the cilium-agent container in Cilium 1.18.x.
-  # Correct path: local hubble CLI → hubble-relay service (port 4245).
-  if command -v hubble &>/dev/null; then
-    hubble observe --namespace "${NS}" --last 5000 -o jsonpb > "${outdir}/hubble_flows.jsonl" 2>&1 || true
-    echo "[INFO] hubble_flows.jsonl written (local hubble CLI)"
-  else
-    # Fallback: port-forward hubble-relay and collect via localhost
-    local relay_port=4245
-    # Start port-forward in background
-    kubectl -n kube-system port-forward svc/hubble-relay "${relay_port}:443" \
-      >"${outdir}/hubble_relay_forward.log" 2>&1 &
-    local pf_pid=$!
-    # Wait for port-forward to be ready
-    sleep 3
-    if kill -0 "${pf_pid}" 2>/dev/null; then
-      hubble observe --server "localhost:${relay_port}" \
-        --namespace "${NS}" --last 5000 -o jsonpb \
-        > "${outdir}/hubble_flows.jsonl" 2>&1 || true
-      echo "[INFO] hubble_flows.jsonl written (via relay port-forward)"
+  # hubble flows collection — 3 methods tried in order of preference:
+  # 1. kubectl exec into cilium-agent container (hubble binary IS present in Cilium 1.18.x)
+  # 2. kubectl exec exec + hubble observe via unix socket on localhost (port-forward)
+  # 3. Give up — write empty placeholder
+  _hpod="$(kubectl get pods -n kube-system -l k8s-app=cilium -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
+
+  if [[ -n "${_hpod}" ]]; then
+    # Method 1: exec hubble directly inside cilium-agent container
+    if kubectl exec -n kube-system "ds/cilium" -c cilium-agent -- \
+      hubble observe --namespace "${NS}" --last 5000 -o jsonpb \
+      > "${outdir}/hubble_flows.jsonl" 2>/dev/null; then
+      echo "[INFO] hubble_flows.jsonl written (via cilium-agent exec)"
     else
-      echo "port-forward hubble-relay failed" > "${outdir}/hubble_flows.jsonl"
-      echo "[WARN] hubble relay port-forward failed — hubble_flows.jsonl may be empty"
+      echo "[WARN] cilium-agent hubble exec failed — trying port-forward"
+      # Method 2: port-forward + hubble observe via relay
+      local pf_port=4245
+      kubectl -n kube-system port-forward svc/hubble-relay "${pf_port}:80" \
+        >"${outdir}/hubble_relay_forward.log" 2>&1 &
+      local _pf_pid=$!
+      sleep 3
+      if kill -0 "${_pf_pid}" 2>/dev/null && command -v hubble &>/dev/null; then
+        hubble observe --server "localhost:${pf_port}" \
+          --namespace "${NS}" --last 5000 -o jsonpb \
+          > "${outdir}/hubble_flows.jsonl" 2>&1 || true
+        echo "[INFO] hubble_flows.jsonl written (via relay port-forward)"
+      else
+        echo "hubble not available" > "${outdir}/hubble_flows.jsonl"
+        echo "[WARN] hubble collection failed — GitHub download may be unreachable"
+      fi
+      kill "${_pf_pid}" 2>/dev/null || true
     fi
-    kill "${pf_pid}" 2>/dev/null || true
+  else
+    echo "hubble not available" > "${outdir}/hubble_flows.jsonl"
+    echo "[WARN] Could not find cilium pod for hubble collection"
   fi
 }
 

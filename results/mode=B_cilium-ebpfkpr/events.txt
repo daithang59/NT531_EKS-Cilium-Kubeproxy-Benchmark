@@ -1,0 +1,16 @@
+NAMESPACE   LAST SEEN   TYPE     REASON      OBJECT         MESSAGE
+benchmark   8m56s       Normal   Scheduled   pod/attacker   Successfully assigned benchmark/attacker to ip-10-0-10-72.ap-southeast-1.compute.internal
+benchmark   8m56s       Normal   Pulling     pod/attacker   Pulling image "curlimages/curl"
+benchmark   8m52s       Normal   Pulled      pod/attacker   Successfully pulled image "curlimages/curl" in 3.999s (3.999s including waiting). Image size: 10610455 bytes.
+benchmark   8m52s       Normal   Created     pod/attacker   Created container: attacker
+benchmark   8m51s       Normal   Started     pod/attacker   Started container attacker
+benchmark   4m10s       Normal   Scheduled   pod/attacker   Successfully assigned benchmark/attacker to ip-10-0-10-72.ap-southeast-1.compute.internal
+benchmark   4m10s       Normal   Pulling     pod/attacker   Pulling image "curlimages/curl"
+benchmark   4m8s        Normal   Pulled      pod/attacker   Successfully pulled image "curlimages/curl" in 1.232s (1.232s including waiting). Image size: 10610455 bytes.
+benchmark   4m8s        Normal   Created     pod/attacker   Created container: attacker
+benchmark   4m8s        Normal   Started     pod/attacker   Started container attacker
+benchmark   3m47s       Normal   Scheduled   pod/attacker   Successfully assigned benchmark/attacker to ip-10-0-10-72.ap-southeast-1.compute.internal
+benchmark   3m47s       Normal   Pulling     pod/attacker   Pulling image "curlimages/curl"
+benchmark   3m45s       Normal   Pulled      pod/attacker   Successfully pulled image "curlimages/curl" in 1.252s (1.252s including waiting). Image size: 10610455 bytes.
+benchmark   3m45s       Normal   Created     pod/attacker   Created container: attacker
+benchmark   3m45s       Normal   Started     pod/attacker   Started container attacker

@@ -1,8 +1,9 @@
 # results artifacts (keep README and template, ignore benchmark data)
-results/**
-!results/.gitkeep
-!results/README.md
-!results/metadata.template.json.txt
+# results/**
+# !results/.gitkeep
+# !results/README.md
+# !results/metadata.template.json.txt
+# !results/**/*.log   # bench.log, bench_phase*.log — benchmark evidence, not local dev logs
 
 # local kubeconfig / credentials
 kubeconfig*
@@ -24,7 +25,7 @@ terraform/**/.terraform.lock.hcl
 .idea/
 
 # logs
-*.log
+# *.log
 
 
 #omc

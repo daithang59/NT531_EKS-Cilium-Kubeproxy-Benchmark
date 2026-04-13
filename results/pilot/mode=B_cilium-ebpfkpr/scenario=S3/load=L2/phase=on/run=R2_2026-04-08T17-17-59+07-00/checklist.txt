@@ -1,0 +1,33 @@
+# Run Checklist — auto-generated 2026-04-08T17:21:42+07:00
+# Mode=B_cilium-ebpfkpr Scenario=S3 Load=L2 Run=R2
+# Runner / Checker: đánh [x] để xác nhận
+
+## Pre-run
+- [ ] kubectl context active and correct cluster
+- [ ] All nodes Ready (kubectl get nodes)
+- [ ] Workload pods Running (echo + fortio in namespace benchmark)
+- [ ] Service reachable from fortio pod
+
+## Configuration
+- [ ] MODE=B matches expected
+- [ ] SCENARIO=S3 matches expected
+- [ ] LOAD=L2 matches expected
+- [ ] REPEAT=3 — this is run R2
+
+## Stability
+- [ ] No pod restarts during run
+- [ ] No node NotReady events during run
+- [ ] No OOM kills during run
+
+## Artifacts present
+- [ ] bench.log exists and non-empty
+- [ ] metadata.json exists and valid JSON
+- [ ] kubectl_get_all.txt exists
+- [ ] kubectl_top_nodes.txt exists
+- [ ] events.txt exists
+- [ ] (Mode B / S3) cilium_status.txt exists
+- [ ] (Mode B / S3) hubble_status.txt exists
+- [ ] (Mode B / S3) hubble_flows.jsonl exists
+
+## Post-run
+- [ ] No anomalies noted (or documented in metadata.json → results.anomalies)

@@ -1,0 +1,24 @@
+# Run Checklist — verified 2026-04-07
+# Mode=A_kube-proxy Scenario=S1 Load=L1 Run=R3
+## Pre-run
+- [x] kubectl context active and correct cluster
+- [x] All nodes Ready
+- [x] Workload pods Running (echo + fortio)
+- [x] Service reachable (100% HTTP 200)
+## Configuration
+- [x] MODE=A matches
+- [x] SCENARIO=S1 matches
+- [x] LOAD=L1 matches
+- [x] REPEAT=3 — run R3
+## Stability
+- [x] No pod restarts / OOM (events.txt: clean)
+- [x] No NotReady / OOM events
+## Artifacts
+- [x] bench.log (18,000 calls, 0 errors)
+- [x] metadata.json (fortio metrics filled)
+- [x] kubectl_get_all.txt
+- [x] kubectl_top_nodes.txt
+- [x] events.txt
+- [x] node_metrics.txt (Prometheus-based)
+## Post-run
+- [x] No anomalies

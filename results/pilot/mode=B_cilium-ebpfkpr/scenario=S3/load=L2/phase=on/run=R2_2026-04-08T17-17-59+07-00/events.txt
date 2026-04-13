@@ -1,0 +1,154 @@
+NAMESPACE     LAST SEEN   TYPE      REASON                 OBJECT                                                         MESSAGE
+kube-system   12m         Normal    Killing                pod/hubble-relay-7cf68b958c-2lhv6                              Container hubble-relay failed startup probe, will be restarted
+kube-system   10s         Normal    Pulled                 pod/hubble-relay-7cf68b958c-2lhv6                              Container image "quay.io/cilium/hubble-relay:v1.18.7@sha256:9bb9b2b1a4f4bef12a77738756cfbf970daa701e536e42f0a9c64a621bc7c9d5" already present on machine
+kube-system   3m27s       Warning   BackOff                pod/hubble-relay-7cf68b958c-2lhv6                              Back-off restarting failed container hubble-relay in pod hubble-relay-7cf68b958c-2lhv6_kube-system(f15fac60-33cb-49e9-ab49-ccc9114cbbc0)
+kube-system   16m         Warning   Unhealthy              pod/hubble-ui-576dcd986f-9bpbs                                 Readiness probe failed: Get "http://10.96.1.230:8081/": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+kube-system   5m14s       Normal    Pulled                 pod/hubble-ui-576dcd986f-9bpbs                                 Container image "quay.io/cilium/hubble-ui:v0.13.3@sha256:661d5de7050182d495c6497ff0b007a7a1e379648e60830dd68c4d78ae21761d" already present on machine
+kube-system   13m         Warning   Unhealthy              pod/hubble-relay-7cf68b958c-2lhv6                              Startup probe failed: timeout: failed to connect service "10.96.1.123:4222" within 1s: context deadline exceeded
+kube-system   106s        Warning   BackOff                pod/hubble-ui-576dcd986f-9bpbs                                 Back-off restarting failed container frontend in pod hubble-ui-576dcd986f-9bpbs_kube-system(b19ca7ec-22a0-454e-b4b6-8511b883cd32)
+kube-system   41m         Normal    Killing                pod/hubble-ui-576dcd986f-9bpbs                                 Container frontend failed liveness probe, will be restarted
+monitoring    58m         Normal    Created                pod/prometheus-kube-prometheus-admission-create-sgjqb          Created container: create
+monitoring    58m         Normal    Started                pod/prometheus-kube-prometheus-admission-create-sgjqb          Started container create
+monitoring    58m         Normal    Pulled                 pod/prometheus-kube-prometheus-admission-create-sgjqb          Container image "ghcr.io/jkroepke/kube-webhook-certgen:1.8.0" already present on machine
+monitoring    59m         Warning   BackOff                pod/prometheus-kube-prometheus-admission-create-sgjqb          Back-off restarting failed container create in pod prometheus-kube-prometheus-admission-create-sgjqb_monitoring(7ac5e7a4-0bb4-4bb7-8839-1715b0a917fc)
+monitoring    58m         Normal    SuccessfulDelete       job/prometheus-kube-prometheus-admission-create                Deleted pod: prometheus-kube-prometheus-admission-create-sgjqb
+monitoring    58m         Normal    Killing                pod/prometheus-kube-prometheus-admission-create-sgjqb          Stopping container create
+monitoring    58m         Warning   BackoffLimitExceeded   job/prometheus-kube-prometheus-admission-create                Job has reached the specified backoff limit
+kube-system   43m         Normal    Killing                pod/cilium-l7srh                                               Stopping container cilium-agent
+kube-system   43m         Normal    SuccessfulCreate       daemonset/cilium                                               Created pod: cilium-rj89b
+kube-system   43m         Normal    Killing                pod/cilium-tdx52                                               Stopping container cilium-agent
+kube-system   43m         Normal    Started                pod/cilium-rj89b                                               Started container config
+kube-system   43m         Normal    Created                pod/cilium-rj89b                                               Created container: config
+kube-system   43m         Normal    Pulled                 pod/cilium-rj89b                                               Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   43m         Normal    Scheduled              pod/cilium-rj89b                                               Successfully assigned kube-system/cilium-rj89b to ip-10-0-10-39.ap-southeast-1.compute.internal
+kube-system   43m         Normal    Started                pod/cilium-rj89b                                               Started container mount-cgroup
+kube-system   43m         Normal    Scheduled              pod/cilium-8l95t                                               Successfully assigned kube-system/cilium-8l95t to ip-10-0-10-104.ap-southeast-1.compute.internal
+kube-system   43m         Normal    Created                pod/cilium-8l95t                                               Created container: config
+kube-system   43m         Normal    Pulled                 pod/cilium-8l95t                                               Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   43m         Normal    SuccessfulCreate       daemonset/cilium                                               Created pod: cilium-8l95t
+kube-system   43m         Normal    Created                pod/cilium-rj89b                                               Created container: mount-cgroup
+kube-system   43m         Normal    Pulled                 pod/cilium-8l95t                                               Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   43m         Normal    Pulled                 pod/cilium-rj89b                                               Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   43m         Normal    Created                pod/cilium-8l95t                                               Created container: mount-cgroup
+kube-system   43m         Normal    Started                pod/cilium-8l95t                                               Started container config
+kube-system   43m         Normal    Pulled                 pod/cilium-rj89b                                               Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   43m         Normal    Created                pod/cilium-rj89b                                               Created container: apply-sysctl-overwrites
+kube-system   43m         Normal    Started                pod/cilium-8l95t                                               Started container mount-cgroup
+kube-system   43m         Normal    Started                pod/cilium-8l95t                                               Started container apply-sysctl-overwrites
+kube-system   43m         Normal    Created                pod/cilium-8l95t                                               Created container: apply-sysctl-overwrites
+kube-system   43m         Normal    Started                pod/cilium-rj89b                                               Started container apply-sysctl-overwrites
+kube-system   43m         Normal    Pulled                 pod/cilium-8l95t                                               Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   43m         Normal    Created                pod/cilium-rj89b                                               Created container: mount-bpf-fs
+kube-system   43m         Normal    Started                pod/cilium-rj89b                                               Started container mount-bpf-fs
+kube-system   43m         Normal    Pulled                 pod/cilium-8l95t                                               Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   43m         Normal    Created                pod/cilium-8l95t                                               Created container: mount-bpf-fs
+kube-system   43m         Normal    Pulled                 pod/cilium-rj89b                                               Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   43m         Normal    Started                pod/cilium-rj89b                                               Started container clean-cilium-state
+kube-system   43m         Normal    Started                pod/cilium-8l95t                                               Started container mount-bpf-fs
+kube-system   43m         Normal    Pulled                 pod/cilium-rj89b                                               Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   43m         Normal    Created                pod/cilium-rj89b                                               Created container: clean-cilium-state
+kube-system   43m         Normal    Pulled                 pod/cilium-8l95t                                               Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   43m         Normal    Pulled                 pod/cilium-8l95t                                               Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   43m         Normal    Pulled                 pod/cilium-rj89b                                               Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   43m         Normal    Created                pod/cilium-rj89b                                               Created container: install-cni-binaries
+kube-system   43m         Normal    Started                pod/cilium-rj89b                                               Started container install-cni-binaries
+kube-system   43m         Normal    Created                pod/cilium-8l95t                                               Created container: clean-cilium-state
+kube-system   43m         Normal    Started                pod/cilium-8l95t                                               Started container clean-cilium-state
+kube-system   43m         Normal    Started                pod/cilium-8l95t                                               Started container install-cni-binaries
+kube-system   43m         Normal    Created                pod/cilium-8l95t                                               Created container: install-cni-binaries
+kube-system   43m         Normal    Pulled                 pod/cilium-rj89b                                               Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   43m         Normal    Created                pod/cilium-8l95t                                               Created container: cilium-agent
+kube-system   43m         Normal    Created                pod/cilium-rj89b                                               Created container: cilium-agent
+kube-system   43m         Normal    Started                pod/cilium-rj89b                                               Started container cilium-agent
+kube-system   43m         Normal    Pulled                 pod/cilium-8l95t                                               Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   43m         Normal    Started                pod/cilium-8l95t                                               Started container cilium-agent
+default       41m         Normal    Scheduled              pod/test-net-104                                               Successfully assigned default/test-net-104 to ip-10-0-10-39.ap-southeast-1.compute.internal
+default       41m         Normal    Pulling                pod/test-net-104                                               Pulling image "busybox"
+default       41m         Normal    Created                pod/test-net-104                                               Created container: test-net-104
+default       41m         Normal    Started                pod/test-net-104                                               Started container test-net-104
+default       41m         Normal    Pulled                 pod/test-net-104                                               Successfully pulled image "busybox" in 1.232s (1.232s including waiting). Image size: 2222002 bytes.
+default       40m         Normal    Scheduled              pod/test-net-39                                                Successfully assigned default/test-net-39 to ip-10-0-10-39.ap-southeast-1.compute.internal
+default       40m         Normal    Pulling                pod/test-net-39                                                Pulling image "busybox"
+default       40m         Normal    Started                pod/test-net-39                                                Started container test-net-39
+default       40m         Normal    Created                pod/test-net-39                                                Created container: test-net-39
+default       40m         Normal    Pulled                 pod/test-net-39                                                Successfully pulled image "busybox" in 1.236s (1.236s including waiting). Image size: 2222002 bytes.
+monitoring    40m         Normal    Scheduled              pod/prometheus-kube-prometheus-admission-create-495pp          Successfully assigned monitoring/prometheus-kube-prometheus-admission-create-495pp to ip-10-0-10-39.ap-southeast-1.compute.internal
+monitoring    40m         Normal    SuccessfulCreate       job/prometheus-kube-prometheus-admission-create                Created pod: prometheus-kube-prometheus-admission-create-495pp
+monitoring    40m         Normal    Started                pod/prometheus-kube-prometheus-admission-create-495pp          Started container create
+monitoring    40m         Normal    Pulled                 pod/prometheus-kube-prometheus-admission-create-495pp          Container image "ghcr.io/jkroepke/kube-webhook-certgen:1.8.0" already present on machine
+monitoring    40m         Normal    Created                pod/prometheus-kube-prometheus-admission-create-495pp          Created container: create
+monitoring    40m         Normal    Completed              job/prometheus-kube-prometheus-admission-create                Job completed
+monitoring    38m         Normal    Scheduled              pod/prometheus-kube-prometheus-admission-create-wpfjh          Successfully assigned monitoring/prometheus-kube-prometheus-admission-create-wpfjh to ip-10-0-10-39.ap-southeast-1.compute.internal
+monitoring    38m         Normal    SuccessfulCreate       job/prometheus-kube-prometheus-admission-create                Created pod: prometheus-kube-prometheus-admission-create-wpfjh
+monitoring    38m         Normal    Started                pod/prometheus-kube-prometheus-admission-create-wpfjh          Started container create
+monitoring    38m         Normal    Created                pod/prometheus-kube-prometheus-admission-create-wpfjh          Created container: create
+monitoring    38m         Normal    Pulled                 pod/prometheus-kube-prometheus-admission-create-wpfjh          Container image "ghcr.io/jkroepke/kube-webhook-certgen:1.8.0" already present on machine
+monitoring    38m         Normal    Completed              job/prometheus-kube-prometheus-admission-create                Job completed
+monitoring    38m         Normal    Scheduled              pod/prometheus-prometheus-node-exporter-sp9n5                  Successfully assigned monitoring/prometheus-prometheus-node-exporter-sp9n5 to ip-10-0-10-39.ap-southeast-1.compute.internal
+monitoring    38m         Normal    Scheduled              pod/prometheus-prometheus-node-exporter-tvm5g                  Successfully assigned monitoring/prometheus-prometheus-node-exporter-tvm5g to ip-10-0-10-178.ap-southeast-1.compute.internal
+monitoring    38m         Normal    SuccessfulCreate       daemonset/prometheus-prometheus-node-exporter                  Created pod: prometheus-prometheus-node-exporter-sp9n5
+monitoring    38m         Normal    SuccessfulCreate       daemonset/prometheus-prometheus-node-exporter                  Created pod: prometheus-prometheus-node-exporter-fxgd7
+monitoring    38m         Normal    SuccessfulCreate       daemonset/prometheus-prometheus-node-exporter                  Created pod: prometheus-prometheus-node-exporter-tvm5g
+monitoring    38m         Normal    Scheduled              pod/prometheus-prometheus-node-exporter-fxgd7                  Successfully assigned monitoring/prometheus-prometheus-node-exporter-fxgd7 to ip-10-0-10-104.ap-southeast-1.compute.internal
+monitoring    38m         Normal    ScalingReplicaSet      deployment/prometheus-kube-prometheus-operator                 Scaled up replica set prometheus-kube-prometheus-operator-6956f7dfb5 from 0 to 1
+monitoring    38m         Normal    SuccessfulCreate       replicaset/prometheus-kube-prometheus-operator-6956f7dfb5      Created pod: prometheus-kube-prometheus-operator-6956f7dfb5-xjrr8
+monitoring    38m         Normal    SuccessfulCreate       replicaset/prometheus-grafana-db9b646bf                        Created pod: prometheus-grafana-db9b646bf-n29ht
+monitoring    38m         Normal    Scheduled              pod/prometheus-grafana-db9b646bf-n29ht                         Successfully assigned monitoring/prometheus-grafana-db9b646bf-n29ht to ip-10-0-10-178.ap-southeast-1.compute.internal
+monitoring    38m         Normal    Pulling                pod/prometheus-grafana-db9b646bf-n29ht                         Pulling image "quay.io/kiwigrid/k8s-sidecar:2.5.4"
+monitoring    38m         Normal    SuccessfulCreate       replicaset/prometheus-kube-state-metrics-f47d8dd47             Created pod: prometheus-kube-state-metrics-f47d8dd47-8cx6w
+monitoring    38m         Normal    Pulling                pod/prometheus-kube-state-metrics-f47d8dd47-8cx6w              Pulling image "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.18.0"
+monitoring    38m         Normal    Scheduled              pod/prometheus-kube-state-metrics-f47d8dd47-8cx6w              Successfully assigned monitoring/prometheus-kube-state-metrics-f47d8dd47-8cx6w to ip-10-0-10-39.ap-southeast-1.compute.internal
+monitoring    38m         Normal    Pulling                pod/prometheus-prometheus-node-exporter-tvm5g                  Pulling image "quay.io/prometheus/node-exporter:v1.11.0"
+monitoring    38m         Normal    ScalingReplicaSet      deployment/prometheus-grafana                                  Scaled up replica set prometheus-grafana-db9b646bf from 0 to 1
+monitoring    38m         Normal    ScalingReplicaSet      deployment/prometheus-kube-state-metrics                       Scaled up replica set prometheus-kube-state-metrics-f47d8dd47 from 0 to 1
+monitoring    38m         Normal    Scheduled              pod/prometheus-kube-prometheus-operator-6956f7dfb5-xjrr8       Successfully assigned monitoring/prometheus-kube-prometheus-operator-6956f7dfb5-xjrr8 to ip-10-0-10-39.ap-southeast-1.compute.internal
+monitoring    38m         Normal    Pulling                pod/prometheus-prometheus-node-exporter-sp9n5                  Pulling image "quay.io/prometheus/node-exporter:v1.11.0"
+monitoring    38m         Normal    Pulling                pod/prometheus-prometheus-node-exporter-fxgd7                  Pulling image "quay.io/prometheus/node-exporter:v1.11.0"
+monitoring    38m         Normal    Pulling                pod/prometheus-kube-prometheus-operator-6956f7dfb5-xjrr8       Pulling image "quay.io/prometheus-operator/prometheus-operator:v0.89.0"
+monitoring    38m         Normal    Created                pod/prometheus-prometheus-node-exporter-sp9n5                  Created container: node-exporter
+monitoring    38m         Normal    Created                pod/prometheus-prometheus-node-exporter-fxgd7                  Created container: node-exporter
+monitoring    38m         Normal    Pulled                 pod/prometheus-prometheus-node-exporter-sp9n5                  Successfully pulled image "quay.io/prometheus/node-exporter:v1.11.0" in 3.553s (3.553s including waiting). Image size: 13308431 bytes.
+monitoring    38m         Normal    Pulled                 pod/prometheus-prometheus-node-exporter-fxgd7                  Successfully pulled image "quay.io/prometheus/node-exporter:v1.11.0" in 3.042s (3.042s including waiting). Image size: 13308431 bytes.
+monitoring    38m         Normal    Started                pod/prometheus-prometheus-node-exporter-tvm5g                  Started container node-exporter
+monitoring    38m         Normal    Started                pod/prometheus-kube-state-metrics-f47d8dd47-8cx6w              Started container kube-state-metrics
+monitoring    38m         Normal    Started                pod/prometheus-prometheus-node-exporter-fxgd7                  Started container node-exporter
+monitoring    38m         Normal    Created                pod/prometheus-prometheus-node-exporter-tvm5g                  Created container: node-exporter
+monitoring    38m         Normal    Created                pod/prometheus-kube-state-metrics-f47d8dd47-8cx6w              Created container: kube-state-metrics
+monitoring    38m         Normal    Pulled                 pod/prometheus-prometheus-node-exporter-tvm5g                  Successfully pulled image "quay.io/prometheus/node-exporter:v1.11.0" in 3.016s (3.016s including waiting). Image size: 13308431 bytes.
+monitoring    38m         Normal    Pulled                 pod/prometheus-kube-state-metrics-f47d8dd47-8cx6w              Successfully pulled image "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.18.0" in 2.234s (2.234s including waiting). Image size: 19306162 bytes.
+monitoring    38m         Normal    Started                pod/prometheus-prometheus-node-exporter-sp9n5                  Started container node-exporter
+monitoring    38m         Normal    Started                pod/prometheus-kube-prometheus-operator-6956f7dfb5-xjrr8       Started container kube-prometheus-stack
+monitoring    38m         Normal    Created                pod/prometheus-kube-prometheus-operator-6956f7dfb5-xjrr8       Created container: kube-prometheus-stack
+monitoring    38m         Normal    Pulled                 pod/prometheus-kube-prometheus-operator-6956f7dfb5-xjrr8       Successfully pulled image "quay.io/prometheus-operator/prometheus-operator:v0.89.0" in 3.611s (3.611s including waiting). Image size: 20004593 bytes.
+monitoring    38m         Normal    Scheduled              pod/prometheus-prometheus-kube-prometheus-prometheus-0         Successfully assigned monitoring/prometheus-prometheus-kube-prometheus-prometheus-0 to ip-10-0-10-39.ap-southeast-1.compute.internal
+monitoring    38m         Normal    SuccessfulCreate       statefulset/prometheus-prometheus-kube-prometheus-prometheus   create Pod prometheus-prometheus-kube-prometheus-prometheus-0 in StatefulSet prometheus-prometheus-kube-prometheus-prometheus successful
+monitoring    38m         Normal    Started                pod/prometheus-grafana-db9b646bf-n29ht                         Started container grafana-sc-dashboard
+monitoring    38m         Normal    Created                pod/prometheus-grafana-db9b646bf-n29ht                         Created container: grafana-sc-dashboard
+monitoring    38m         Normal    Created                pod/prometheus-grafana-db9b646bf-n29ht                         Created container: grafana-sc-datasources
+monitoring    38m         Normal    Pulled                 pod/prometheus-grafana-db9b646bf-n29ht                         Successfully pulled image "quay.io/kiwigrid/k8s-sidecar:2.5.4" in 4.529s (4.529s including waiting). Image size: 28440687 bytes.
+monitoring    38m         Normal    Started                pod/prometheus-grafana-db9b646bf-n29ht                         Started container grafana-sc-datasources
+monitoring    38m         Normal    Pulling                pod/prometheus-grafana-db9b646bf-n29ht                         Pulling image "docker.io/grafana/grafana:12.4.2"
+monitoring    38m         Normal    Pulled                 pod/prometheus-grafana-db9b646bf-n29ht                         Container image "quay.io/kiwigrid/k8s-sidecar:2.5.4" already present on machine
+monitoring    38m         Normal    Pulling                pod/prometheus-prometheus-kube-prometheus-prometheus-0         Pulling image "quay.io/prometheus-operator/prometheus-config-reloader:v0.89.0"
+monitoring    38m         Normal    Started                pod/prometheus-prometheus-kube-prometheus-prometheus-0         Started container init-config-reloader
+monitoring    38m         Normal    Created                pod/prometheus-prometheus-kube-prometheus-prometheus-0         Created container: init-config-reloader
+monitoring    38m         Normal    Pulled                 pod/prometheus-prometheus-kube-prometheus-prometheus-0         Successfully pulled image "quay.io/prometheus-operator/prometheus-config-reloader:v0.89.0" in 2.775s (2.775s including waiting). Image size: 15134211 bytes.
+monitoring    38m         Normal    Pulling                pod/prometheus-prometheus-kube-prometheus-prometheus-0         Pulling image "quay.io/prometheus/prometheus:v3.11.0"
+monitoring    38m         Normal    Scheduled              pod/prometheus-kube-prometheus-admission-patch-nqjs7           Successfully assigned monitoring/prometheus-kube-prometheus-admission-patch-nqjs7 to ip-10-0-10-104.ap-southeast-1.compute.internal
+monitoring    38m         Normal    SuccessfulCreate       job/prometheus-kube-prometheus-admission-patch                 Created pod: prometheus-kube-prometheus-admission-patch-nqjs7
+monitoring    38m         Normal    Pulling                pod/prometheus-kube-prometheus-admission-patch-nqjs7           Pulling image "ghcr.io/jkroepke/kube-webhook-certgen:1.8.0"
+monitoring    38m         Normal    Created                pod/prometheus-prometheus-kube-prometheus-prometheus-0         Created container: prometheus
+monitoring    38m         Normal    Pulled                 pod/prometheus-prometheus-kube-prometheus-prometheus-0         Successfully pulled image "quay.io/prometheus/prometheus:v3.11.0" in 6.588s (6.588s including waiting). Image size: 152919246 bytes.
+monitoring    38m         Normal    Created                pod/prometheus-prometheus-kube-prometheus-prometheus-0         Created container: config-reloader
+monitoring    38m         Normal    Pulled                 pod/prometheus-prometheus-kube-prometheus-prometheus-0         Container image "quay.io/prometheus-operator/prometheus-config-reloader:v0.89.0" already present on machine
+monitoring    38m         Normal    Started                pod/prometheus-prometheus-kube-prometheus-prometheus-0         Started container prometheus
+monitoring    38m         Normal    Started                pod/prometheus-prometheus-kube-prometheus-prometheus-0         Started container config-reloader
+monitoring    38m         Normal    Started                pod/prometheus-kube-prometheus-admission-patch-nqjs7           Started container patch
+monitoring    38m         Normal    Pulled                 pod/prometheus-kube-prometheus-admission-patch-nqjs7           Successfully pulled image "ghcr.io/jkroepke/kube-webhook-certgen:1.8.0" in 3.921s (3.921s including waiting). Image size: 12943403 bytes.
+monitoring    38m         Normal    Created                pod/prometheus-kube-prometheus-admission-patch-nqjs7           Created container: patch
+monitoring    38m         Normal    Completed              job/prometheus-kube-prometheus-admission-patch                 Job completed
+monitoring    38m         Normal    Pulled                 pod/prometheus-grafana-db9b646bf-n29ht                         Successfully pulled image "docker.io/grafana/grafana:12.4.2" in 15.821s (15.821s including waiting). Image size: 213873728 bytes.
+monitoring    38m         Normal    Created                pod/prometheus-grafana-db9b646bf-n29ht                         Created container: grafana
+monitoring    38m         Normal    Started                pod/prometheus-grafana-db9b646bf-n29ht                         Started container grafana
+monitoring    38m         Warning   Unhealthy              pod/prometheus-grafana-db9b646bf-n29ht                         Readiness probe failed: Get "http://10.0.10.215:3000/api/health": dial tcp 10.0.10.215:3000: connect: connection refused
+kube-system   11m         Normal    Created                pod/hubble-ui-576dcd986f-9bpbs                                 Created container: frontend

@@ -1,0 +1,38 @@
+=== Phase: phase3_burst2 ===
+Duration: 20s  QPS: 600  Conns: 64  Keepalive: false
+
+Fortio 1.74.0 running at 600 queries per second, 64 procs, for 20s: http://echo.benchmark.svc.cluster.local/
+
+# range, mid point, percentile, count
+>= 1.026e-04 <= 1.000e-03 , 0.000551 , 6.71, 803
+> 0.0010 <= 0.0020 , 0.0015 , 20.46, 1646
+> 0.0020 <= 0.0030 , 0.0025 , 61.47, 4908
+> 0.0030 <= 0.0040 , 0.0035 , 77.76, 1949
+> 0.0040 <= 0.0050 , 0.0045 , 88.28, 1259
+> 0.0050 <= 0.0060 , 0.0055 , 95.44, 857
+> 0.0060 <= 0.0070 , 0.0065 , 98.56, 374
+> 0.0070 <= 0.0080 , 0.0075 , 99.67, 132
+> 0.0080 <= 0.0090 , 0.0085 , 99.87, 24
+> 0.0090 <= 0.0100 , 0.0095 , 99.92, 6
+> 0.0100 <= 0.0110 , 0.0105 , 99.96, 5
+> 0.0110 <= 0.0119 , 0.0115 , 100.00, 5
+
+# target 50% 0.002720
+# target 75% 0.003831
+# target 90% 0.005241
+# target 99% 0.007396
+# target 99.9% 0.009672
+
+All done 11968 calls (20.0s) qps=600 (target: 20s, conns=64)
+  avg_ms=3.010
+  p50=2.720ms
+  p75=3.831ms
+  p90=5.241ms
+  p99=7.396ms
+  p99.9=9.672ms
+  Code 200: 11968 (100.0%)
+Error cases : no data
+# Socket and IP used for each connection:
+  [0]  1 socket used, resolved to 172.20.112.35:80, connection timing : count 64 avg 0.002644 +/- 0.001783 min 0.000075 max 0.005277
+  Response Header Sizes : count 11968 avg 161 +/- 0 min 161 max 161 sum 1926848
+  Response Body/Total Sizes : count 11968 avg 164 +/- 0 min 164 max 164 sum 1962752

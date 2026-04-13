@@ -1,0 +1,13 @@
+NAMESPACE   LAST SEEN   TYPE     REASON             OBJECT                        MESSAGE
+benchmark   52m         Normal   Killing            pod/fortio-cf9999755-5h8nt    Stopping container fortio
+benchmark   52m         Normal   Scheduled          pod/fortio-cf9999755-fs7vv    Successfully assigned benchmark/fortio-cf9999755-fs7vv to ip-10-0-10-72.ap-southeast-1.compute.internal
+benchmark   52m         Normal   SuccessfulCreate   replicaset/fortio-cf9999755   Created pod: fortio-cf9999755-fs7vv
+benchmark   52m         Normal   Pulled             pod/fortio-cf9999755-fs7vv    Container image "fortio/fortio:1.74.0" already present on machine
+benchmark   52m         Normal   Created            pod/fortio-cf9999755-fs7vv    Created container: fortio
+benchmark   52m         Normal   Started            pod/fortio-cf9999755-fs7vv    Started container fortio
+benchmark   30m         Normal   Scheduled          pod/fortio-cf9999755-5gdv8    Successfully assigned benchmark/fortio-cf9999755-5gdv8 to ip-10-0-10-72.ap-southeast-1.compute.internal
+benchmark   30m         Normal   Killing            pod/fortio-cf9999755-fs7vv    Stopping container fortio
+benchmark   30m         Normal   SuccessfulCreate   replicaset/fortio-cf9999755   Created pod: fortio-cf9999755-5gdv8
+benchmark   30m         Normal   Pulled             pod/fortio-cf9999755-5gdv8    Container image "fortio/fortio:1.74.0" already present on machine
+benchmark   30m         Normal   Created            pod/fortio-cf9999755-5gdv8    Created container: fortio
+benchmark   30m         Normal   Started            pod/fortio-cf9999755-5gdv8    Started container fortio

@@ -1,0 +1,9 @@
+==============================================
+ CALIBRATION REPORT
+ Mode : A_kube-proxy
+ Date : 2026-04-06T16:22:20+07:00
+==============================================
+
+QPS      Conns  Run     p50_ms   p90_ms   p99_ms  p999_ms   max_ms      RPS ErrRate%
+---------------------------------------------------------------------------
+./scripts/calibrate.sh: line 341: 50: syntax error: invalid arithmetic operator (error token is "")
