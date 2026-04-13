@@ -390,32 +390,40 @@ collect_cilium_hubble() {
     echo "[WARN] hubble status not available"
   fi
 
-  # hubble flows: prefer local CLI first, then port-forward relay.
-  # NOTE: 'kubectl exec ds/cilium -c cilium-agent -- hubble' does NOT work —
-  # hubble is not installed inside the cilium-agent container in Cilium 1.18.x.
-  # Correct path: local hubble CLI → hubble-relay service (port 4245).
-  if command -v hubble &>/dev/null; then
-    hubble observe --namespace "${NS}" --last 5000 -o jsonpb > "${outdir}/hubble_flows.jsonl" 2>&1 || true
-    echo "[INFO] hubble_flows.jsonl written (local hubble CLI)"
-  else
-    # Fallback: port-forward hubble-relay and collect via localhost
-    local relay_port=4245
-    # Start port-forward in background
-    kubectl -n kube-system port-forward svc/hubble-relay "${relay_port}:443" \
-      >"${outdir}/hubble_relay_forward.log" 2>&1 &
-    local pf_pid=$!
-    # Wait for port-forward to be ready
-    sleep 3
-    if kill -0 "${pf_pid}" 2>/dev/null; then
-      hubble observe --server "localhost:${relay_port}" \
-        --namespace "${NS}" --last 5000 -o jsonpb \
-        > "${outdir}/hubble_flows.jsonl" 2>&1 || true
-      echo "[INFO] hubble_flows.jsonl written (via relay port-forward)"
+  # hubble flows collection — 3 methods tried in order of preference:
+  # 1. kubectl exec into cilium-agent container (hubble binary IS present in Cilium 1.18.x)
+  # 2. kubectl exec exec + hubble observe via unix socket on localhost (port-forward)
+  # 3. Give up — write empty placeholder
+  _hpod="$(kubectl get pods -n kube-system -l k8s-app=cilium -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
+
+  if [[ -n "${_hpod}" ]]; then
+    # Method 1: exec hubble directly inside cilium-agent container
+    if kubectl exec -n kube-system "ds/cilium" -c cilium-agent -- \
+      hubble observe --namespace "${NS}" --last 5000 -o jsonpb \
+      > "${outdir}/hubble_flows.jsonl" 2>/dev/null; then
+      echo "[INFO] hubble_flows.jsonl written (via cilium-agent exec)"
     else
-      echo "port-forward hubble-relay failed" > "${outdir}/hubble_flows.jsonl"
-      echo "[WARN] hubble relay port-forward failed — hubble_flows.jsonl may be empty"
+      echo "[WARN] cilium-agent hubble exec failed — trying port-forward"
+      # Method 2: port-forward + hubble observe via relay
+      local pf_port=4245
+      kubectl -n kube-system port-forward svc/hubble-relay "${pf_port}:80" \
+        >"${outdir}/hubble_relay_forward.log" 2>&1 &
+      local _pf_pid=$!
+      sleep 3
+      if kill -0 "${_pf_pid}" 2>/dev/null && command -v hubble &>/dev/null; then
+        hubble observe --server "localhost:${pf_port}" \
+          --namespace "${NS}" --last 5000 -o jsonpb \
+          > "${outdir}/hubble_flows.jsonl" 2>&1 || true
+        echo "[INFO] hubble_flows.jsonl written (via relay port-forward)"
+      else
+        echo "hubble not available" > "${outdir}/hubble_flows.jsonl"
+        echo "[WARN] hubble collection failed — GitHub download may be unreachable"
+      fi
+      kill "${_pf_pid}" 2>/dev/null || true
     fi
-    kill "${pf_pid}" 2>/dev/null || true
+  else
+    echo "hubble not available" > "${outdir}/hubble_flows.jsonl"
+    echo "[WARN] Could not find cilium pod for hubble collection"
   fi
 }
 

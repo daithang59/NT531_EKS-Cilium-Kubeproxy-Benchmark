@@ -53,13 +53,12 @@ sleep 15  # settle
 # Verify no policy rules remain — check on the first cilium pod found.
 # If any policy rules are present, the full delete may still be propagating.
 echo "[VERIFY] Checking no residual policy enforcement..."
-local _first_pod
 _first_pod="$(kubectl get pods -n kube-system -l k8s-app=cilium -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
 if [[ -n "${_first_pod}" ]]; then
-  local _policy_lines
   _policy_lines="$(kubectl -n kube-system exec "${_first_pod}" -- \
     cilium policy get 2>/dev/null | grep -c "reserved:endpoint" || echo "0")"
-  if [[ "${_policy_lines}" -gt 0 ]]; then
+  _policy_lines="$(echo "${_policy_lines}" | tr -d '[:space:]')"
+  if [[ -n "${_policy_lines}" && "${_policy_lines}" -gt 0 ]]; then
     echo "[WARN] Residual policy rules detected (${_policy_lines} lines) — waiting 10s more"
     sleep 10
   else

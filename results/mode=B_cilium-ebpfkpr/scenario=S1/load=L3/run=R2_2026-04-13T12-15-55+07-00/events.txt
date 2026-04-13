@@ -1,0 +1,66 @@
+NAMESPACE    LAST SEEN   TYPE      REASON             OBJECT                                                         MESSAGE
+monitoring   60m         Warning   Unhealthy          pod/prometheus-grafana-5875d7786f-kjddx                        Readiness probe failed: Get "http://10.96.0.233:3000/api/health": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring   60m         Warning   BackOff            pod/prometheus-kube-state-metrics-7cdf9894f9-67vrk             Back-off restarting failed container kube-state-metrics in pod prometheus-kube-state-metrics-7cdf9894f9-67vrk_monitoring(560eb59b-70e5-4db3-a52a-88c05040accc)
+monitoring   59m         Warning   Unhealthy          pod/prometheus-prometheus-kube-prometheus-prometheus-0         Startup probe failed: Get "http://10.96.0.230:9090/-/ready": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring   57m         Normal    SuccessfulCreate   replicaset/prometheus-grafana-5875d7786f                       Created pod: prometheus-grafana-5875d7786f-w2bdb
+monitoring   57m         Normal    Killing            pod/prometheus-grafana-5875d7786f-kjddx                        Stopping container grafana-sc-dashboard
+monitoring   57m         Normal    Killing            pod/prometheus-grafana-5875d7786f-kjddx                        Stopping container grafana
+monitoring   57m         Normal    Scheduled          pod/prometheus-grafana-5875d7786f-w2bdb                        Successfully assigned monitoring/prometheus-grafana-5875d7786f-w2bdb to ip-10-0-10-206.ap-southeast-1.compute.internal
+monitoring   57m         Normal    Killing            pod/prometheus-kube-prometheus-operator-5bd97f6986-zf7b4       Stopping container kube-prometheus-stack
+monitoring   57m         Normal    Killing            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Stopping container config-reloader
+monitoring   57m         Normal    Scheduled          pod/prometheus-kube-state-metrics-7cdf9894f9-d4njt             Successfully assigned monitoring/prometheus-kube-state-metrics-7cdf9894f9-d4njt to ip-10-0-10-244.ap-southeast-1.compute.internal
+monitoring   57m         Normal    SuccessfulCreate   daemonset/prometheus-prometheus-node-exporter                  Created pod: prometheus-prometheus-node-exporter-jqb47
+monitoring   57m         Normal    SuccessfulCreate   daemonset/prometheus-prometheus-node-exporter                  Created pod: prometheus-prometheus-node-exporter-zfptq
+monitoring   57m         Normal    SuccessfulCreate   daemonset/prometheus-prometheus-node-exporter                  Created pod: prometheus-prometheus-node-exporter-brrgj
+monitoring   57m         Normal    Killing            pod/prometheus-prometheus-node-exporter-7w79c                  Stopping container node-exporter
+monitoring   57m         Normal    Scheduled          pod/prometheus-prometheus-node-exporter-brrgj                  Successfully assigned monitoring/prometheus-prometheus-node-exporter-brrgj to ip-10-0-10-206.ap-southeast-1.compute.internal
+monitoring   57m         Normal    Pulled             pod/prometheus-prometheus-node-exporter-brrgj                  Container image "quay.io/prometheus/node-exporter:v1.8.0" already present on machine
+monitoring   57m         Normal    Scheduled          pod/prometheus-prometheus-node-exporter-zfptq                  Successfully assigned monitoring/prometheus-prometheus-node-exporter-zfptq to ip-10-0-10-244.ap-southeast-1.compute.internal
+monitoring   57m         Normal    Scheduled          pod/prometheus-kube-prometheus-operator-5bd97f6986-svtqm       Successfully assigned monitoring/prometheus-kube-prometheus-operator-5bd97f6986-svtqm to ip-10-0-10-206.ap-southeast-1.compute.internal
+monitoring   57m         Normal    Pulling            pod/prometheus-kube-prometheus-operator-5bd97f6986-svtqm       Pulling image "quay.io/prometheus-operator/prometheus-operator:v0.74.0"
+monitoring   57m         Normal    Killing            pod/prometheus-prometheus-node-exporter-vwctc                  Stopping container node-exporter
+monitoring   57m         Normal    Killing            pod/prometheus-prometheus-node-exporter-vswnt                  Stopping container node-exporter
+monitoring   57m         Normal    Created            pod/prometheus-prometheus-node-exporter-brrgj                  Created container: node-exporter
+monitoring   57m         Normal    Killing            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Stopping container prometheus
+monitoring   57m         Normal    SuccessfulCreate   replicaset/prometheus-kube-prometheus-operator-5bd97f6986      Created pod: prometheus-kube-prometheus-operator-5bd97f6986-svtqm
+monitoring   57m         Normal    Pulling            pod/prometheus-grafana-5875d7786f-w2bdb                        Pulling image "quay.io/kiwigrid/k8s-sidecar:1.26.1"
+monitoring   57m         Normal    Scheduled          pod/prometheus-prometheus-node-exporter-jqb47                  Successfully assigned monitoring/prometheus-prometheus-node-exporter-jqb47 to ip-10-0-10-72.ap-southeast-1.compute.internal
+monitoring   57m         Normal    Pulling            pod/prometheus-kube-state-metrics-7cdf9894f9-d4njt             Pulling image "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0"
+monitoring   57m         Normal    SuccessfulCreate   replicaset/prometheus-kube-state-metrics-7cdf9894f9            Created pod: prometheus-kube-state-metrics-7cdf9894f9-d4njt
+monitoring   57m         Normal    Scheduled          pod/prometheus-prometheus-kube-prometheus-prometheus-0         Successfully assigned monitoring/prometheus-prometheus-kube-prometheus-prometheus-0 to ip-10-0-10-206.ap-southeast-1.compute.internal
+monitoring   57m         Normal    SuccessfulCreate   statefulset/prometheus-prometheus-kube-prometheus-prometheus   create Pod prometheus-prometheus-kube-prometheus-prometheus-0 in StatefulSet prometheus-prometheus-kube-prometheus-prometheus successful
+monitoring   57m         Normal    Pulled             pod/prometheus-prometheus-node-exporter-jqb47                  Container image "quay.io/prometheus/node-exporter:v1.8.0" already present on machine
+monitoring   57m         Normal    Created            pod/prometheus-prometheus-node-exporter-jqb47                  Created container: node-exporter
+monitoring   57m         Normal    Pulling            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Pulling image "quay.io/prometheus-operator/prometheus-config-reloader:v0.74.0"
+monitoring   57m         Normal    Started            pod/prometheus-prometheus-node-exporter-brrgj                  Started container node-exporter
+monitoring   57m         Normal    Started            pod/prometheus-prometheus-node-exporter-jqb47                  Started container node-exporter
+monitoring   57m         Normal    Pulled             pod/prometheus-prometheus-node-exporter-zfptq                  Container image "quay.io/prometheus/node-exporter:v1.8.0" already present on machine
+monitoring   57m         Normal    Created            pod/prometheus-prometheus-node-exporter-zfptq                  Created container: node-exporter
+monitoring   57m         Normal    Started            pod/prometheus-prometheus-node-exporter-zfptq                  Started container node-exporter
+monitoring   57m         Normal    Started            pod/prometheus-kube-state-metrics-7cdf9894f9-d4njt             Started container kube-state-metrics
+monitoring   57m         Normal    Pulled             pod/prometheus-kube-state-metrics-7cdf9894f9-d4njt             Successfully pulled image "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0" in 1.958s (1.958s including waiting). Image size: 13702190 bytes.
+monitoring   57m         Normal    Created            pod/prometheus-kube-state-metrics-7cdf9894f9-d4njt             Created container: kube-state-metrics
+monitoring   57m         Normal    Created            pod/prometheus-grafana-5875d7786f-w2bdb                        Created container: grafana-sc-dashboard
+monitoring   57m         Normal    Pulled             pod/prometheus-kube-prometheus-operator-5bd97f6986-svtqm       Successfully pulled image "quay.io/prometheus-operator/prometheus-operator:v0.74.0" in 4.936s (4.936s including waiting). Image size: 17110567 bytes.
+monitoring   57m         Normal    Created            pod/prometheus-kube-prometheus-operator-5bd97f6986-svtqm       Created container: kube-prometheus-stack
+monitoring   57m         Normal    Pulled             pod/prometheus-grafana-5875d7786f-w2bdb                        Successfully pulled image "quay.io/kiwigrid/k8s-sidecar:1.26.1" in 5.124s (5.124s including waiting). Image size: 23978952 bytes.
+monitoring   57m         Normal    Started            pod/prometheus-kube-prometheus-operator-5bd97f6986-svtqm       Started container kube-prometheus-stack
+monitoring   57m         Normal    Pulled             pod/prometheus-grafana-5875d7786f-w2bdb                        Container image "quay.io/kiwigrid/k8s-sidecar:1.26.1" already present on machine
+monitoring   57m         Normal    Started            pod/prometheus-grafana-5875d7786f-w2bdb                        Started container grafana-sc-datasources
+monitoring   57m         Normal    Pulling            pod/prometheus-grafana-5875d7786f-w2bdb                        Pulling image "docker.io/grafana/grafana:11.0.0"
+monitoring   57m         Normal    Started            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Started container init-config-reloader
+monitoring   57m         Normal    Created            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Created container: init-config-reloader
+monitoring   57m         Normal    Pulled             pod/prometheus-prometheus-kube-prometheus-prometheus-0         Successfully pulled image "quay.io/prometheus-operator/prometheus-config-reloader:v0.74.0" in 4.335s (4.335s including waiting). Image size: 14015494 bytes.
+monitoring   57m         Normal    Created            pod/prometheus-grafana-5875d7786f-w2bdb                        Created container: grafana-sc-datasources
+monitoring   57m         Normal    Started            pod/prometheus-grafana-5875d7786f-w2bdb                        Started container grafana-sc-dashboard
+monitoring   57m         Normal    Pulling            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Pulling image "quay.io/prometheus/prometheus:v2.52.0"
+monitoring   57m         Normal    Created            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Created container: prometheus
+monitoring   57m         Normal    Started            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Started container prometheus
+monitoring   57m         Normal    Pulled             pod/prometheus-prometheus-kube-prometheus-prometheus-0         Container image "quay.io/prometheus-operator/prometheus-config-reloader:v0.74.0" already present on machine
+monitoring   57m         Normal    Created            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Created container: config-reloader
+monitoring   57m         Normal    Pulled             pod/prometheus-prometheus-kube-prometheus-prometheus-0         Successfully pulled image "quay.io/prometheus/prometheus:v2.52.0" in 8.524s (8.524s including waiting). Image size: 107216079 bytes.
+monitoring   57m         Normal    Started            pod/prometheus-prometheus-kube-prometheus-prometheus-0         Started container config-reloader
+monitoring   57m         Normal    Started            pod/prometheus-grafana-5875d7786f-w2bdb                        Started container grafana
+monitoring   57m         Normal    Created            pod/prometheus-grafana-5875d7786f-w2bdb                        Created container: grafana
+monitoring   57m         Normal    Pulled             pod/prometheus-grafana-5875d7786f-w2bdb                        Successfully pulled image "docker.io/grafana/grafana:11.0.0" in 12.062s (12.062s including waiting). Image size: 120709951 bytes.
+monitoring   57m         Warning   Unhealthy          pod/prometheus-grafana-5875d7786f-w2bdb                        Readiness probe failed: Get "http://10.0.10.108:3000/api/health": dial tcp 10.0.10.108:3000: connect: connection refused
