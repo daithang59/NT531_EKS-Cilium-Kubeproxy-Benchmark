@@ -1,0 +1,76 @@
+NAMESPACE     NAME                                                       READY   STATUS    RESTARTS   AGE
+benchmark     pod/echo-ffc5c485d-gh84b                                   1/1     Running   0          5h28m
+benchmark     pod/fortio-cf9999755-5gdv8                                 1/1     Running   0          12m
+kube-system   pod/cilium-6dt5x                                           1/1     Running   0          59m
+kube-system   pod/cilium-envoy-2llwx                                     1/1     Running   0          59m
+kube-system   pod/cilium-envoy-8hk8m                                     1/1     Running   0          59m
+kube-system   pod/cilium-envoy-j4ll6                                     1/1     Running   0          59m
+kube-system   pod/cilium-operator-8c598ddf5-94j9j                        1/1     Running   0          5h28m
+kube-system   pod/cilium-operator-8c598ddf5-n2jpd                        1/1     Running   0          5h28m
+kube-system   pod/cilium-p7tcv                                           1/1     Running   0          59m
+kube-system   pod/cilium-tl4xr                                           1/1     Running   0          59m
+kube-system   pod/coredns-7889d86cb8-h79c7                               1/1     Running   0          5h28m
+kube-system   pod/coredns-7889d86cb8-qng5b                               1/1     Running   0          58m
+kube-system   pod/kube-proxy-2b69v                                       1/1     Running   0          59m
+kube-system   pod/kube-proxy-4hn9s                                       1/1     Running   0          59m
+kube-system   pod/kube-proxy-mtbmp                                       1/1     Running   0          59m
+monitoring    pod/prometheus-grafana-5875d7786f-kjddx                    3/3     Running   0          5h28m
+monitoring    pod/prometheus-kube-prometheus-operator-5bd97f6986-zf7b4   1/1     Running   0          5h28m
+monitoring    pod/prometheus-kube-state-metrics-7cdf9894f9-67vrk         1/1     Running   0          5h28m
+monitoring    pod/prometheus-prometheus-kube-prometheus-prometheus-0     2/2     Running   0          5h28m
+monitoring    pod/prometheus-prometheus-node-exporter-7w79c              1/1     Running   0          59m
+monitoring    pod/prometheus-prometheus-node-exporter-vswnt              1/1     Running   0          59m
+monitoring    pod/prometheus-prometheus-node-exporter-vwctc              1/1     Running   0          59m
+
+NAMESPACE     NAME                                                         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)                        AGE
+benchmark     service/echo                                                 ClusterIP   172.20.112.35    <none>        80/TCP                         2d14h
+default       service/kubernetes                                           ClusterIP   172.20.0.1       <none>        443/TCP                        2d14h
+kube-system   service/cilium-envoy                                         ClusterIP   None             <none>        9964/TCP                       2d14h
+kube-system   service/eks-extension-metrics-api                            ClusterIP   172.20.212.48    <none>        443/TCP                        2d14h
+kube-system   service/kube-dns                                             ClusterIP   172.20.0.10      <none>        53/UDP,53/TCP,9153/TCP         2d14h
+kube-system   service/prometheus-kube-prometheus-coredns                   ClusterIP   None             <none>        9153/TCP                       2d14h
+kube-system   service/prometheus-kube-prometheus-kube-controller-manager   ClusterIP   None             <none>        10257/TCP                      2d14h
+kube-system   service/prometheus-kube-prometheus-kube-etcd                 ClusterIP   None             <none>        2381/TCP                       2d14h
+kube-system   service/prometheus-kube-prometheus-kube-proxy                ClusterIP   None             <none>        10249/TCP                      2d14h
+kube-system   service/prometheus-kube-prometheus-kube-scheduler            ClusterIP   None             <none>        10259/TCP                      2d14h
+kube-system   service/prometheus-kube-prometheus-kubelet                   ClusterIP   None             <none>        10250/TCP,10255/TCP,4194/TCP   2d14h
+monitoring    service/prometheus-grafana                                   ClusterIP   172.20.4.212     <none>        80/TCP                         2d14h
+monitoring    service/prometheus-kube-prometheus-operator                  ClusterIP   172.20.221.163   <none>        443/TCP                        2d14h
+monitoring    service/prometheus-kube-prometheus-prometheus                ClusterIP   172.20.219.24    <none>        9090/TCP,8080/TCP              2d14h
+monitoring    service/prometheus-kube-state-metrics                        ClusterIP   172.20.136.112   <none>        8080/TCP                       2d14h
+monitoring    service/prometheus-operated                                  ClusterIP   None             <none>        9090/TCP                       2d14h
+monitoring    service/prometheus-prometheus-node-exporter                  ClusterIP   172.20.84.29     <none>        9100/TCP                       2d14h
+
+NAMESPACE     NAME                                                 DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR            AGE
+kube-system   daemonset.apps/cilium                                3         3         3       3            3           kubernetes.io/os=linux   2d14h
+kube-system   daemonset.apps/cilium-envoy                          3         3         3       3            3           kubernetes.io/os=linux   2d14h
+kube-system   daemonset.apps/kube-proxy                            3         3         3       3            3           <none>                   2d14h
+monitoring    daemonset.apps/prometheus-prometheus-node-exporter   3         3         3       3            3           kubernetes.io/os=linux   2d14h
+
+NAMESPACE     NAME                                                  READY   UP-TO-DATE   AVAILABLE   AGE
+benchmark     deployment.apps/echo                                  1/1     1            1           2d14h
+benchmark     deployment.apps/fortio                                1/1     1            1           2d14h
+kube-system   deployment.apps/cilium-operator                       2/2     2            2           2d14h
+kube-system   deployment.apps/coredns                               2/2     2            2           2d14h
+monitoring    deployment.apps/prometheus-grafana                    1/1     1            1           2d14h
+monitoring    deployment.apps/prometheus-kube-prometheus-operator   1/1     1            1           2d14h
+monitoring    deployment.apps/prometheus-kube-state-metrics         1/1     1            1           2d14h
+
+NAMESPACE     NAME                                                             DESIRED   CURRENT   READY   AGE
+benchmark     replicaset.apps/echo-84f9848b46                                  0         0         0       2d4h
+benchmark     replicaset.apps/echo-8578f8cc6                                   0         0         0       2d4h
+benchmark     replicaset.apps/echo-d797cc6fd                                   0         0         0       2d14h
+benchmark     replicaset.apps/echo-ffc5c485d                                   1         1         1       2d3h
+benchmark     replicaset.apps/fortio-5966f5cd99                                0         0         0       16h
+benchmark     replicaset.apps/fortio-66dfdfcc5                                 0         0         0       2d14h
+benchmark     replicaset.apps/fortio-79cbc875c5                                0         0         0       16h
+benchmark     replicaset.apps/fortio-cf9999755                                 1         1         1       2d3h
+kube-system   replicaset.apps/cilium-operator-8c598ddf5                        2         2         2       2d14h
+kube-system   replicaset.apps/coredns-7889d86cb8                               2         2         2       2d14h
+kube-system   replicaset.apps/coredns-f65d9fb89                                0         0         0       2d14h
+monitoring    replicaset.apps/prometheus-grafana-5875d7786f                    1         1         1       2d14h
+monitoring    replicaset.apps/prometheus-kube-prometheus-operator-5bd97f6986   1         1         1       2d14h
+monitoring    replicaset.apps/prometheus-kube-state-metrics-7cdf9894f9         1         1         1       2d14h
+
+NAMESPACE    NAME                                                                READY   AGE
+monitoring   statefulset.apps/prometheus-prometheus-kube-prometheus-prometheus   1/1     2d14h

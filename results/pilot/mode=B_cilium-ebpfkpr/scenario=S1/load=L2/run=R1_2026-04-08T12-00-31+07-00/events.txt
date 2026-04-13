@@ -1,0 +1,113 @@
+NAMESPACE     LAST SEEN   TYPE      REASON             OBJECT                                                   MESSAGE
+kube-system   10m         Normal    Killing            pod/hubble-relay-7cf68b958c-2lhv6                        Container hubble-relay failed startup probe, will be restarted
+kube-system   4m35s       Normal    Pulled             pod/hubble-relay-7cf68b958c-2lhv6                        Container image "quay.io/cilium/hubble-relay:v1.18.7@sha256:9bb9b2b1a4f4bef12a77738756cfbf970daa701e536e42f0a9c64a621bc7c9d5" already present on machine
+kube-system   56s         Warning   BackOff            pod/hubble-relay-7cf68b958c-2lhv6                        Back-off restarting failed container hubble-relay in pod hubble-relay-7cf68b958c-2lhv6_kube-system(f15fac60-33cb-49e9-ab49-ccc9114cbbc0)
+kube-system   59m         Normal    Pulled             pod/cilium-tdx52                                         Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Pulled             pod/cilium-l7srh                                         Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Created            pod/cilium-l7srh                                         Created container: cilium-agent
+kube-system   59m         Warning   Unhealthy          pod/cilium-l7srh                                         Startup probe failed: Get "http://127.0.0.1:9879/healthz": dial tcp 127.0.0.1:9879: connect: connection refused
+kube-system   57m         Warning   Unhealthy          pod/hubble-ui-576dcd986f-9bpbs                           Liveness probe failed: Get "http://10.96.1.230:8081/healthz": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+kube-system   59m         Normal    Killing            pod/cilium-bxscf                                         Stopping container cilium-agent
+kube-system   59m         Normal    Scheduled          pod/cilium-dfdcg                                         Successfully assigned kube-system/cilium-dfdcg to ip-10-0-10-178.ap-southeast-1.compute.internal
+kube-system   59m         Normal    SuccessfulCreate   daemonset/cilium                                         Created pod: cilium-dfdcg
+kube-system   59m         Normal    SuccessfulDelete   daemonset/cilium                                         Deleted pod: cilium-bxscf
+kube-system   59m         Normal    Started            pod/cilium-dfdcg                                         Started container config
+kube-system   59m         Normal    Created            pod/cilium-dfdcg                                         Created container: config
+kube-system   59m         Normal    Pulled             pod/cilium-dfdcg                                         Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Started            pod/cilium-dfdcg                                         Started container mount-cgroup
+kube-system   59m         Normal    Pulled             pod/cilium-dfdcg                                         Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Created            pod/cilium-dfdcg                                         Created container: mount-cgroup
+kube-system   59m         Normal    Pulled             pod/cilium-dfdcg                                         Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Created            pod/cilium-dfdcg                                         Created container: apply-sysctl-overwrites
+kube-system   59m         Normal    Started            pod/cilium-dfdcg                                         Started container apply-sysctl-overwrites
+kube-system   59m         Normal    Pulled             pod/cilium-dfdcg                                         Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Created            pod/cilium-dfdcg                                         Created container: mount-bpf-fs
+kube-system   59m         Normal    Started            pod/cilium-dfdcg                                         Started container mount-bpf-fs
+kube-system   59m         Normal    Pulled             pod/cilium-dfdcg                                         Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Created            pod/cilium-dfdcg                                         Created container: clean-cilium-state
+kube-system   59m         Normal    Started            pod/cilium-dfdcg                                         Started container clean-cilium-state
+kube-system   9m9s        Warning   Unhealthy          pod/hubble-ui-576dcd986f-9bpbs                           Readiness probe failed: Get "http://10.96.1.230:8081/": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+kube-system   59m         Normal    Created            pod/cilium-dfdcg                                         Created container: install-cni-binaries
+kube-system   59m         Normal    Pulled             pod/cilium-dfdcg                                         Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+kube-system   59m         Normal    Started            pod/cilium-dfdcg                                         Started container install-cni-binaries
+kube-system   59m         Normal    Created            pod/cilium-dfdcg                                         Created container: cilium-agent
+kube-system   59m         Normal    Started            pod/cilium-dfdcg                                         Started container cilium-agent
+kube-system   59m         Normal    Pulled             pod/cilium-dfdcg                                         Container image "quay.io/cilium/cilium:v1.18.7@sha256:99b029a0a7c2224dac8c1cc3b6b3ba52af00e2ff981d927e84260ee781e9753c" already present on machine
+monitoring    59m         Warning   Unhealthy          pod/prometheus-prometheus-kube-prometheus-prometheus-0   Readiness probe failed: Get "http://10.96.0.201:9090/-/ready": dial tcp 10.96.0.201:9090: connect: no route to host
+kube-system   58m         Warning   Unhealthy          pod/coredns-6d6cb66b-799hv                               Readiness probe failed: Get "http://10.96.0.118:8181/ready": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring    18m         Warning   Unhealthy          pod/prometheus-grafana-5875d7786f-fppqk                  Readiness probe failed: Get "http://10.96.0.171:3000/api/health": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring    58m         Warning   Unhealthy          pod/prometheus-prometheus-kube-prometheus-prometheus-0   Liveness probe failed: Get "http://10.96.0.201:9090/-/healthy": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+kube-system   38m         Normal    Killing            pod/hubble-ui-576dcd986f-9bpbs                           Container frontend failed liveness probe, will be restarted
+kube-system   54m         Normal    Created            pod/hubble-ui-576dcd986f-9bpbs                           Created container: frontend
+kube-system   54m         Normal    Started            pod/hubble-ui-576dcd986f-9bpbs                           Started container frontend
+monitoring    58m         Warning   Unhealthy          pod/prometheus-prometheus-kube-prometheus-prometheus-0   Readiness probe failed: Get "http://10.96.0.201:9090/-/ready": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+kube-system   3m28s       Normal    Pulled             pod/hubble-ui-576dcd986f-9bpbs                           Container image "quay.io/cilium/hubble-ui:v0.13.3@sha256:661d5de7050182d495c6497ff0b007a7a1e379648e60830dd68c4d78ae21761d" already present on machine
+monitoring    58m         Warning   Unhealthy          pod/prometheus-kube-state-metrics-7cdf9894f9-xqqxh       Readiness probe failed: Get "http://10.96.0.95:8080/": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+kube-system   58m         Normal    Scheduled          pod/coredns-6d6cb66b-nswb5                               Successfully assigned kube-system/coredns-6d6cb66b-nswb5 to ip-10-0-10-178.ap-southeast-1.compute.internal
+kube-system   58m         Normal    Killing            pod/coredns-6d6cb66b-799hv                               Stopping container coredns
+kube-system   58m         Normal    SuccessfulCreate   replicaset/coredns-6d6cb66b                              Created pod: coredns-6d6cb66b-nswb5
+monitoring    58m         Warning   Unhealthy          pod/prometheus-kube-state-metrics-7cdf9894f9-xqqxh       Liveness probe failed: Get "http://10.96.0.95:8080/healthz": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+kube-system   58m         Normal    Pulling            pod/coredns-6d6cb66b-nswb5                               Pulling image "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.13.2-eksbuild.4"
+kube-system   58m         Warning   Unhealthy          pod/coredns-6d6cb66b-799hv                               Liveness probe failed: Get "http://10.96.0.118:8080/health": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+kube-system   58m         Normal    Pulled             pod/coredns-6d6cb66b-nswb5                               Successfully pulled image "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.13.2-eksbuild.4" in 1.366s (1.366s including waiting). Image size: 25994393 bytes.
+kube-system   58m         Normal    Created            pod/coredns-6d6cb66b-nswb5                               Created container: coredns
+kube-system   58m         Normal    Started            pod/coredns-6d6cb66b-nswb5                               Started container coredns
+monitoring    58m         Normal    Killing            pod/prometheus-prometheus-kube-prometheus-prometheus-0   Container prometheus failed liveness probe, will be restarted
+monitoring    13m         Normal    Started            pod/prometheus-prometheus-kube-prometheus-prometheus-0   Started container prometheus
+monitoring    13m         Normal    Created            pod/prometheus-prometheus-kube-prometheus-prometheus-0   Created container: prometheus
+monitoring    13m         Normal    Pulled             pod/prometheus-prometheus-kube-prometheus-prometheus-0   Container image "quay.io/prometheus/prometheus:v2.52.0" already present on machine
+monitoring    42m         Normal    Created            pod/prometheus-kube-state-metrics-7cdf9894f9-xqqxh       Created container: kube-state-metrics
+monitoring    42m         Normal    Started            pod/prometheus-kube-state-metrics-7cdf9894f9-xqqxh       Started container kube-state-metrics
+monitoring    6m4s        Normal    Pulled             pod/prometheus-kube-state-metrics-7cdf9894f9-xqqxh       Container image "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0" already present on machine
+monitoring    58m         Normal    Killing            pod/prometheus-kube-state-metrics-7cdf9894f9-xqqxh       Container kube-state-metrics failed liveness probe, will be restarted
+monitoring    3m59s       Warning   Unhealthy          pod/prometheus-prometheus-kube-prometheus-prometheus-0   Startup probe failed: Get "http://10.96.0.201:9090/-/ready": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring    3m57s       Warning   Unhealthy          pod/prometheus-grafana-5875d7786f-fppqk                  Liveness probe failed: Get "http://10.96.0.171:3000/api/health": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring    8m53s       Warning   BackOff            pod/prometheus-kube-state-metrics-7cdf9894f9-xqqxh       Back-off restarting failed container kube-state-metrics in pod prometheus-kube-state-metrics-7cdf9894f9-xqqxh_monitoring(1bd6fda7-402e-40a4-93c6-bdfa49ecb66b)
+kube-system   10m         Warning   Unhealthy          pod/hubble-relay-7cf68b958c-2lhv6                        Startup probe failed: timeout: failed to connect service "10.96.1.123:4222" within 1s: context deadline exceeded
+monitoring    5m57s       Normal    Pulled             pod/prometheus-grafana-5875d7786f-fppqk                  Container image "docker.io/grafana/grafana:11.0.0" already present on machine
+monitoring    11m         Normal    Started            pod/prometheus-grafana-5875d7786f-fppqk                  Started container grafana
+monitoring    11m         Normal    Created            pod/prometheus-grafana-5875d7786f-fppqk                  Created container: grafana
+monitoring    5m57s       Normal    Killing            pod/prometheus-grafana-5875d7786f-fppqk                  Container grafana failed liveness probe, will be restarted
+kube-system   49m         Normal    Scheduled          pod/coredns-6d6cb66b-8p787                               Successfully assigned kube-system/coredns-6d6cb66b-8p787 to ip-10-0-10-39.ap-southeast-1.compute.internal
+kube-system   49m         Normal    Killing            pod/coredns-6d6cb66b-nswb5                               Stopping container coredns
+kube-system   49m         Normal    SuccessfulCreate   replicaset/coredns-6d6cb66b                              Created pod: coredns-6d6cb66b-8p787
+kube-system   46m         Normal    Created            pod/coredns-6d6cb66b-8p787                               Created container: coredns
+kube-system   46m         Normal    Pulled             pod/coredns-6d6cb66b-8p787                               Container image "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.13.2-eksbuild.4" already present on machine
+kube-system   46m         Normal    Started            pod/coredns-6d6cb66b-8p787                               Started container coredns
+kube-system   47m         Warning   Unhealthy          pod/coredns-6d6cb66b-8p787                               Readiness probe failed: Get "http://10.0.10.10:8181/ready": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+kube-system   49m         Warning   Unhealthy          pod/coredns-6d6cb66b-nswb5                               Readiness probe failed: Get "http://10.0.10.130:8181/ready": dial tcp 10.0.10.130:8181: connect: connection refused
+kube-system   4m8s        Warning   BackOff            pod/hubble-ui-576dcd986f-9bpbs                           Back-off restarting failed container frontend in pod hubble-ui-576dcd986f-9bpbs_kube-system(b19ca7ec-22a0-454e-b4b6-8511b883cd32)
+kube-system   48m         Warning   Unhealthy          pod/coredns-6d6cb66b-8p787                               Liveness probe failed: Get "http://10.0.10.10:8080/health": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+kube-system   46m         Normal    Killing            pod/coredns-6d6cb66b-8p787                               Container coredns failed liveness probe, will be restarted
+kube-system   45m         Normal    Scheduled          pod/coredns-6d6cb66b-d9rqj                               Successfully assigned kube-system/coredns-6d6cb66b-d9rqj to ip-10-0-10-178.ap-southeast-1.compute.internal
+kube-system   45m         Normal    Killing            pod/coredns-6d6cb66b-8p787                               Stopping container coredns
+kube-system   45m         Normal    SuccessfulCreate   replicaset/coredns-6d6cb66b                              Created pod: coredns-6d6cb66b-d9rqj
+kube-system   45m         Normal    Pulled             pod/coredns-6d6cb66b-d9rqj                               Container image "602401143452.dkr.ecr.ap-southeast-1.amazonaws.com/eks/coredns:v1.13.2-eksbuild.4" already present on machine
+kube-system   45m         Normal    Created            pod/coredns-6d6cb66b-d9rqj                               Created container: coredns
+kube-system   45m         Normal    Started            pod/coredns-6d6cb66b-d9rqj                               Started container coredns
+monitoring    13m         Normal    Killing            pod/prometheus-prometheus-kube-prometheus-prometheus-0   Container prometheus failed startup probe, will be restarted
+benchmark     35m         Normal    SuccessfulCreate   replicaset/fortio-86dcc7d967                             Created pod: fortio-86dcc7d967-7sprp
+benchmark     35m         Normal    Killing            pod/echo-6b966c8588-klgn7                                Stopping container echo
+benchmark     35m         Normal    Scheduled          pod/echo-6b966c8588-kq9vt                                Successfully assigned benchmark/echo-6b966c8588-kq9vt to ip-10-0-10-178.ap-southeast-1.compute.internal
+benchmark     35m         Normal    SuccessfulCreate   replicaset/echo-6b966c8588                               Created pod: echo-6b966c8588-kq9vt
+benchmark     35m         Normal    Scheduled          pod/fortio-86dcc7d967-7sprp                              Successfully assigned benchmark/fortio-86dcc7d967-7sprp to ip-10-0-10-178.ap-southeast-1.compute.internal
+benchmark     35m         Normal    Killing            pod/fortio-86dcc7d967-rtdf5                              Stopping container fortio
+benchmark     35m         Normal    Pulling            pod/echo-6b966c8588-kq9vt                                Pulling image "hashicorp/http-echo:1.0"
+benchmark     35m         Normal    Pulling            pod/fortio-86dcc7d967-7sprp                              Pulling image "fortio/fortio:1.74.0"
+benchmark     35m         Normal    Started            pod/fortio-86dcc7d967-7sprp                              Started container fortio
+benchmark     35m         Normal    Pulled             pod/echo-6b966c8588-kq9vt                                Successfully pulled image "hashicorp/http-echo:1.0" in 5.158s (5.158s including waiting). Image size: 4631705 bytes.
+benchmark     35m         Normal    Created            pod/echo-6b966c8588-kq9vt                                Created container: echo
+benchmark     35m         Normal    Started            pod/echo-6b966c8588-kq9vt                                Started container echo
+benchmark     35m         Normal    Pulled             pod/fortio-86dcc7d967-7sprp                              Successfully pulled image "fortio/fortio:1.74.0" in 5.289s (5.289s including waiting). Image size: 7520463 bytes.
+benchmark     35m         Normal    Created            pod/fortio-86dcc7d967-7sprp                              Created container: fortio
+monitoring    4m45s       Normal    SuccessfulCreate   replicaset/prometheus-kube-state-metrics-7cdf9894f9      Created pod: prometheus-kube-state-metrics-7cdf9894f9-pz47z
+monitoring    4m45s       Normal    Pulling            pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z       Pulling image "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0"
+monitoring    4m44s       Normal    Scheduled          pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z       Successfully assigned monitoring/prometheus-kube-state-metrics-7cdf9894f9-pz47z to ip-10-0-10-104.ap-southeast-1.compute.internal
+monitoring    70s         Normal    Started            pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z       Started container kube-state-metrics
+monitoring    70s         Normal    Created            pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z       Created container: kube-state-metrics
+monitoring    4m43s       Normal    Pulled             pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z       Successfully pulled image "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0" in 1.866s (1.866s including waiting). Image size: 13702190 bytes.
+monitoring    2m          Warning   Unhealthy          pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z       Liveness probe failed: Get "http://10.0.10.247:8080/healthz": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring    116s        Warning   Unhealthy          pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z       Readiness probe failed: Get "http://10.0.10.247:8080/": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+monitoring    70s         Normal    Pulled             pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z       Container image "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0" already present on machine
+monitoring    112s        Warning   BackOff            pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z       Back-off restarting failed container kube-state-metrics in pod prometheus-kube-state-metrics-7cdf9894f9-pz47z_monitoring(8aef6b18-48f3-480b-a3f5-f4c8fa38716b)
+monitoring    40s         Normal    Killing            pod/prometheus-kube-state-metrics-7cdf9894f9-pz47z       Container kube-state-metrics failed liveness probe, will be restarted

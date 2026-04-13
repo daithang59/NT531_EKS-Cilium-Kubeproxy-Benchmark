@@ -1,0 +1,166 @@
+{
+  "project": "nt531-net-perf-evaluation",
+  "run_id": "R3_2026-04-08T11-56-39+07-00",
+  "timestamp_start_utc": "2026-04-08T11:56:39+07:00",
+  "timestamp_end_utc": "",
+  "timezone": "Asia/Ho_Chi_Minh",
+
+  "mode": {
+    "id": "B",
+    "name": "B_cilium-ebpfkpr",
+    "notes": ""
+  },
+
+  "scenario": {
+    "id": "S1",
+    "name": "Service Baseline",
+    "notes": ""
+  },
+
+  "load_level": {
+    "id": "L1",
+    "description": "",
+    "params": {
+      "tool": "fortio",
+      "duration_seconds": 180,
+      "warmup_seconds": 30,
+      "qps": 100,
+      "concurrency": 8,
+      "connections": 0,
+      "keepalive": true,
+      "payload_bytes": 0,
+      "request_path": "/",
+      "http_method": "GET",
+      "extra_flags": ""
+    }
+  },
+
+  "cluster": {
+    "provider": "aws",
+    "region": "",
+    "availability_zones": [""],
+    "eks": {
+      "cluster_name": "",
+      "kubernetes_version": "",
+      "endpoint_public_access": false
+    },
+    "nodes": {
+      "node_group_name": "",
+      "instance_type": "m5.large",
+      "node_count": 3,
+      "autoscaling": {
+        "enabled": false,
+        "min": 3,
+        "desired": 3,
+        "max": 3
+      },
+      "ami_id": "",
+      "kernel_version": ""
+    }
+  },
+
+  "datapath": {
+    "kube_proxy": {
+      "enabled": true,
+      "mode": "iptables",
+      "version": ""
+    },
+    "cilium": {
+      "enabled": true,
+      "version": "1.18.7",
+      "kube_proxy_replacement": "partial",
+      "tunnel": "",
+      "routing_mode": "",
+      "hubble": {
+        "enabled": true,
+        "version": "",
+        "metrics": [],
+        "sampling": ""
+      }
+    }
+  },
+
+  "observability": {
+    "prometheus": {
+      "enabled": true,
+      "stack": "kube-prometheus-stack",
+      "version": "",
+      "scrape_interval": ""
+    },
+    "grafana": {
+      "enabled": true,
+      "version": "",
+      "dashboards": []
+    }
+  },
+
+  "workload": {
+    "namespace": "benchmark",
+    "server": {
+      "name": "echo",
+      "image": "hashicorp/http-echo:1.0",
+      "replicas": 1,
+      "resources": {
+        "requests": { "cpu": "250m", "memory": "128Mi" },
+        "limits": { "cpu": "500m", "memory": "256Mi" }
+      }
+    },
+    "client": {
+      "name": "fortio",
+      "image": "fortio/fortio:1.74.0",
+      "resources": {
+        "requests": { "cpu": "500m", "memory": "256Mi" },
+        "limits": { "cpu": "1000m", "memory": "512Mi" }
+      }
+    },
+    "service": {
+      "name": "echo",
+      "type": "ClusterIP",
+      "port": 80,
+      "target_port": 5678
+    },
+    "policy": {
+      "enabled": false,
+      "type": "none",
+      "name": "",
+      "complexity_level": "off",
+      "rule_count_estimate": 0,
+      "notes": ""
+    }
+  },
+
+  "results": {
+    "fortio": {
+      "rps": null,
+      "requests": null,
+      "errors": null,
+      "latency_ms": {
+        "p50": null,
+        "p90": null,
+        "p95": null,
+        "p99": null,
+        "max": null
+      }
+    },
+    "notes": "",
+    "anomalies": [
+      {
+        "type": "",
+        "description": "",
+        "evidence": ""
+      }
+    ]
+  },
+
+  "artifacts": {
+    "output_dir": "/c/nt531-project/NT531_Project/thesis-cilium-eks-benchmark/results/mode=B_cilium-ebpfkpr/scenario=S1/load=L1/run=R3_2026-04-08T11-56-39+07-00",
+    "files": {
+      "bench_log": "bench.log",
+      "hubble_log": "hubble.log",
+      "prom_snapshot_dir": "prom_snapshot/",
+      "grafana_dir": "grafana/",
+      "manifests_dir": "manifests/",
+      "kubectl_dump": "kubectl_dump.txt"
+    }
+  }
+}

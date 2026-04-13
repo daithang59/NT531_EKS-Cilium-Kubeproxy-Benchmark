@@ -1,0 +1,40 @@
+# Run Checklist — verified 2026-04-07
+# Mode=A_kube-proxy Scenario=S1 Load=L1 Run=R1
+# Runner / Checker: da [x] = da xac nhan
+
+## Pre-run
+- [x] kubectl context active and correct cluster
+- [x] All nodes Ready (kubectl get nodes)
+- [x] Workload pods Running (echo + fortio in namespace benchmark)
+- [x] Service reachable from fortio pod (bench.log shows 100% HTTP 200)
+
+## Configuration
+- [x] MODE=A matches expected
+- [x] SCENARIO=S1 matches expected
+- [x] LOAD=L1 matches expected
+- [x] REPEAT=3 — this is run R1
+
+## Stability
+- [x] No pod restarts during run (events.txt: "No resources found")
+- [x] No node NotReady events during run
+- [x] No OOM kills during run (kubectl_get_all.txt: all pods Running, 0 restarts)
+
+## Artifacts present
+- [x] bench.log exists and non-empty (72,000 calls, 100% HTTP 200)
+- [x] metadata.json exists and valid JSON (fortio metrics filled)
+- [x] kubectl_get_all.txt exists (complete cluster state dump)
+- [x] kubectl_top_nodes.txt exists (note: metrics-server unavailable, Prometheus used instead)
+- [x] events.txt exists (no events in namespace benchmark)
+- [x] (Mode B / S3) cilium_status.txt exists — N/A for Mode A
+- [x] (Mode B / S3) hubble_status.txt exists — N/A for Mode A
+- [x] (Mode B / S3) hubble_flows.jsonl exists — N/A for Mode A
+- [x] node_metrics.txt exists (Prometheus-based node metrics collected)
+
+## Post-run
+- [x] No anomalies noted
+
+## Node metrics summary (collected via Prometheus)
+- Node CPU utilization: 1.5-4.1%
+- Kube-proxy CPU: 0.0008-0.001 cores
+- Cilium Envoy CPU: 0.0007-0.002 cores
+- No errors, no restarts, no OOM

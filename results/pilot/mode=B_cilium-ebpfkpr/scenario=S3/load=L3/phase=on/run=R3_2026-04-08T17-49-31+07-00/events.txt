@@ -1,0 +1,10 @@
+NAMESPACE     LAST SEEN   TYPE      REASON      OBJECT                              MESSAGE
+kube-system   14m         Normal    Killing     pod/hubble-relay-7cf68b958c-2lhv6   Container hubble-relay failed startup probe, will be restarted
+kube-system   116s        Normal    Pulled      pod/hubble-relay-7cf68b958c-2lhv6   Container image "quay.io/cilium/hubble-relay:v1.18.7@sha256:9bb9b2b1a4f4bef12a77738756cfbf970daa701e536e42f0a9c64a621bc7c9d5" already present on machine
+kube-system   4m57s       Warning   BackOff     pod/hubble-relay-7cf68b958c-2lhv6   Back-off restarting failed container hubble-relay in pod hubble-relay-7cf68b958c-2lhv6_kube-system(f15fac60-33cb-49e9-ab49-ccc9114cbbc0)
+kube-system   18m         Warning   Unhealthy   pod/hubble-ui-576dcd986f-9bpbs      Readiness probe failed: Get "http://10.96.1.230:8081/": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+kube-system   36s         Normal    Pulled      pod/hubble-ui-576dcd986f-9bpbs      Container image "quay.io/cilium/hubble-ui:v0.13.3@sha256:661d5de7050182d495c6497ff0b007a7a1e379648e60830dd68c4d78ae21761d" already present on machine
+kube-system   14m         Warning   Unhealthy   pod/hubble-relay-7cf68b958c-2lhv6   Startup probe failed: timeout: failed to connect service "10.96.1.123:4222" within 1s: context deadline exceeded
+kube-system   3m18s       Warning   BackOff     pod/hubble-ui-576dcd986f-9bpbs      Back-off restarting failed container frontend in pod hubble-ui-576dcd986f-9bpbs_kube-system(b19ca7ec-22a0-454e-b4b6-8511b883cd32)
+kube-system   17m         Normal    Killing     pod/hubble-ui-576dcd986f-9bpbs      Container frontend failed liveness probe, will be restarted
+kube-system   42m         Normal    Created     pod/hubble-ui-576dcd986f-9bpbs      Created container: frontend

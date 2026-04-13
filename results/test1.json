@@ -1,0 +1,200 @@
+{"ts":1776014259.675061,"level":"info","r":1,"file":"scli.go","line":124,"msg":"Starting","command":"Φορτίο","version":"1.74.0 h1:bo6CcSH+gpdNfgcVAnL3MMLT/QPWCnFMsqaX1o4VFUA= go1.24.13 amd64 linux","go-max-procs":2}
+HTTP/1.1 200 OK
+Content-Type: application/json
+Date: Sun, 12 Apr 2026 17:17:44 GMT
+Transfer-Encoding: chunked
+
+dfc
+{
+  "RunType": "HTTP",
+  "Labels": "",
+  "StartTime": "2026-04-12T17:17:39.685181847Z",
+  "RequestedQPS": "50",
+  "RequestedDuration": "5s",
+  "ActualQPS": 49.98712956381556,
+  "ActualDuration": 4961277076,
+  "NumThreads": 4,
+  "Version": "1.74.0",
+  "DurationHistogram": {
+    "Count": 248,
+    "Min": 0.000158216,
+    "Max": 0.002767914,
+    "Sum": 0.117217462,
+    "Avg": 0.0004726510564516129,
+    "StdDev": 0.0003309337981018284,
+    "Data": [
+      {
+        "Start": 0.000158216,
+        "End": 0.001,
+        "Percent": 97.58064516129032,
+        "Count": 242
+      },
+      {
+        "Start": 0.001,
+        "End": 0.002,
+        "Percent": 98.38709677419355,
+        "Count": 2
+      },
+      {
+        "Start": 0.002,
+        "End": 0.002767914,
+        "Percent": 100,
+        "Count": 4
+      }
+    ],
+    "Percentiles": [
+      {
+        "Percentile": 50,
+        "Value": 0.0005878401991701245
+      },
+      {
+        "Percentile": 75,
+        "Value": 0.0008043987385892117
+      },
+      {
+        "Percentile": 90,
+        "Value": 0.0009343338622406639
+      },
+      {
+        "Percentile": 99,
+        "Value": 0.002291807319999999
+      },
+      {
+        "Percentile": 99.9,
+        "Value": 0.0027203033320000024
+      }
+    ]
+  },
+  "ErrorsDurationHistogram": {
+    "Count": 0,
+    "Min": 0,
+    "Max": 0,
+    "Sum": 0,
+    "Avg": 0,
+    "StdDev": 0,
+    "Data": null
+  },
+  "Exactly": 0,
+  "Jitter": false,
+  "Uniform": false,
+  "NoCatchUp": false,
+  "RunID": 35,
+  "AccessLoggerInfo": "",
+  "ID": "2026-04-12-171739_35",
+  "RetCodes": {
+    "200": 248
+  },
+  "IPCountMap": {
+    "172.20.112.35:80": 4
+  },
+  "Insecure": false,
+  "MTLS": false,
+  "CACert": "",
+  "Cert": "",
+  "Key": "",
+  "UnixDomainSocket": "",
+  "URL": "http://echo.benchmark.svc.cluster.local/",
+  "NumConnections": 1,
+  "Compression": false,
+  "DisableFastClient": false,
+  "HTTP10": false,
+  "H2": false,
+  "DisableKeepAlive": false,
+  "AllowHalfClose": false,
+  "FollowRedirects": false,
+  "Resolve": "",
+  "HTTPReqTimeOut": 3000000000,
+  "UserCredentials": "",
+  "ContentType": "",
+  "Payload": "",
+  "MethodOverride": "",
+  "LogErrors": false,
+  "SequentialWarmup": false,
+  "ConnReuseRange": [
+    0,
+    0
+  ],
+  "NoResolveEachConn": false,
+  "Offset": 0,
+  "Resolution": 0.001,
+  "Sizes": {
+    "Count": 248,
+    "Min": 164,
+    "Max": 164,
+    "Sum": 40672,
+    "Avg": 164,
+    "StdDev": 0,
+    "Data": [
+      {
+        "Start": 164,
+        "End": 164,
+        "Percent": 100,
+        "Count": 248
+      }
+    ]
+  },
+  "HeaderSizes": {
+    "Count": 248,
+    "Min": 161,
+    "Max": 161,
+    "Sum": 39928,
+    "Avg": 161,
+    "StdDev": 0,
+    "Data": [
+      {
+        "Start": 161,
+        "End": 161,
+        "Percent": 100,
+        "Count": 248
+      }
+    ]
+  },
+  "Sockets": [
+    1,
+    1,
+    1,
+    1
+  ],
+  "SocketCount": 4,
+  "ConnectionStats": {
+    "Count": 4,
+    "Min": 0.000113585,
+    "Max": 0.000295118,
+    "Sum": 0.000915831,
+    "Avg": 0.00022895775,
+    "StdDev": 0.00006883980525965699,
+    "Data": [
+      {
+        "Start": 0.000113585,
+        "End": 0.000295118,
+        "Percent": 100,
+        "Count": 4
+      }
+    ],
+    "Percentiles": [
+      {
+        "Percentile": 50,
+        "Value": 0.000174096
+      },
+      {
+        "Percentile": 75,
+        "Value": 0.00023460699999999999
+      },
+      {
+        "Percentile": 90,
+        "Value": 0.0002709136
+      },
+      {
+        "Percentile": 99,
+        "Value": 0.00029269756
+      },
+      {
+        "Percentile": 99.9,
+        "Value": 0.000294875956
+      }
+    ]
+  },
+  "AbortOn": 0
+}
+0
+

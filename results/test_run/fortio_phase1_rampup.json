@@ -1,0 +1,204 @@
+{"ts":1776013508.315298,"level":"info","r":1,"file":"scli.go","line":124,"msg":"Starting","command":"Φορτίο","version":"1.74.0 h1:bo6CcSH+gpdNfgcVAnL3MMLT/QPWCnFMsqaX1o4VFUA= go1.24.13 amd64 linux","go-max-procs":2}
+e3b
+{
+  "RunType": "HTTP",
+  "Labels": "",
+  "StartTime": "2026-04-12T17:05:08.332394219Z",
+  "RequestedQPS": "50",
+  "RequestedDuration": "10s",
+  "ActualQPS": 49.9944705712367,
+  "ActualDuration": 9921097160,
+  "NumThreads": 8,
+  "Version": "1.74.0",
+  "DurationHistogram": {
+    "Count": 496,
+    "Min": 0.000166381,
+    "Max": 0.002834579,
+    "Sum": 0.322491775,
+    "Avg": 0.0006501850302419354,
+    "StdDev": 0.0003300830285615669,
+    "Data": [
+      {
+        "Start": 0.000166381,
+        "End": 0.001,
+        "Percent": 91.53225806451613,
+        "Count": 454
+      },
+      {
+        "Start": 0.001,
+        "End": 0.002,
+        "Percent": 98.99193548387096,
+        "Count": 37
+      },
+      {
+        "Start": 0.002,
+        "End": 0.002834579,
+        "Percent": 100,
+        "Count": 5
+      }
+    ],
+    "Percentiles": [
+      {
+        "Percentile": 50,
+        "Value": 0.0006209149801324504
+      },
+      {
+        "Percentile": 75,
+        "Value": 0.0008491020794701987
+      },
+      {
+        "Percentile": 90,
+        "Value": 0.0009860143390728478
+      },
+      {
+        "Percentile": 99,
+        "Value": 0.0020066766320000055
+      },
+      {
+        "Percentile": 99.9,
+        "Value": 0.002751788763200005
+      }
+    ]
+  },
+  "ErrorsDurationHistogram": {
+    "Count": 0,
+    "Min": 0,
+    "Max": 0,
+    "Sum": 0,
+    "Avg": 0,
+    "StdDev": 0,
+    "Data": null
+  },
+  "Exactly": 0,
+  "Jitter": false,
+  "Uniform": false,
+  "NoCatchUp": false,
+  "RunID": 24,
+  "AccessLoggerInfo": "",
+  "ID": "2026-04-12-170508_24",
+  "RetCodes": {
+    "200": 496
+  },
+  "IPCountMap": {
+    "172.20.112.35:80": 8
+  },
+  "Insecure": false,
+  "MTLS": false,
+  "CACert": "",
+  "Cert": "",
+  "Key": "",
+  "UnixDomainSocket": "",
+  "URL": "http://echo.benchmark.svc.cluster.local/",
+  "NumConnections": 1,
+  "Compression": false,
+  "DisableFastClient": false,
+  "HTTP10": false,
+  "H2": false,
+  "DisableKeepAlive": false,
+  "AllowHalfClose": false,
+  "FollowRedirects": false,
+  "Resolve": "",
+  "HTTPReqTimeOut": 3000000000,
+  "UserCredentials": "",
+  "ContentType": "",
+  "Payload": "",
+  "MethodOverride": "",
+  "LogErrors": false,
+  "SequentialWarmup": false,
+  "ConnReuseRange": [
+    0,
+    0
+  ],
+  "NoResolveEachConn": false,
+  "Offset": 0,
+  "Resolution": 0.001,
+  "Sizes": {
+    "Count": 496,
+    "Min": 164,
+    "Max": 164,
+    "Sum": 81344,
+    "Avg": 164,
+    "StdDev": 0,
+    "Data": [
+      {
+        "Start": 164,
+        "End": 164,
+        "Percent": 100,
+        "Count": 496
+      }
+    ]
+  },
+  "HeaderSizes": {
+    "Count": 496,
+    "Min": 161,
+    "Max": 161,
+    "Sum": 79856,
+    "Avg": 161,
+    "StdDev": 0,
+    "Data": [
+      {
+        "Start": 161,
+        "End": 161,
+        "Percent": 100,
+        "Count": 496
+      }
+    ]
+  },
+  "Sockets": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "SocketCount": 8,
+  "ConnectionStats": {
+    "Count": 8,
+    "Min": 0.000256233,
+    "Max": 0.000796567,
+    "Sum": 0.004405665,
+    "Avg": 0.000550708125,
+    "StdDev": 0.00018806676562755422,
+    "Data": [
+      {
+        "Start": 0.000256233,
+        "End": 0.000796567,
+        "Percent": 100,
+        "Count": 8
+      }
+    ],
+    "Percentiles": [
+      {
+        "Percentile": 50,
+        "Value": 0.0004878047142857143
+      },
+      {
+        "Percentile": 75,
+        "Value": 0.0006421858571428571
+      },
+      {
+        "Percentile": 90,
+        "Value": 0.0007348145428571428
+      },
+      {
+        "Percentile": 99,
+        "Value": 0.0007903917542857143
+      },
+      {
+        "Percentile": 99.9,
+        "Value": 0.0007959494754285714
+      }
+    ]
+  },
+  "AbortOn": 0
+}
+0
+
+HTTP/1.1 200 OK
+Content-Type: application/json
+Date: Sun, 12 Apr 2026 17:05:18 GMT
+Transfer-Encoding: chunked
+

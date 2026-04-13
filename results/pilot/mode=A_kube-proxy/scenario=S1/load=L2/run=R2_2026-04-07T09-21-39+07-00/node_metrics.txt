@@ -1,0 +1,15 @@
+# Node metrics collected at 2026-04-07T10:29:46Z
+# Prometheus pod: prometheus-prometheus-kube-prometheus-prometheus-0
+
+=== Node CPU Utilization % ===
+{"status":"success","data":{"resultType":"vector","result":[{"metric":{"instance":"10.0.10.219:9100"},"value":[1775557788.837,"1.8148148148153638"]},{"metric":{"instance":"10.0.10.190:9100"},"value":[1775557788.837,"1.846296296296515"]},{"metric":{"instance":"10.0.10.5:9100"},"value":[1775557788.837,"5.172222222221606"]}]}}
+=== Node Memory Usage % ===
+{"status":"success","data":{"resultType":"vector","result":[{"metric":{"container":"node-exporter","endpoint":"http-metrics","instance":"10.0.10.219:9100","job":"node-exporter","namespace":"monitoring","pod":"prometheus-prometheus-node-exporter-ffw7q","service":"prometheus-prometheus-node-exporter"},"value":[1775557790.606,"9.627547505217294"]},{"metric":{"container":"node-exporter","endpoint":"http-metrics","instance":"10.0.10.190:9100","job":"node-exporter","namespace":"monitoring","pod":"prometheus-prometheus-node-exporter-f98q2","service":"prometheus-prometheus-node-exporter"},"value":[1775557790.606,"9.409672173328698"]},{"metric":{"container":"node-exporter","endpoint":"http-metrics","instance":"10.0.10.5:9100","job":"node-exporter","namespace":"monitoring","pod":"prometheus-prometheus-node-exporter-7k48v","service":"prometheus-prometheus-node-exporter"},"value":[1775557790.606,"21.352749377276503"]}]}}
+=== Kube-proxy CPU (cores) ===
+{"status":"success","data":{"resultType":"vector","result":[{"metric":{"pod":"kube-proxy-wvn6f"},"value":[1775557791.926,"0.0013551083227287919"]},{"metric":{"pod":"kube-proxy-2jpgm"},"value":[1775557791.926,"0.0013703944926511267"]},{"metric":{"pod":"kube-proxy-625qz"},"value":[1775557791.926,"0.0013660362800256521"]}]}}
+=== Cilium Envoy CPU (cores) ===
+{"status":"success","data":{"resultType":"vector","result":[{"metric":{"pod":"cilium-envoy-p8zrm"},"value":[1775557793.236,"0.0017726790876758187"]},{"metric":{"pod":"cilium-envoy-qgh82"},"value":[1775557793.236,"0.0007388019788741775"]},{"metric":{"pod":"cilium-envoy-pztbn"},"value":[1775557793.236,"0.0009206452204539289"]}]}}
+=== Node network transmit bytes/s ===
+{"status":"success","data":{"resultType":"vector","result":[{"metric":{"instance":"10.0.10.219:9100"},"value":[1775557794.936,"3502.237037037037"]},{"metric":{"instance":"10.0.10.190:9100"},"value":[1775557794.936,"3105.1629629629633"]},{"metric":{"instance":"10.0.10.5:9100"},"value":[1775557794.936,"49871.23703703704"]}]}}
+=== Node network receive bytes/s ===
+{"status":"success","data":{"resultType":"vector","result":[{"metric":{"instance":"10.0.10.219:9100"},"value":[1775557796.586,"1355.7074074074073"]},{"metric":{"instance":"10.0.10.190:9100"},"value":[1775557796.586,"1064.0814814814817"]},{"metric":{"instance":"10.0.10.5:9100"},"value":[1775557796.586,"47426.65925925925"]}]}}

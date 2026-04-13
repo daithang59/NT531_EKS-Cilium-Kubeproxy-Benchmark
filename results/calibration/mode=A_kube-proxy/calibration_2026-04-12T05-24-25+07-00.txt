@@ -1,0 +1,51 @@
+==============================================
+ CALIBRATION REPORT
+ Mode : A_kube-proxy
+ Date : 2026-04-12T05:24:34+07:00
+==============================================
+
+QPS      Conns  Run     p50_ms   p90_ms   p99_ms  p999_ms   max_ms      RPS ErrRate%
+---------------------------------------------------------------------------
+
+   QPS |      p50 |      p90 |      p99 |     p999 | ErrRate% |      RPS
+---------------------------------------------------------------------------
+    50 |    0.000 |    0.000 |    0.000 |    0.000 |    0.000 |     50.0
+   100 |    0.000 |    0.000 |    0.000 |    0.000 |    0.000 |    100.0
+   200 |    0.002 |    0.003 |    0.003 |    0.003 |    0.000 |    200.0
+   400 |    0.001 |    0.002 |    0.002 |    0.002 |    0.000 |    400.0
+   800 |    0.002 |    0.004 |    0.033 |    0.033 |    0.000 |    799.9
+  1600 |    0.003 |    0.006 |    0.048 |    0.049 |    0.000 |   1600.0
+
+===========================================================================
+ RECOMMENDED LOAD LEVELS
+===========================================================================
+
+ Recommended L1 (Light)::
+   QPS=100  p99=0.3850ms  err=0.0000%
+   Suggested CONNS=8
+
+ Recommended L2 (Medium)::
+   QPS=400  p99=2.1075ms  err=0.0000%
+   Suggested CONNS=32
+
+ Recommended L3 (High/near saturation)::
+   QPS=1600  p99=48.1354ms  err=0.0000%
+   Suggested CONNS=128
+
+ NOTE: All latency values in CSV are in SECONDS.
+ To freeze these values, edit common.sh:
+
+   # L1 (Light): stable, near-zero errors
+   L1_QPS=<RECOMMENDED>
+   L1_CONNS=<RECOMMENDED>
+
+   # L2 (Medium): visible tail, no saturation
+   L2_QPS=<RECOMMENDED>
+   L2_CONNS=<RECOMMENDED>
+
+   # L3 (High): near saturation
+   L3_QPS=<RECOMMENDED>
+   L3_CONNS=<RECOMMENDED>
+
+ Calibration complete. Report: C:/nt531-project/NT531_Project/thesis-cilium-eks-benchmark/results/calibration/mode=A_kube-proxy/calibration_2026-04-12T05-24-25+07-00.txt
+ CSV data: C:/nt531-project/NT531_Project/thesis-cilium-eks-benchmark/results/calibration/mode=A_kube-proxy/calibration_2026-04-12T05-24-25+07-00.csv

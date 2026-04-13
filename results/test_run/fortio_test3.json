@@ -1,0 +1,4 @@
+{"ts":1776013269.566648,"level":"info","r":1,"file":"scli.go","line":124,"msg":"Starting","command":"Φορτίο","version":"1.74.0 h1:bo6CcSH+gpdNfgcVAnL3MMLT/QPWCnFMsqaX1o4VFUA= go1.24.13 amd64 linux","go-max-procs":2}
+{"ts":1776013272.570372,"level":"err","r":1,"file":"http_client.go","line":1137,"msg":"Timeout error (incomplete/invalid response)","err":"read tcp 127.0.0.1:56032->127.0.0.1:8080: i/o timeout","size":0,"header_len":0,"dest":{"IP":"127.0.0.1","Port":8080,"Zone":""},"url":"http://localhost:8080/fortio/rest/run?qps=10&c=2&t=5s&url=http://echo.benchmark.svc.cluster.local/","thread":0,"run":0}
+{"ts":1776013272.570449,"level":"err","r":1,"file":"commonflags.go","line":160,"msg":"Error status -1"}
+command terminated with exit code 1
