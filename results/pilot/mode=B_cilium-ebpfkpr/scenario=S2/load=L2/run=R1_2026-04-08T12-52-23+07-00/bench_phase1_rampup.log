@@ -1,0 +1,33 @@
+=== Phase 1: RAMP-UP ===
+Duration: 30s  QPS: 200  Conns: 32  Keepalive: false
+
+{"ts":1775652751.865364,"level":"info","r":1,"file":"scli.go","line":124,"msg":"Starting","command":"Φορτίο","version":"1.74.0 h1:bo6CcSH+gpdNfgcVAnL3MMLT/QPWCnFMsqaX1o4VFUA= go1.24.13 amd64 linux","go-max-procs":2}
+Fortio 1.74.0 running at 200 queries per second, 2->2 procs, for 30s: http://echo.benchmark.svc.cluster.local/
+{"ts":1775652751.866485,"level":"info","r":1,"file":"httprunner.go","line":121,"msg":"Starting http test","run":0,"url":"http://echo.benchmark.svc.cluster.local/","threads":32,"qps":"200.0","warmup":"parallel","conn-reuse":""}
+Starting at 200 qps with 32 thread(s) [gomax 2] for 30s : 187 calls each (total 5984)
+{"ts":1775652781.849555,"level":"info","r":292,"file":"periodic.go","line":882,"msg":"T020 ended after 29.925057193s : 187 calls. qps=6.248943779587583"}
+{"ts":1775652781.850177,"level":"info","r":299,"file":"periodic.go","line":882,"msg":"T027 ended after 29.925682375s : 187 calls. qps=6.2488132319489"}
+{"ts":1775652781.850324,"level":"info","r":297,"file":"periodic.go","line":882,"msg":"T025 ended after 29.92581331s : 187 calls. qps=6.248785891393373"}
+{"ts":1775652781.850573,"level":"info","r":279,"file":"periodic.go","line":882,"msg":"T007 ended after 29.926081863s : 187 calls. qps=6.248729815552734"}
+{"ts":1775652781.850674,"level":"info","r":295,"file":"periodic.go","line":882,"msg":"T023 ended after 29.926187039s : 187 calls. qps=6.248707854305008"}
+{"ts":1775652781.850676,"level":"info","r":282,"file":"periodic.go","line":882,"msg":"T010 ended after 29.926187026s : 187 calls. qps=6.2487078570194585"}
+{"ts":1775652781.850724,"level":"info","r":278,"file":"periodic.go","line":882,"msg":"T006 ended after 29.926238261s : 187 calls. qps=6.248697158964319"}
+{"ts":1775652781.850746,"level":"info","r":289,"file":"periodic.go","line":882,"msg":"T017 ended after 29.92625892s : 187 calls. qps=6.248692845300024"}
+{"ts":1775652781.850769,"level":"info","r":287,"file":"periodic.go","line":882,"msg":"T015 ended after 29.926281395s : 187 calls. qps=6.248688152455969"}
+{"ts":1775652781.850813,"level":"info","r":277,"file":"periodic.go","line":882,"msg":"T005 ended after 29.926325797s : 187 calls. qps=6.248678881212542"}
+{"ts":1775652781.850813,"level":"info","r":293,"file":"periodic.go","line":882,"msg":"T021 ended after 29.926327819s : 187 calls. qps=6.248678459014778"}
+{"ts":1775652781.850883,"level":"info","r":284,"file":"periodic.go","line":882,"msg":"T012 ended after 29.926394993s : 187 calls. qps=6.248664432977666"}
+{"ts":1775652781.850890,"level":"info","r":275,"file":"periodic.go","line":882,"msg":"T003 ended after 29.926402038s : 187 calls. qps=6.2486629619742065"}
+{"ts":1775652781.850936,"level":"info","r":281,"file":"periodic.go","line":882,"msg":"T009 ended after 29.926449615s : 187 calls. qps=6.2486530278643615"}
+{"ts":1775652781.850931,"level":"info","r":300,"file":"periodic.go","line":882,"msg":"T028 ended after 29.92644349s : 187 calls. qps=6.248654306766741"}
+{"ts":1775652781.850980,"level":"info","r":256,"file":"periodic.go","line":882,"msg":"T000 ended after 29.926493869s : 187 calls. qps=6.248643787627523"}
+{"ts":1775652781.850993,"level":"info","r":290,"file":"periodic.go","line":882,"msg":"T018 ended after 29.926506946s : 187 calls. qps=6.2486410571546696"}
+{"ts":1775652781.851024,"level":"info","r":294,"file":"periodic.go","line":882,"msg":"T022 ended after 29.926537936s : 187 calls. qps=6.248634586463447"}
+{"ts":1775652781.852059,"level":"info","r":303,"file":"periodic.go","line":882,"msg":"T031 ended after 29.927570691s : 187 calls. qps=6.248418955576497"}
+{"ts":1775652781.852446,"level":"info","r":274,"file":"periodic.go","line":882,"msg":"T002 ended after 29.927937568s : 187 calls. qps=6.248342358210041"}
+{"ts":1775652781.852557,"level":"info","r":283,"file":"periodic.go","line":882,"msg":"T011 ended after 29.927975459s : 187 calls. qps=6.248334447352836"}
+{"ts":1775652781.853491,"level":"info","r":302,"file":"periodic.go","line":882,"msg":"T030 ended after 29.928638984s : 187 calls. qps=6.248195920301326"}
+{"ts":1775652781.853722,"level":"info","r":276,"file":"periodic.go","line":882,"msg":"T004 ended after 29.929233031s : 187 calls. qps=6.248071903690608"}
+E0408 19:53:00.897339   13752 v2.go:167] "Unhandled Error" err="next reader: read tcp 192.168.11.230:49292->18.136.250.25:443: wsarecv: An existing connection was forcibly closed by the remote host."
+E0408 19:53:00.897339   13752 v2.go:150] "Unhandled Error" err="next reader: read tcp 192.168.11.230:49292->18.136.250.25:443: wsarecv: An existing connection was forcibly closed by the remote host."
+error: error reading from error stream: next reader: read tcp 192.168.11.230:49292->18.136.250.25:443: wsarecv: An existing connection was forcibly closed by the remote host.

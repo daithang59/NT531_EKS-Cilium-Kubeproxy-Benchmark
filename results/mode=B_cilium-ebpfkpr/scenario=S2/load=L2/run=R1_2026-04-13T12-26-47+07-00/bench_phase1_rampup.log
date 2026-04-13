@@ -1,0 +1,31 @@
+=== Phase: phase1_rampup ===
+Duration: 30s  QPS: 200  Conns: 32  Keepalive: false
+
+Fortio 1.74.0 running at 200 queries per second, 32 procs, for 30s: http://echo.benchmark.svc.cluster.local/
+
+# range, mid point, percentile, count
+>= 6.565e-05 <= 1.000e-03 , 0.000533 , 24.05, 1439
+> 0.0010 <= 0.0020 , 0.0015 , 84.69, 3629
+> 0.0020 <= 0.0030 , 0.0025 , 97.68, 777
+> 0.0030 <= 0.0040 , 0.0035 , 99.42, 104
+> 0.0040 <= 0.0047 , 0.0044 , 100.00, 35
+
+# target 50% 0.001428
+# target 75% 0.001840
+# target 90% 0.002409
+# target 99% 0.003761
+# target 99.9% 0.004588
+
+All done 5984 calls (29.9s) qps=200 (target: 30s, conns=32)
+  avg_ms=1.348
+  p50=1.428ms
+  p75=1.840ms
+  p90=2.409ms
+  p99=3.761ms
+  p99.9=4.588ms
+  Code 200: 5984 (100.0%)
+Error cases : no data
+# Socket and IP used for each connection:
+  [0]  1 socket used, resolved to 172.20.112.35:80, connection timing : count 32 avg 0.003195 +/- 0.002336 min 0.000089 max 0.006428
+  Response Header Sizes : count 5984 avg 161 +/- 0 min 161 max 161 sum 963424
+  Response Body/Total Sizes : count 5984 avg 164 +/- 0 min 164 max 164 sum 981376

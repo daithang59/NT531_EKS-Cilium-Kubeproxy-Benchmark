@@ -1,0 +1,53 @@
+{"ts":1775552954.846428,"level":"info","r":1,"file":"scli.go","line":124,"msg":"Starting","command":"Φορτίο","version":"1.74.0 h1:bo6CcSH+gpdNfgcVAnL3MMLT/QPWCnFMsqaX1o4VFUA= go1.24.13 amd64 linux","go-max-procs":2}
+Fortio 1.74.0 running at 100 queries per second, 2->2 procs, for 3m0s: http://echo.benchmark.svc.cluster.local/
+{"ts":1775552954.847624,"level":"info","r":1,"file":"httprunner.go","line":121,"msg":"Starting http test","run":0,"url":"http://echo.benchmark.svc.cluster.local/","threads":8,"qps":"100.0","warmup":"parallel","conn-reuse":""}
+Starting at 100 qps with 8 thread(s) [gomax 2] for 3m0s : 2250 calls each (total 18000)
+{"ts":1775553134.861607,"level":"info","r":86,"file":"periodic.go","line":882,"msg":"T003 ended after 3m0.001306121s : 2250 calls. qps=12.499909297810934"}
+{"ts":1775553134.861811,"level":"info","r":84,"file":"periodic.go","line":882,"msg":"T001 ended after 3m0.001497347s : 2250 calls. qps=12.499896018434425"}
+{"ts":1775553134.861916,"level":"info","r":89,"file":"periodic.go","line":882,"msg":"T006 ended after 3m0.001584451s : 2250 calls. qps=12.499889969649097"}
+{"ts":1775553134.861949,"level":"info","r":87,"file":"periodic.go","line":882,"msg":"T004 ended after 3m0.00166588s : 2250 calls. qps=12.49988431495954"}
+{"ts":1775553134.862164,"level":"info","r":90,"file":"periodic.go","line":882,"msg":"T007 ended after 3m0.001577586s : 2250 calls. qps=12.499890446376835"}
+{"ts":1775553134.862215,"level":"info","r":83,"file":"periodic.go","line":882,"msg":"T000 ended after 3m0.001929996s : 2250 calls. qps=12.499865973937053"}
+{"ts":1775553134.862222,"level":"info","r":85,"file":"periodic.go","line":882,"msg":"T002 ended after 3m0.001936161s : 2250 calls. qps=12.49986554582125"}
+{"ts":1775553134.862310,"level":"info","r":88,"file":"periodic.go","line":882,"msg":"T005 ended after 3m0.00202457s : 2250 calls. qps=12.499859406442452"}
+Ended after 3m0.002061809s : 18000 calls. qps=99.999
+{"ts":1775553134.862400,"level":"info","r":1,"file":"periodic.go","line":598,"msg":"Run ended","run":0,"elapsed":180002061809,"calls":18000,"qps":99.99885456367595}
+Sleep times : count 17992 avg 0.078788063 +/- 0.0004104 min 0.074627017 max 0.07978142 sum 1417.55484
+Aggregated Function Time : count 18000 avg 0.00059446837 +/- 0.0002645 min 7.7274e-05 max 0.004838488 sum 10.7004306
+# range, mid point, percentile, count
+>= 7.7274e-05 <= 0.001 , 0.000538637 , 94.55, 17019
+> 0.001 <= 0.002 , 0.0015 , 99.68, 923
+> 0.002 <= 0.003 , 0.0025 , 99.93, 46
+> 0.003 <= 0.004 , 0.0035 , 99.96, 4
+> 0.004 <= 0.00483849 , 0.00441924 , 100.00, 8
+# target 50% 0.000565205
+# target 75% 0.000809198
+# target 90% 0.000955593
+# target 99% 0.00186782
+# target 99.9% 0.00286957
+Error cases : no data
+# Socket and IP used for each connection:
+[0]   1 socket used, resolved to 172.20.231.178:80, connection timing : count 1 avg 7.6408e-05 +/- 0 min 7.6408e-05 max 7.6408e-05 sum 7.6408e-05
+[1]   1 socket used, resolved to 172.20.231.178:80, connection timing : count 1 avg 0.000291065 +/- 0 min 0.000291065 max 0.000291065 sum 0.000291065
+[2]   1 socket used, resolved to 172.20.231.178:80, connection timing : count 1 avg 0.000146788 +/- 0 min 0.000146788 max 0.000146788 sum 0.000146788
+[3]   1 socket used, resolved to 172.20.231.178:80, connection timing : count 1 avg 8.2678e-05 +/- 0 min 8.2678e-05 max 8.2678e-05 sum 8.2678e-05
+[4]   1 socket used, resolved to 172.20.231.178:80, connection timing : count 1 avg 0.000155618 +/- 0 min 0.000155618 max 0.000155618 sum 0.000155618
+[5]   1 socket used, resolved to 172.20.231.178:80, connection timing : count 1 avg 6.7497e-05 +/- 0 min 6.7497e-05 max 6.7497e-05 sum 6.7497e-05
+[6]   1 socket used, resolved to 172.20.231.178:80, connection timing : count 1 avg 6.4969e-05 +/- 0 min 6.4969e-05 max 6.4969e-05 sum 6.4969e-05
+[7]   1 socket used, resolved to 172.20.231.178:80, connection timing : count 1 avg 0.000216675 +/- 0 min 0.000216675 max 0.000216675 sum 0.000216675
+Connection time histogram (s) : count 8 avg 0.00013771225 +/- 7.678e-05 min 6.4969e-05 max 0.000291065 sum 0.001101698
+# range, mid point, percentile, count
+>= 6.4969e-05 <= 0.000291065 , 0.000178017 , 100.00, 8
+# target 50% 0.000161867
+# target 75% 0.000226466
+# target 90% 0.000265225
+# target 99% 0.000288481
+# target 99.9% 0.000290807
+Sockets used: 8 (for perfect keepalive, would be 8)
+Uniform: false, Jitter: false, Catchup allowed: true
+IP addresses distribution:
+172.20.231.178:80: 8
+Code 200 : 18000 (100.0 %)
+Response Header Sizes : count 18000 avg 161 +/- 0 min 161 max 161 sum 2898000
+Response Body/Total Sizes : count 18000 avg 164 +/- 0 min 164 max 164 sum 2952000
+All done 18000 calls (plus 8 warmup) 0.594 ms avg, 100.0 qps

@@ -1,0 +1,30 @@
+=== Phase: measurement ===
+Duration: 180s  QPS: 100  Conns: 8  Keepalive: false
+
+Fortio 1.74.0 running at 100 queries per second, 8 procs, for 180s: http://echo.benchmark.svc.cluster.local/
+
+# range, mid point, percentile, count
+>= 7.924e-05 <= 1.000e-03 , 0.000540 , 96.67, 17401
+> 0.0010 <= 0.0020 , 0.0015 , 99.93, 587
+> 0.0020 <= 0.0030 , 0.0025 , 99.99, 10
+> 0.0090 <= 0.0092 , 0.0091 , 100.00, 2
+
+# target 50% 0.000555
+# target 75% 0.000794
+# target 90% 0.000936
+# target 99% 0.001714
+# target 99.9% 0.001990
+
+All done 18000 calls (180.0s) qps=100 (target: 180s, conns=8)
+  avg_ms=0.546
+  p50=0.555ms
+  p75=0.794ms
+  p90=0.936ms
+  p99=1.714ms
+  p99.9=1.990ms
+  Code 200: 18000 (100.0%)
+Error cases : no data
+# Socket and IP used for each connection:
+  [0]  1 socket used, resolved to 172.20.112.35:80, connection timing : count 8 avg 0.000320 +/- 0.000158 min 0.000104 max 0.000634
+  Response Header Sizes : count 18000 avg 161 +/- 0 min 161 max 161 sum 2898000
+  Response Body/Total Sizes : count 18000 avg 164 +/- 0 min 164 max 164 sum 2952000

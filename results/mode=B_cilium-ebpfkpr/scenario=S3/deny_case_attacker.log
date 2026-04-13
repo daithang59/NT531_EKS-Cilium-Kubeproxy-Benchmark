@@ -1,0 +1,12 @@
+All commands and output from this session will be recorded in container logs, including credentials and sensitive information passed through the command prompt.
+If you don't see a command prompt, try pressing enter.
+TIMEOUT/FAIL
+Attempt 2:
+TIMEOUT/FAIL
+Attempt 3:
+TIMEOUT/FAIL
+Attempt 4:
+TIMEOUT/FAIL
+Attempt 5:
+TIMEOUT/FAIL
+pod "attacker-test" deleted from benchmark namespace

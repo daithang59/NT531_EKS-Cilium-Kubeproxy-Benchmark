@@ -1,0 +1,12 @@
+=== Phase: phase1_rampup ===
+Duration: 10s  QPS: 50  Conns: 8  Keepalive: false
+
+All done 496 calls (9.9s) qps=50
+  avg_ms=0.651
+  p50=0.591ms
+  p75=0.845ms
+  p90=0.997ms
+  p99=2.006ms
+  p99.9=2.684ms
+  Code 200: 496 (100.0%)
+SUCCESS!
