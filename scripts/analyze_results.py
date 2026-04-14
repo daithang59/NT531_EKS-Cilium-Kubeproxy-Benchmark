@@ -113,16 +113,25 @@ def parse_fortio_log(log_path: Path) -> dict:
         dh = json_data.get("DurationHistogram", json_data.get("Histogram", json_data.get("h", {})))
         rps = json_data.get("ActualQPS", 0) or json_data.get("RequestedQPS", 0)
         # Fortio 1.74.x: Percentiles is a list of {"Percentile": N, "Value": s}
+        # Fortio JSON percentile values are in seconds; *_ms outputs must convert to ms.
         pcts = dh.get("Percentiles", [])
         if isinstance(pcts, list):
             pcts = {str(p["Percentile"]): p["Value"] for p in pcts}
         else:
             pcts = pcts or {}
+
+        def pct_ms(*keys: str, fallback: Optional[float] = None) -> Optional[float]:
+            for key in keys:
+                value = pcts.get(key)
+                if value is not None:
+                    return float(value) * 1000.0
+            return fallback
+
         return {
-            "p50_ms":  pcts.get("50") or pcts.get("50.0") or get_target_pct("50%"),
-            "p90_ms":  pcts.get("90") or pcts.get("90.0") or get_target_pct("90%"),
-            "p99_ms":  pcts.get("99") or pcts.get("99.0") or get_target_pct("99%"),
-            "p999_ms": pcts.get("99.9") or pcts.get("99.9") or get_target_pct("99.9%"),
+            "p50_ms":  pct_ms("50", "50.0", fallback=get_target_pct("50%")),
+            "p90_ms":  pct_ms("90", "90.0", fallback=get_target_pct("90%")),
+            "p99_ms":  pct_ms("99", "99.0", fallback=get_target_pct("99%")),
+            "p999_ms": pct_ms("99.9", fallback=get_target_pct("99.9%")),
             "max_ms":  (dh.get("Max") * 1000.0) if dh.get("Max") is not None else get_aggregated_max(),
             "rps":     rps or get_qps(),
             "error_rate_pct": error_rate,
@@ -147,6 +156,11 @@ def parse_metadata(meta_path: Path) -> dict:
         return json.loads(meta_path.read_text())
     except Exception:
         return {}
+
+
+def is_under_dir(path: Path, dirname: str) -> bool:
+    """Return True when path is under a directory named dirname."""
+    return dirname in path.parts
 
 
 # --- Statistics ---------------------------------------------------------------
@@ -360,10 +374,11 @@ def scan_results(results_dir: Path) -> list[RunResult]:
     runs: list[RunResult] = []
 
     for bench_log in glob.glob(str(results_dir / "**" / "bench.log"), recursive=True):
-        if "/calibration/" in bench_log or "/pilot/" in bench_log:
+        bench_log = Path(bench_log)
+        if is_under_dir(bench_log, "calibration") or is_under_dir(bench_log, "pilot"):
             continue
 
-        run_dir = Path(bench_log).parent
+        run_dir = bench_log.parent
         parts = run_dir.parts
 
         try:
@@ -383,11 +398,11 @@ def scan_results(results_dir: Path) -> list[RunResult]:
         phase_bench_logs = sorted(run_dir.glob("bench_phase*.log"))
         if phase_bench_logs:
             for pb in phase_bench_logs:
-                phase_label = pb.stem  # "bench_phase1_rampup"
+                phase_label = pb.stem.replace("bench_", "", 1)  # "phase1_rampup"
                 metrics = parse_fortio_log(pb)
                 if metrics:
                     rr = RunResult(run_dir=run_dir, mode=mode, scenario=scenario,
-                                   load=load, phase=phase, run_id=phase_label)
+                                   load=load, phase=phase_label, run_id=run_id)
                     for m in METRICS:
                         v = metrics.get(m)
                         if v is not None:
@@ -396,7 +411,7 @@ def scan_results(results_dir: Path) -> list[RunResult]:
             continue  # S2 already handled by phase logs
 
         # Single bench.log (S1, S3) — no merge needed, each run_dir is unique
-        metrics = parse_fortio_log(Path(bench_log))
+        metrics = parse_fortio_log(bench_log)
         if metrics:
             rr = RunResult(run_dir=run_dir, mode=mode, scenario=scenario,
                            load=load, phase=phase, run_id=run_id)
@@ -474,25 +489,32 @@ def aggregate(runs: list[RunResult], group_by: str = "mode+scenario+load") -> di
 
 # --- Comparison (A vs B) ------------------------------------------------------
 
+def available_phases(runs: list[RunResult], scenario: str, load: str) -> list[Optional[str]]:
+    """Return explicit phases for a scenario/load, or [None] for non-phase runs."""
+    phases = sorted({r.phase for r in runs if r.scenario == scenario and r.load == load and r.phase})
+    return phases if phases else [None]
+
+
 def collect_raw_values(runs: list[RunResult], scenario: str, load: str,
-                      metric: str, mode: str) -> list[float]:
+                      metric: str, mode: str, phase: Optional[str] = None) -> list[float]:
     """
     Extract raw sample values from runs for a specific (scenario, load, metric, mode).
     Each RunResult may contain multiple measurements (e.g. from multiple bench_R*.log files).
     """
     vals: list[float] = []
     for r in runs:
-        if r.mode == mode and r.scenario == scenario and r.load == load:
+        if r.mode == mode and r.scenario == scenario and r.load == load and r.phase == phase:
             m_vals = getattr(r, metric, [])
             vals.extend(m_vals)
     return vals
 
 
 def compare_ab(summaries: dict, runs: list[RunResult],
-               scenario: str, load: str, metric: str) -> dict:
+               scenario: str, load: str, metric: str, phase: Optional[str] = None) -> dict:
     """Compare Mode A vs Mode B for a given (scenario, load, metric)."""
-    key_a = f"A_kube-proxy+{scenario}+{load}"
-    key_b = f"B_cilium-ebpfkpr+{scenario}+{load}"
+    phase_suffix = f"+{phase}" if phase else ""
+    key_a = f"A_kube-proxy+{scenario}+{load}{phase_suffix}"
+    key_b = f"B_cilium-ebpfkpr+{scenario}+{load}{phase_suffix}"
 
     s_a = summaries.get(key_a, {})
     s_b = summaries.get(key_b, {})
@@ -509,12 +531,12 @@ def compare_ab(summaries: dict, runs: list[RunResult],
     improvement = val_a - val_b  # positive = A is slower = B is faster
 
     # Collect raw values for Welch's t-test
-    a_vals = collect_raw_values(runs, scenario, load, metric, "A_kube-proxy")
-    b_vals = collect_raw_values(runs, scenario, load, metric, "B_cilium-ebpfkpr")
+    a_vals = collect_raw_values(runs, scenario, load, metric, "A_kube-proxy", phase)
+    b_vals = collect_raw_values(runs, scenario, load, metric, "B_cilium-ebpfkpr", phase)
     tt = welch_ttest(a_vals, b_vals)
 
     return {
-        "scenario": scenario, "load": load, "metric": metric,
+        "scenario": scenario, "load": load, "phase": phase, "metric": metric,
         "A_mean": val_a, "A_ci_lo": s_a.get(f"{metric}_ci_lo"),
         "A_ci_hi": s_a.get(f"{metric}_ci_hi"),
         "A_median": s_a.get(f"{metric}_median"),
@@ -564,39 +586,42 @@ def print_summary_table(summaries: dict, runs: list[RunResult],
 
     for scenario in scenarios:
         for load in loads:
-            if f"A_kube-proxy+{scenario}+{load}" not in summaries and f"B_cilium-ebpfkpr+{scenario}+{load}" not in summaries:
-                continue
+            for phase in available_phases(runs, scenario, load):
+                phase_suffix = f"+{phase}" if phase else ""
+                if f"A_kube-proxy+{scenario}+{load}{phase_suffix}" not in summaries and f"B_cilium-ebpfkpr+{scenario}+{load}{phase_suffix}" not in summaries:
+                    continue
 
-            print(f"\n  -- {scenario} x {load} -----------------------------------------------------")
-            header = f"  {'Metric':<20} | {'Mode':<22} | {'n':>4} | {'Median':>10} | {'Mean+/-CI':>22} | {'StDev':>8}"
-            print(header)
-            print("  " + "-" * 104)
+                phase_label = f" x {phase}" if phase else ""
+                print(f"\n  -- {scenario} x {load}{phase_label} -----------------------------------------------------")
+                header = f"  {'Metric':<20} | {'Mode':<22} | {'n':>4} | {'Median':>10} | {'Mean+/-CI':>22} | {'StDev':>8}"
+                print(header)
+                print("  " + "-" * 104)
 
-            for m in METRICS:
-                label = METRIC_LABELS.get(m, m)
-                for mk, ml in [("A_kube-proxy", "A (kube-proxy)"), ("B_cilium-ebpfkpr", "B (eBPF KPR)")]:
-                    k = f"{mk}+{scenario}+{load}"
-                    if k not in summaries:
-                        continue
-                    s = summaries[k]
-                    n = s.get(f"{m}_n", 0) or 0
-                    if n == 0:
-                        continue
-                    med_v = s.get(f"{m}_median")
-                    m_v = s.get(f"{m}_mean")
-                    ci_lo = s.get(f"{m}_ci_lo")
-                    ci_hi = s.get(f"{m}_ci_hi")
-                    std_v = s.get(f"{m}_stdev")
-                    ci_str = fmt_ci(ci_lo, ci_hi)
-                    print(f"  {label:<20} | {ml:<22} | {n:>4} | {fmt(med_v):>10} | {fmt(m_v):>7} +/- {ci_str:<12} | {fmt(std_v):>8}")
+                for m in METRICS:
+                    label = METRIC_LABELS.get(m, m)
+                    for mk, ml in [("A_kube-proxy", "A (kube-proxy)"), ("B_cilium-ebpfkpr", "B (eBPF KPR)")]:
+                        k = f"{mk}+{scenario}+{load}{phase_suffix}"
+                        if k not in summaries:
+                            continue
+                        s = summaries[k]
+                        n = s.get(f"{m}_n", 0) or 0
+                        if n == 0:
+                            continue
+                        med_v = s.get(f"{m}_median")
+                        m_v = s.get(f"{m}_mean")
+                        ci_lo = s.get(f"{m}_ci_lo")
+                        ci_hi = s.get(f"{m}_ci_hi")
+                        std_v = s.get(f"{m}_stdev")
+                        ci_str = fmt_ci(ci_lo, ci_hi)
+                        print(f"  {label:<20} | {ml:<22} | {n:>4} | {fmt(med_v):>10} | {fmt(m_v):>7} +/- {ci_str:<12} | {fmt(std_v):>8}")
 
-            # A vs B comparison for p99
-            for m in ["p99_ms", "p50_ms", "error_rate_pct"]:
-                comp = compare_ab(summaries, runs, scenario, load, m)
-                if comp:
-                    winner_icon = "[B]" if comp["winner"] == "B" else ("[A]" if comp["winner"] == "A" else "  tie")
-                    delta_str = f"delta={fmt(comp['delta_pct'])}%  ({winner_icon})"
-                    print(f"\n  {METRIC_LABELS.get(m,m)} A vs B: A={fmt(comp['A_mean'])} B={fmt(comp['B_mean'])} {delta_str}")
+                # A vs B comparison for p99
+                for m in ["p99_ms", "p50_ms", "error_rate_pct"]:
+                    comp = compare_ab(summaries, runs, scenario, load, m, phase)
+                    if comp:
+                        winner_icon = "[B]" if comp["winner"] == "B" else ("[A]" if comp["winner"] == "A" else "  tie")
+                        delta_str = f"delta={fmt(comp['delta_pct'])}%  ({winner_icon})"
+                        print(f"\n  {METRIC_LABELS.get(m,m)} A vs B: A={fmt(comp['A_mean'])} B={fmt(comp['B_mean'])} {delta_str}")
 
 
 def print_comparison_table(summaries: dict, runs: list[RunResult],
@@ -613,10 +638,11 @@ def print_comparison_table(summaries: dict, runs: list[RunResult],
     all_comps = []
     for scenario in scenarios:
         for load in loads:
-            for m in ["p50_ms", "p90_ms", "p99_ms", "p999_ms", "error_rate_pct", "rps"]:
-                comp = compare_ab(summaries, runs, scenario, load, m)
-                if comp:
-                    all_comps.append(comp)
+            for phase in available_phases(runs, scenario, load):
+                for m in ["p50_ms", "p90_ms", "p99_ms", "p999_ms", "error_rate_pct", "rps"]:
+                    comp = compare_ab(summaries, runs, scenario, load, m, phase)
+                    if comp:
+                        all_comps.append(comp)
 
     # Grouped by metric
     by_metric: dict[str, list[dict]] = {}
@@ -625,12 +651,12 @@ def print_comparison_table(summaries: dict, runs: list[RunResult],
 
     for metric, comps in by_metric.items():
         print(f"\n  -- {METRIC_LABELS.get(metric, metric)} --")
-        print(f"  {'Scenario':<12} {'Load':<6} {'A_mean':>9} {'A_CI95':>22} {'B_mean':>9} {'B_CI95':>22} {'D%':>8} {'p-value':>10} {'Sig':>5}")
-        print("  " + "-" * 115)
+        print(f"  {'Scenario':<12} {'Load':<6} {'Phase':<18} {'A_mean':>9} {'A_CI95':>22} {'B_mean':>9} {'B_CI95':>22} {'D%':>8} {'p-value':>10} {'Sig':>5}")
+        print("  " + "-" * 134)
         for c in comps:
             sig = "[sig]" if c.get("significant") else " "
             print(
-                f"  {c['scenario']:<12} {c['load']:<6} "
+                f"  {c['scenario']:<12} {c['load']:<6} {(c.get('phase') or ''):<18} "
                 f"{fmt(c['A_mean']):>9} {fmt_ci(c['A_ci_lo'], c['A_ci_hi']):>22} "
                 f"{fmt(c['B_mean']):>9} {fmt_ci(c['B_ci_lo'], c['B_ci_hi']):>22} "
                 f"{fmt(c['delta_pct']):>7}% {fmt(c.get('p_value'), 4):>10} {sig:>5}"
@@ -664,26 +690,27 @@ def export_csv(summaries: dict, runs: list[RunResult],
     comp_rows = []
     for scenario in scenarios:
         for load in loads:
-            for m in METRICS:
-                comp = compare_ab(summaries, runs, scenario, load, m)
-                if comp:
-                    comp_rows.append({
-                        "scenario": scenario, "load": load, "metric": m,
-                        "A_mean": fmt(comp.get("A_mean")),
-                        "A_ci_lo": fmt(comp.get("A_ci_lo")),
-                        "A_ci_hi": fmt(comp.get("A_ci_hi")),
-                        "A_stdev": fmt(comp.get("A_stdev")),
-                        "A_n": comp.get("A_n"),
-                        "B_mean": fmt(comp.get("B_mean")),
-                        "B_ci_lo": fmt(comp.get("B_ci_lo")),
-                        "B_ci_hi": fmt(comp.get("B_ci_hi")),
-                        "B_stdev": fmt(comp.get("B_stdev")),
-                        "B_n": comp.get("B_n"),
-                        "delta_pct": fmt(comp.get("delta_pct")),
-                        "p_value": fmt(comp.get("p_value"), 4),
-                        "significant": "YES" if comp.get("significant") else "NO",
-                        "winner": comp.get("winner", "N/A"),
-                    })
+            for phase in available_phases(runs, scenario, load):
+                for m in METRICS:
+                    comp = compare_ab(summaries, runs, scenario, load, m, phase)
+                    if comp:
+                        comp_rows.append({
+                            "scenario": scenario, "load": load, "phase": phase or "", "metric": m,
+                            "A_mean": fmt(comp.get("A_mean")),
+                            "A_ci_lo": fmt(comp.get("A_ci_lo")),
+                            "A_ci_hi": fmt(comp.get("A_ci_hi")),
+                            "A_stdev": fmt(comp.get("A_stdev")),
+                            "A_n": comp.get("A_n"),
+                            "B_mean": fmt(comp.get("B_mean")),
+                            "B_ci_lo": fmt(comp.get("B_ci_lo")),
+                            "B_ci_hi": fmt(comp.get("B_ci_hi")),
+                            "B_stdev": fmt(comp.get("B_stdev")),
+                            "B_n": comp.get("B_n"),
+                            "delta_pct": fmt(comp.get("delta_pct")),
+                            "p_value": fmt(comp.get("p_value"), 4),
+                            "significant": "YES" if comp.get("significant") else "NO",
+                            "winner": comp.get("winner", "N/A"),
+                        })
 
     if comp_rows:
         with open(output_dir / "comparison_AB.csv", "w", newline="") as f:
