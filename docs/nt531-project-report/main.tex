@@ -1,0 +1,47 @@
+% ==========================================
+% IMPORT PREAMBLE - Cấu hình gói và định dạng
+% ==========================================
+\input{preamble}
+% ==========================================
+% Chỉnh các biến cho phần trang bìa (cover page)
+% Các biến này được định nghĩa trong file class project.cls
+% ==========================================
+\upperuniname{ĐẠI HỌC QUỐC GIA THÀNH PHỐ HỒ CHÍ MINH}
+\uniname{TRƯỜNG ĐẠI HỌC CÔNG NGHỆ THÔNG TIN}
+\deptname{KHOA MẠNG MÁY TÍNH VÀ TRUYỀN THÔNG}
+\stumajor{KỸ SƯ NGÀNH AN TOÀN THÔNG TIN}
+\coursename{ĐÁNH GIÁ HIỆU NĂNG HỆ THỐNG MẠNG MÁY TÍNH}
+\title{TÊN ĐỀ TÀI ĐỒ ÁN CHUYÊN NGÀNH BẰNG TIẾNG VIỆT}
+\titleen{TITLE FOR THE SPECIALIZED PROJECT IN ENGLISH}
+\supervisor{GIẢNG VIÊN HƯỚNG DẪN}
+\supervisorname{ThS. Đặng Lê Bảo chương}
+\stunamewithid{Huỳnh Lê Đại Thắng - 23521422\\Bùi Ngọc Thái - 23521412\\Nguyễn Trường Duy - 23520380}
+\reporttime{NĂM 2026}
+\begin{document}
+% ==========================================
+% TRANG TIÊU ĐỀ & DANH MỤC
+% ==========================================
+\coverpage
+
+\tableofcontents    % Tự động tạo Mục lục 
+\listoftables       % Tự động tạo Danh mục bảng 
+\listoffigures      % Tự động tạo Danh mục hình 
+
+% Include các chương chính
+\input{chapters/main/intro}
+\input{chapters/main/chapter-1}
+\input{chapters/main/chapter-2}
+\input{chapters/main/chapter-3}
+\input{chapters/main/conclusion}
+
+% ==========================================
+% PHỤ LỤC (APPENDICES) 
+% ==========================================
+\appendix
+\input{appendices/infrastructure}
+\input{appendices/calibration}
+\input{appendices/statistics}
+\input{appendices/raw-data}
+\input{appendices/figures}
+\input{appendices/scripts}
+\end{document}

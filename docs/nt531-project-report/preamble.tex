@@ -1,0 +1,63 @@
+% !TeX root = main.tex
+\documentclass[12pt, a4paper]{project} % Dùng class tùy chỉnh có định nghĩa \coverpage và các biến trang bìa
+
+% ==========================================
+% 1. CÀI ĐẶT NGÔN NGỮ & FONT CHỮ
+% ==========================================
+\usepackage[T5]{fontenc}      % Hỗ trợ font tiếng Việt
+\usepackage[utf8]{inputenc}   % Hỗ trợ gõ Unicode UTF-8
+\usepackage[vietnamese]{babel} % Định dạng ngày tháng, tự động dịch các tiêu đề (Mục lục, Chương...)
+
+% ==========================================
+% 2. CĂN LỀ & ĐỊNH DẠNG TRANG
+% ==========================================
+\geometry{top=2.5cm, bottom=2.5cm, left=3cm, right=2cm} % Class đã load geometry, chỉ set lại thông số
+\usepackage{fancyhdr}         % Tùy biến header/footer (đánh số trang)
+\setlength{\parskip}{0.5em}   % Khoảng cách giữa các đoạn văn
+\linespread{1.3}              % Dãn dòng 1.3 (tương đương 1.5 lines trong Word)
+
+% ==========================================
+% 3. XỬ LÝ BẢNG BIỂU (TABLES)
+% ==========================================
+\usepackage{tabularx}         % Tự động dàn trang bảng cho vừa chiều rộng
+\usepackage{booktabs}         % Đường kẻ bảng chuyên nghiệp (toprule, midrule, bottomrule)
+\usepackage{multirow}         % Gộp dòng (hữu ích cho bảng RQ/Fairness)
+\usepackage{makecell}         % Cho phép ngắt dòng (enter) ngay trong 1 ô của bảng
+\usepackage{longtable}        % Cho phép bảng tự động ngắt trang nếu quá dài (hữu ích cho Workloads table)
+
+% ==========================================
+% 4. XỬ LÝ HÌNH ẢNH & BIỂU ĐỒ (FIGURES)
+% ==========================================
+\usepackage{graphicx}         % Gói cơ bản để chèn ảnh
+\usepackage{float}            % Ép vị trí ảnh bằng lệnh [H]
+\usepackage{subcaption}       % Cho phép chèn nhiều ảnh nhỏ trong 1 ảnh lớn (VD: Đồ thị so sánh p99)
+
+% ==========================================
+% 5. CÔNG THỨC TOÁN HỌC & THỐNG KÊ
+% ==========================================
+\usepackage{amsmath, amssymb, amsfonts} % Hỗ trợ gõ công thức (p50, p99, O(1), O(n))
+
+% ==========================================
+% 6. MÃ NGUỒN & LOG (CODE & ARTIFACTS)
+% ==========================================
+\usepackage{listings}         % Chèn code (hữu ích cho manifests, bash script, hubble.log)
+\usepackage{xcolor}           % Hỗ trợ tô màu cho code snippet
+
+% Cấu hình mặc định cho khối code
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!50!black},
+    stringstyle=\color{red}
+}
+
+% ==========================================
+% 7. DANH SÁCH & LIÊN KẾT (LISTS & HYPERLINKS)
+% ==========================================
+\usepackage{enumitem}         % Tùy biến bullet points và numbering
+\usepackage{hyperref}         % Class đã load hyperref; load lại không thêm options để tránh clash
+\hypersetup{hidelinks}        % Ẩn viền link trong Mục lục/Danh mục
+\usepackage{cleveref}         % Tham chiếu thông minh (tự động thêm chữ "Bảng", "Hình" trước số)
