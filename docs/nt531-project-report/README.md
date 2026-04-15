@@ -1,7 +1,5 @@
 # Tổ chức file cơ bản
 
-Dựa trên cấu trúc của file `main.tex` và template từ `report_template.md`, dự án được tổ chức như sau để dễ dàng quản lý và biên dịch LaTeX:
-
 ## Cấu trúc thư mục đề xuất
 
 ```text
