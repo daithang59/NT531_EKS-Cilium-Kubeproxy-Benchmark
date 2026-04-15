@@ -1,0 +1,29 @@
+scenario,load,phase,mode,policy_state,group_label,mean_p99_ms,stdev_p99_ms,cv_pct,n
+S1,L3,,Mode A,,S1 L3 - Mode A,6.899,0.24,3.477,3
+S1,L3,,Mode B,,S1 L3 - Mode B,5.917,0.013,0.212,3
+S2,L2,phase1_rampup,Mode A,,S2 L2 Ramp-up - Mode A,3.998,0.108,2.7,3
+S2,L2,phase1_rampup,Mode B,,S2 L2 Ramp-up - Mode B,3.721,0.035,0.937,3
+S2,L2,phase2_sustained,Mode A,,S2 L2 Sustained - Mode A,7.061,0.171,2.418,3
+S2,L2,phase2_sustained,Mode B,,S2 L2 Sustained - Mode B,6.381,0.524,8.218,3
+S2,L2,phase3_burst1,Mode A,,S2 L2 Burst 1 - Mode A,6.593,0.199,3.011,3
+S2,L2,phase3_burst1,Mode B,,S2 L2 Burst 1 - Mode B,7.389,0.886,11.996,3
+S2,L2,phase3_burst2,Mode A,,S2 L2 Burst 2 - Mode A,6.895,0.443,6.42,3
+S2,L2,phase3_burst2,Mode B,,S2 L2 Burst 2 - Mode B,6.828,0.949,13.896,3
+S2,L2,phase3_burst3,Mode A,,S2 L2 Burst 3 - Mode A,6.938,0.546,7.873,3
+S2,L2,phase3_burst3,Mode B,,S2 L2 Burst 3 - Mode B,6.213,0.276,4.444,3
+S2,L2,phase4_cooldown,Mode A,,S2 L2 Cooldown - Mode A,3.933,0.107,2.723,3
+S2,L2,phase4_cooldown,Mode B,,S2 L2 Cooldown - Mode B,3.789,0.015,0.392,3
+S2,L3,phase1_rampup,Mode A,,S2 L3 Ramp-up - Mode A,6.431,0.401,6.238,3
+S2,L3,phase1_rampup,Mode B,,S2 L3 Ramp-up - Mode B,5.934,0.17,2.864,3
+S2,L3,phase2_sustained,Mode A,,S2 L3 Sustained - Mode A,13.094,1.468,11.207,3
+S2,L3,phase2_sustained,Mode B,,S2 L3 Sustained - Mode B,11.839,0.244,2.064,3
+S2,L3,phase3_burst1,Mode A,,S2 L3 Burst 1 - Mode A,13.75,1.662,12.089,3
+S2,L3,phase3_burst1,Mode B,,S2 L3 Burst 1 - Mode B,11.237,0.438,3.895,3
+S2,L3,phase3_burst2,Mode A,,S2 L3 Burst 2 - Mode A,13.572,1.995,14.702,3
+S2,L3,phase3_burst2,Mode B,,S2 L3 Burst 2 - Mode B,11.453,0.443,3.864,3
+S2,L3,phase3_burst3,Mode A,,S2 L3 Burst 3 - Mode A,13.129,1.187,9.038,3
+S2,L3,phase3_burst3,Mode B,,S2 L3 Burst 3 - Mode B,11.352,0.366,3.226,3
+S2,L3,phase4_cooldown,Mode A,,S2 L3 Cooldown - Mode A,7.355,1.257,17.092,3
+S2,L3,phase4_cooldown,Mode B,,S2 L3 Cooldown - Mode B,6.193,0.341,5.499,3
+S3,L3,,Mode B,off,S3 L3 - Policy OFF,5.857,0.035,0.598,3
+S3,L3,,Mode B,on,S3 L3 - Policy ON,5.928,0.044,0.744,3
