@@ -6,9 +6,6 @@
 docs/nt531-project-report/
 ├── preamble.tex        # Cấu hình gói LaTeX (packages, định dạng, margins)
 ├── chapters/
-│   ├── front/          # Phần mở đầu (front matter)
-│   │   ├── glossaries.tex    # Danh mục từ viết tắt
-│   │   └── thanks.tex        # Lời cảm ơn
 │   └── main/           # Nội dung chính
 │       ├── intro.tex          # Chương 0: Phạm vi thực nghiệm + Chương 1: Introduction
 │       ├── chapter-1.tex      # Chương 2: Background & Related Work

@@ -4,10 +4,10 @@
 \ProvidesClass{project}
 \DeclareOption*{\PassOptionsToClass{\CurrentOption}{memoir}}
 \ProcessOptions\relax
-\LoadClass[12pt,a4paper]{memoir}
+\LoadClass[12pt,a4paper,oneside,openany]{memoir}
 
 % Require package
-\RequirePackage{anyfontsize,mathptmx}
+\RequirePackage{anyfontsize}
 \RequirePackage[T5]{fontenc}
 \RequirePackage{geometry,graphicx,indentfirst,setspace}
 \RequirePackage{tikz}
@@ -85,8 +85,19 @@
   urlcolor=blue
 }
 
+\renewcommand{\chaptermark}[1]{\markboth{Chương \thechapter. #1}{}}
+
 \pagestyle{fancy}
 \fancyhf{}
+\fancyhead[L]{\nouppercase{\leftmark}}
+\fancyfoot[C]{\thepage}
+
+\fancypagestyle{plain}{
+  \fancyhf{}
+  \fancyfoot[C]{\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
 
 %Second Cover page
 \def\coverpage{

@@ -3,25 +3,48 @@
 % ==========================================
 % CHƯƠNG 0: PHẠM VI THỰC NGHIỆM 
 % ==========================================
-\chapter*{Chương 0: Phạm vi thực nghiệm}
-\section*{Tên đề tài đề xuất}
-Đánh giá hiệu năng Kubernetes Service datapath giữa kube-proxy và Cilium eBPF kube-proxy replacement trên AWS EKS.
-
-\section*{Thiết kế thực nghiệm}
-\begin{itemize}
-    \item Hệ thống: 01 cluster AWS EKS, 03 worker nodes m5.large.
-    \item Chế độ đo: Mode A (kube-proxy baseline) và Mode B (Cilium eBPF replacement).
-    \item Metric chính: p50, p95, p99, RPS, error rate .
-\end{itemize}
+\chapter*{Tóm tắt nội dung}
 
 % ==========================================
 % CHƯƠNG 1: INTRODUCTION 
 % ==========================================
-\chapter{Introduction}
-\section{Context} % 
-\section{Problem statement} % 
-\section{Research questions} % 
+\chapter{Giới thiệu}
+\section{Bối cảnh nghiên cứu} %
+ Kubernetes hiện đang là tiêu chuẩn thực tế trong việc điều phối container, nơi mà lớp mạng đóng vai trò quyết định đối với độ trễ của các dịch vụ. 
+ Theo mặc định, thành phần kube-proxy trong Kubernetes chịu trách nhiệm hiện thực hóa cơ chế định tuyến dịch vụ (như ClusterIP) bằng cách sử dụng iptables 
+ hoặc ipvs. Tuy nhiên, iptables bộc lộ một điểm nghẽn lớn: nó sử dụng cơ chế duyệt tuần tự các chuỗi luật với độ phức tạp O(n), khiến thời gian tra cứu 
+ tăng tuyến tính khi số lượng service trong cụm ngày càng nhiều. Để giải quyết vấn đề này, công nghệ Cilium cung cấp một giải pháp thay thế hoàn toàn 
+ kube-proxy bằng cách sử dụng eBPF (kube-proxy replacement), nhằm giảm suy hao hệ thống và cải thiện độ trễ phần đuôi nhờ cơ chế tra cứu bảng băm (BPF maps) 
+ với thời gian cố định O(1).
+\section{Vấn đề nghiên cứu} % 
+Mặc dù giải pháp Cilium eBPF có lợi thế rõ ràng về mặt lý thuyết, bối cảnh nghiên cứu hiện tại đang tồn tại một khoảng trống nghiên cứu lớn. 
+Các bài đánh giá hiệu năng hiện có chủ yếu được thực hiện trong môi trường giả lập (Minikube/local), máy chủ vật lý (bare-metal) hoặc GKE, thiếu đi những bằng chứng thực nghiệm trên các cụm triển khai chuẩn sản xuất (production-grade cluster) như AWS EKS. 
+Bên cạnh đó, các nghiên cứu này cũng thiếu sự đánh giá khắt khe về mặt thống kê (như hiệu chỉnh Holm-Bonferroni, Welch's t-test), thiếu các phân tích ở cấp độ 
+từng giai đoạn (phase-level) khi hệ thống chịu tải đột biến, và chưa đánh giá đầy đủ mức hao tổn khi áp dụng các chính sách mạng (NetworkPolicy) kèm công cụ 
+giám sát.
+\section{Mục tiêu nghiên cứu} % 
+\subsection{Mục tiêu chính}
+Đánh giá định lượng và so sánh hiệu năng của đường dẫn mạng Kubernetes Service (datapath) giữa hai cơ chế: Mode A (kube-proxy baseline) và Mode B 
+(Cilium eBPF kube-proxy replacement) trên nền tảng điện toán đám mây AWS EKS thực tế.
+
+\subsection{Mục tiêu cụ thể}
+\begin{enumerate}
+\item Đo lường xem Mode B có giúp cải thiện độ trễ phần đuôi (tail latency - p50/p95/p99) so với Mode A ở điều kiện tải ổn định (steady-state) hay không.
+\item Đánh giá tính ổn định của luồng mạng (tỷ lệ lỗi, độ trễ gai) dưới mức tải cao và sự thay đổi kết nối liên tục (connection churn).
+\item Đo lường mức độ hao tổn hiệu năng (overhead) tác động lên thông lượng và độ trễ khi bật các quy tắc mạng (NetworkPolicy) kết hợp với công cụ quan sát Hubble.
+\end{enumerate}
 % Chèn Table 3.3 RQ to Metric Traceability tại đây 
-\section{Hypotheses} % 
-\section{Contributions} % 
-\section{Thesis structure} % 
+\section{Phạm vi nghiên cứu} % 
+\subsection{Phạm vi đo lường} % 
+Tập trung đo lường luồng traffic nội bộ (east-west) qua Service kiểu ClusterIP. Các Pod client và server được ép chạy trên cùng một node (same-node placement) 
+để loại bỏ nhiễu độ trễ từ mạng vật lý liên node/liên vùng, giúp cô lập hoàn toàn hiệu năng của datapath. Benchmark không bao gồm traffic kết nối ra Internet, 
+traffic liên cụm (multi-cluster), hay streaming dữ liệu lớn.
+\subsection{Cấu hình phần cứng thực nghiệm}
+Triển khai 01 cụm Kubernetes trên AWS EKS (phiên bản 1.34) và Cilium (phiên bản 1.18.7) tại region ap-southeast-1. Cụm sử dụng 3 worker nodes loại m5.large 
+(non-burstable CPU để tránh cạn kiệt CPU credit làm nhiễu kết quả) và được ghim vào một Availability Zone (AZ) duy nhất. Chức năng autoscaling bị tắt 
+trong quá trình đo đạc để giữ cố định số lượng node.
+\subsection{Ý nghĩa của nghiên cứu} % 
+Cung cấp các bằng chứng thực nghiệm đáng tin cậy và có ý nghĩa thống kê cho các hệ thống chuẩn sản xuất. Nghiên cứu đưa ra hệ quả thực tiễn 
+giúp các kỹ sư ra quyết định chuyển đổi sang eBPF KPR, đặc biệt phù hợp cho các cụm có quy mô lớn (hơn 100+ services), các hệ thống 
+nhạy cảm với độ trễ bị ràng buộc bởi SLA (p99/p999), hoặc khi có nhu cầu giám sát luồng mạng sâu qua Hubble. Đồng thời, nghiên cứu cũng cảnh báo các rủi ro 
+vận hành như xung đột bảng NAT nếu không tắt kube-proxy đúng cách trước khi chuyển đổi.

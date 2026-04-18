@@ -7,6 +7,17 @@
 \usepackage[T5]{fontenc}      % Hỗ trợ font tiếng Việt
 \usepackage[utf8]{inputenc}   % Hỗ trợ gõ Unicode UTF-8
 \usepackage[vietnamese]{babel} % Định dạng ngày tháng, tự động dịch các tiêu đề (Mục lục, Chương...)
+\AtBeginDocument{\selectlanguage{vietnamese}}
+\addto\captionsvietnamese{\renewcommand{\chaptername}{Chương}}
+
+% Tăng cỡ chữ cho tiêu đề chương (vd: "Giới thiệu")
+\makechapterstyle{nt531chapter}{
+    \chapterstyle{default}
+    \renewcommand{\chapnamefont}{\normalfont\Large\bfseries}
+    \renewcommand{\chapnumfont}{\normalfont\Huge\bfseries}
+    \renewcommand{\chaptitlefont}{\normalfont\Huge\bfseries}
+}
+\chapterstyle{nt531chapter}
 
 % ==========================================
 % 2. CĂN LỀ & ĐỊNH DẠNG TRANG

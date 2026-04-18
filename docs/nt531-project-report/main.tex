@@ -21,11 +21,21 @@
 % ==========================================
 % TRANG TIÊU ĐỀ & DANH MỤC
 % ==========================================
+\pagenumbering{gobble}
 \coverpage
 
+\pagenumbering{roman}
+\setcounter{page}{1}
+
 \tableofcontents    % Tự động tạo Mục lục 
+\clearpage
 \listoftables       % Tự động tạo Danh mục bảng 
+\clearpage
 \listoffigures      % Tự động tạo Danh mục hình 
+
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
 
 % Include các chương chính
 \input{chapters/main/intro}

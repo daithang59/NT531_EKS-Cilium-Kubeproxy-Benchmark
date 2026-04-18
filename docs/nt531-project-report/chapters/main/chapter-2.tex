@@ -1,22 +1,413 @@
-% Chương 3: System Design & Methodology
+% Chương 3: System Design, Implementation & Methodology
 
 % ==========================================
-% CHƯƠNG 3: SYSTEM DESIGN & METHODOLOGY 
+% CHUONG 3: SYSTEM DESIGN, IMPLEMENTATION & METHODOLOGY
 % ==========================================
 \chapter{System Design, Implementation \& Methodology}
-\section{System overview} % 
-% Chèn Table 3.1 Infrastructure Specifications tại đây 
-\section{Deployment topology} % 
-% Chèn Figure 3.1 EKS Deployment Topology tại đây 
-\section{Mode definitions} % 
-\section{Fairness giữa hai mode} % 
-\section{Workload and toolchain} % 
-% Chèn Table 3.2 Workload Configuration tại đây 
-\section{Code analysis / tracing / logging} % 
-\section{Experimental design} % 
-\section{Load calibration} % 
-\section{Run protocol} % 
-\section{Scenarios (S1, S2, S3)} % 
-\section{Statistics plan} % 
-\section{Fairness controls} % 
-\section{Threats to validity} % 
+
+Chương này trình bày hệ thống thực nghiệm thực tế, cách triển khai, protocol benchmark, các biến kiểm soát để bảo đảm tính công bằng giữa hai mode datapath, và khung đánh giá threats to validity. Mục tiêu là mô tả đủ chi tiết để có thể tái lập, nhưng vẫn tách rõ giữa phần cơ chế nền và phần bằng chứng đo đạc.
+
+\section{System Overview}
+\label{sec:system-overview}
+
+Hệ thống benchmark được triển khai trên một cụm AWS EKS duy nhất, sử dụng 03 worker nodes loại \texttt{m5.large} trong cùng một AZ để giảm nhiễu do cross-AZ. Số lượng node được giữ cố định trong suốt quá trình đo; autoscaling tắt trong giai đoạn measurement để tránh biến thiên tài nguyên làm sai lệch so sánh.
+
+Các namespace được tách theo chức năng:
+\begin{itemize}
+  \item \texttt{system-observability}: stack theo dõi (Prometheus/Grafana) và công cụ quan sát luồng.
+  \item \texttt{benchmark}: workload benchmark (server/client/service) và các đối tượng phục vụ test.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Infrastructure Specifications}
+\label{tab:infrastructure-specs}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{4cm}X}
+\toprule
+\textbf{Thành phần} & \textbf{Cấu hình} \\
+\midrule
+Region & ap-southeast-1 \\
+Cluster count & 1 \\
+Worker nodes & 3 \\
+Instance type & \texttt{m5.large} \\
+Kubernetes version & Chốt theo artifact thực tế của benchmark \\
+Cilium version & Chốt theo artifact thực tế của benchmark \\
+Topology & Single AZ \\
+Benchmark tool & Fortio \\
+Monitoring & Prometheus + Grafana \\
+Flow observability & Hubble \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Deployment Topology}
+\label{sec:deployment-topology}
+
+Topology được tổ chức để tách rõ control/observability/workload, nhưng vẫn giữ đường truyền dữ liệu gọn cho benchmark service datapath. Trong phạm vi luận văn này, luồng chính là client Fortio gọi HTTP qua Service \texttt{ClusterIP} đến HTTP echo server; monitoring stack thu metrics hệ thống, còn Hubble cung cấp flow-level evidence.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{graphics/chapter-2/architecture-topology.jpg}
+\caption{EKS Deployment Topology}
+\label{fig:eks-deployment-topology}
+\end{figure}
+
+\subsection{Giải thích luồng chạy theo sơ đồ thiết kế}
+Đối chiếu với sơ đồ kiến trúc luồng chạy của hệ thống diễn ra như sau:
+\begin{itemize}
+  \item \textbf{Luồng request benchmark (đường dữ liệu chính):} Fortio trong namespace benchmark phát request HTTP đến Service \texttt{ClusterIP}. Từ đây request được cân bằng đến một trong các server pod replicas đặt trên worker nodes.
+  \item \textbf{Khác biệt datapath giữa hai mode:}
+  \begin{itemize}
+    \item \textbf{Mode A:} request đi qua cơ chế service của \texttt{kube-proxy} (iptables/IPVS) tại node trước khi đến pod đích.
+    \item \textbf{Mode B:} request được xử lý bởi Cilium eBPF service datapath (service map/backend map), \texttt{kube-proxy} bị vô hiệu hóa.
+  \end{itemize}
+  \item \textbf{Luồng quan sát metrics:} Prometheus scrape node-exporter và các endpoint metrics liên quan Cilium, sau đó Grafana dùng dữ liệu này để hiển thị dashboard theo node/pod/cluster.
+  \item \textbf{Luồng quan sát flow:} Hubble relay nhận sự kiện flow từ Cilium và cho phép \texttt{hubble observe} trích xuất verdict (FORWARDED/DROPPED/ALLOWED/DENIED), đặc biệt quan trọng cho S3 khi kiểm chứng policy enforcement.
+  \item \textbf{Luồng egress hạ tầng:} traffic ra ngoài cụm (ví dụ pull image hoặc truy cập dịch vụ ngoài) đi qua NAT Gateway/Internet Gateway; đây là luồng vận hành hạ tầng, không phải datapath chính đang được so sánh trong benchmark.
+\end{itemize}
+
+
+\section{Mode Definitions}
+\label{sec:mode-definitions}
+
+Hai mode được định nghĩa để khác nhau chủ yếu ở service datapath, giúp phép so sánh tập trung vào câu hỏi nghiên cứu:
+
+\textbf{Mode A (baseline):}
+\begin{itemize}
+  \item \texttt{kube-proxy} hoạt động.
+  \item Cilium chạy ở chế độ không thay thế \texttt{kube-proxy}.
+  \item Workload và monitoring stack giữ nguyên.
+\end{itemize}
+
+\textbf{Mode B (eBPF KPR):}
+\begin{itemize}
+  \item Cilium \texttt{kubeProxyReplacement} được bật.
+  \item \texttt{kube-proxy} bị vô hiệu hóa trước khi benchmark Mode B.
+  \item Hubble được bật để lấy observability evidence.
+\end{itemize}
+
+\section{Fairness Between Two Modes}
+\label{sec:fairness-two-modes}
+
+Các điều kiện để đảm bảo sự công bằng giữa hai mode được duy trì xuyên suốt:
+\begin{itemize}
+  \item Cùng cluster, cùng node type, cùng node count.
+  \item Cùng image workload, cùng service type (\texttt{ClusterIP}).
+  \item Cùng duration, cùng load levels, cùng warm-up/rest policy.
+  \item Chạy tuần tự Mode A rồi đến Mode B trong cùng môi trường.
+  \item Reset namespace benchmark và redeploy workload giữa hai mode.
+\end{itemize}
+
+Mục đích của tập kiểm soát này là hạn chế hiện tượng so sánh nhầm do thay đổi đồng thời quá nhiều biến.
+
+\section{Workload and Toolchain}
+\label{sec:workload-toolchain}
+
+Thành phần benchmark:
+\begin{itemize}
+  \item Server: HTTP echo service.
+  \item Client: Fortio.
+  \item Service type: \texttt{ClusterIP}.
+  \item Payload và tham số Fortio được cố định trong mỗi cặp so sánh.
+  \item Policy object: \texttt{CiliumNetworkPolicy} (chỉ áp dụng cho S3).
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Workload Configuration}
+\label{tab:workload-config}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}p{3.2cm} >{\raggedright\arraybackslash}p{3.2cm} X}
+\toprule
+\textbf{Thành phần} & \textbf{Image/Loại} & \textbf{Requests/Limits} & \textbf{Ghi chú} \\
+\midrule
+Server & \texttt{hashicorp/http-echo} & Ghi theo artifact thực tế & Endpoint đơn giản để đo service datapath \\
+Client & \texttt{fortio/fortio} & Ghi theo artifact thực tế & Tạo tải benchmark trong cluster \\
+Service & \texttt{ClusterIP} & -- & Mục tiêu chính của nghiên cứu \\
+Policy object & \texttt{CiliumNetworkPolicy} & -- & Chỉ dùng cho S3 (Mode B) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Code Analysis, Tracing, and Logging}
+\label{sec:code-tracing-logging}
+
+\subsection{Conceptual code-path analysis}
+Mục tiêu của phần này là mô tả đường đi gói tin ở mức cơ chế để hỗ trợ diễn giải kết quả, không phải chứng minh trực tiếp chi phí tính toán vi mô của từng bước. Nói cách khác, code-path analysis đóng vai trò nền tảng giải thích nguyên nhân khả dĩ cho các xu hướng p95/p99, thay vì thay thế phần đo đạc định lượng.
+
+Trong phạm vi luận văn, có ba câu hỏi cơ chế chính được dùng để soi chiếu kết quả:
+\begin{itemize}
+  \item \textbf{Mode A xử lý Service ra sao?} Request được ánh xạ backend qua \texttt{kube-proxy} (iptables/IPVS), sau đó chuyển đến endpoint pod.
+  \item \textbf{Mode B xử lý Service ra sao?} Request đi qua datapath eBPF của Cilium (service map/backend map), loại bỏ bước xử lý của \texttt{kube-proxy}.
+  \item \textbf{Hubble quan sát ở đâu?} Hubble lấy flow events từ Cilium datapath để tạo bằng chứng verdict phục vụ đối chiếu ở S3.
+\end{itemize}
+
+\subsection{Practical tracing and verification}
+Thực nghiệm sử dụng bộ lệnh kiểm chứng trước, trong và sau mỗi run để bảo đảm tính hợp lệ của dữ liệu:
+\begin{itemize}
+  \item \texttt{kubectl get svc,endpoints}
+  \item \texttt{cilium status}
+  \item \texttt{hubble status}
+  \item \texttt{hubble observe}
+  \item \texttt{kubectl logs}
+\end{itemize}
+
+Ý nghĩa kiểm chứng của từng lệnh trong quy trình:
+\begin{itemize}
+  \item \texttt{kubectl get svc,endpoints}: xác nhận Service \texttt{ClusterIP} đã ánh xạ đúng endpoint pod, tránh trường hợp benchmark đo vào service rỗng hoặc endpoint stale.
+  \item \texttt{cilium status}: xác nhận Cilium agent/daemonset vận hành bình thường và mode mong muốn đã được áp dụng (đặc biệt quan trọng khi chuyển Mode A sang Mode B).
+  \item \texttt{hubble status}: xác nhận pipeline thu thập flow hoạt động, tránh mất evidence ở S3 do relay hoặc observer chưa sẵn sàng.
+  \item \texttt{hubble observe}: thu luồng thực tế để đối chiếu verdict và hành vi policy; dùng để kiểm chứng ``đúng chức năng'' chứ không thay thế số liệu latency/RPS.
+  \item \texttt{kubectl logs}: phát hiện bất thường runtime như crash loop, timeout, OOM, hoặc warning mạng có thể làm bẩn dữ liệu run.
+\end{itemize}
+
+Quy trình kiểm chứng được áp dụng theo thứ tự:
+\begin{enumerate}
+  \item \textbf{Pre-run:} xác nhận cluster healthy, pod ready, endpoint mapping đúng với manifest kỳ vọng.
+  \item \textbf{In-run:} theo dõi log Fortio, trạng thái pod và event bất thường (restart, OOM, network warning).
+  \item \textbf{Post-run:} chụp lại trạng thái hệ thống và lưu evidence để truy vết nếu phát hiện outlier.
+\end{enumerate}
+
+Đối với S3, ngoài chỉ số hiệu năng, \texttt{hubble observe} còn được dùng để xác nhận deny/allow đúng theo policy intent, giúp tránh kết luận sai khi policy chưa thực sự có hiệu lực.
+
+Để đảm bảo tính nhất quán, nhóm áp dụng nguyên tắc: nếu kiểm chứng mode hoặc endpoint mapping không đạt, run đó bị loại và chạy lại; nếu log cho thấy lỗi ứng dụng rõ ràng (không phải hiệu năng datapath), run được gắn cờ và không dùng cho kết luận chính.
+
+\subsection{Logging artifacts}
+Mỗi run lưu artifacts để truy vết:
+\begin{itemize}
+  \item \texttt{bench.log}
+  \item \texttt{metadata.json}
+  \item \texttt{kubectl\_get\_all.txt}, \texttt{kubectl\_top\_nodes.txt}, \texttt{events.txt}
+  \item với Mode B/S3: \texttt{cilium\_status.txt}, \texttt{hubble\_status.txt}, \texttt{hubble\_flows.jsonl}
+\end{itemize}
+
+Các artifact này được tổ chức theo thư mục mode/scenario/load/run để đảm bảo nguồn gốc dữ liệu rõ ràng (data provenance), đồng thời hỗ trợ đối chiếu ngược từ bảng tổng hợp về dữ liệu thô nếu có nghi ngờ chất lượng run.
+
+\section{Experimental Design}
+\label{sec:experimental-design}
+
+\subsection{Independent variables}
+Biến độc lập là các yếu tố được chủ động thay đổi có kiểm soát giữa các cell benchmark:
+\begin{itemize}
+  \item Datapath mode: A / B.
+  \item Scenario: S1 / S2 / S3.
+  \item Load level: L1 / L2 / L3.
+  \item Policy state: OFF / ON (chỉ áp dụng cho S3 trên Mode B).
+\end{itemize}
+
+\subsection{Dependent variables}
+Biến phụ thuộc là các đại lượng đầu ra dùng để trả lời RQ:
+\begin{itemize}
+  \item p50 / p95 / p99.
+  \item Achieved RPS.
+  \item Error rate.
+  \item Hubble verdict evidence (cho S3).
+\end{itemize}
+
+\subsection{Controlled variables}
+Biến kiểm soát là các yếu tố giữ cố định để đảm bảo khác biệt quan sát được chủ yếu đến từ datapath mode hoặc policy state:
+\begin{itemize}
+  \item Cluster, node type, node count.
+  \item Workload image, request size, service type.
+  \item Run duration, warm-up duration, rest giữa các run.
+  \item Monitoring stack và quy trình reset namespace.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{RQ to Metric Traceability}
+\label{tab:ch3-rq-metric-traceability}
+\small
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{1.1cm} >{\raggedright\arraybackslash}p{1.4cm} >{\raggedright\arraybackslash}p{1.7cm} >{\raggedright\arraybackslash}p{2.6cm} X}
+\toprule
+\textbf{RQ} & \textbf{Scenario} & \textbf{Load} & \textbf{Primary metric} & \textbf{Supporting evidence} \\
+\midrule
+RQ1 & S1 & L1/L2/L3 & p95, p99 & RPS, node metrics \\
+RQ2 & S2 & L2/L3 & p99, error rate & Phase trend, node metrics \\
+RQ3 & S3 & L2/L3 & $\Delta$ p95/p99, $\Delta$ RPS & Hubble verdicts \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Load Calibration}
+\label{sec:load-calibration}
+
+Nguyên tắc chọn load level:
+\begin{itemize}
+  \item L1: hệ thống ổn định, lỗi thấp.
+  \item L2: bắt đầu xuất hiện tail latency.
+  \item L3: gần knee-point nhưng chưa collapse.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Load Levels}
+\label{tab:load-levels}
+\small
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{1.1cm} >{\raggedright\arraybackslash}p{3.4cm} >{\raggedright\arraybackslash}p{3.4cm} X}
+\toprule
+\textbf{Load} & \textbf{QPS} & \textbf{Concurrency} & \textbf{Mục đích} \\
+\midrule
+L1 & Theo artifact calibration thực tế (tham chiếu: 100) & Theo artifact calibration thực tế (tham chiếu: 8) & Baseline ổn định \\
+L2 & Theo artifact calibration thực tế (tham chiếu: 500) & Theo artifact calibration thực tế (tham chiếu: 32) & Bắt đầu thấy khác biệt \\
+L3 & Theo artifact calibration thực tế (tham chiếu: 1000) & Theo artifact calibration thực tế (tham chiếu: 64) & Gần ngưỡng tải \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Run Protocol}
+\label{sec:run-protocol}
+
+Quy trình chạy benchmark cho mỗi tổ hợp mode-scenario-load được chuẩn hóa để giảm sai lệch giữa các lần đo:
+\begin{itemize}
+  \item Warm-up: 30--60 giây.
+  \item Measurement window: 180 giây (hoặc theo artifact thực tế).
+  \item Repeats: 3 runs cho mỗi cell.
+  \item Rest giữa các run để giảm ảnh hưởng warm cache/connection state.
+  \item Reset/Cleanup nếu cần trước khi chuyển mode hoặc scenario.
+\end{itemize}
+
+Ngoài thời lượng đo chính, nhóm còn kiểm tra các điều kiện dừng sớm (ví dụ crash hoặc error rate bất thường) để tránh đưa run lỗi vào tập dữ liệu tổng hợp.
+
+\section{Scenarios (S1, S2, S3)}
+\label{sec:scenarios}
+
+\textbf{S1 -- Steady-state service baseline}
+\begin{itemize}
+  \item So sánh Mode A vs Mode B trên \texttt{ClusterIP}.
+  \item Chạy tại L1/L2/L3 để quan sát xu hướng theo mức tải.
+  \item Trọng tâm báo cáo: p95/p99 và độ ổn định error rate khi hệ thống ở trạng thái ổn định.
+\end{itemize}
+
+\textbf{S2 -- Stress + connection churn}
+\begin{itemize}
+  \item So sánh Mode A vs Mode B dưới tải động.
+  \item Tập trung L2/L3 để tạo stress rõ; L1 không ưu tiên cho stress test.
+  \item Điều chỉnh keep-alive/churn theo cấu hình thực tế của script.
+  \item Trọng tâm báo cáo: tail latency theo phase và mức dao động giữa các run.
+\end{itemize}
+
+\textbf{S3 -- Policy overhead}
+\begin{itemize}
+  \item Chỉ áp dụng cho Mode B.
+  \item So sánh policy OFF $\rightarrow$ policy ON.
+  \item Có deny case riêng để thu Hubble evidence về policy correctness.
+  \item Trọng tâm báo cáo: độ chênh p95/p99 và RPS trước/sau khi bật policy.
+\end{itemize}
+
+\section{Statistics Plan: Rigorous but Not Over-sold}
+\label{sec:statistics-plan}
+
+Nguyên tắc cốt lõi của kế hoạch thống kê là: (i) ưu tiên chỉ số bền vững với phân phối lệch (median, percentile), (ii) dùng kiểm định suy luận như bằng chứng hỗ trợ, và (iii) luôn diễn giải trong phạm vi setup đã đo.
+
+\subsection{Primary reporting}
+\begin{itemize}
+  \item Mỗi cell báo cáo trên 3 runs.
+  \item Chỉ số chính: median p50/p95/p99, median RPS, error rate.
+  \item Báo cáo thêm \% khác biệt giữa hai mode (hoặc OFF/ON với S3).
+  \item Trình bày theo cell cố định mode-scenario-load để tránh so sánh chéo thiếu kiểm soát.
+\end{itemize}
+
+Đối với latency tail (p95/p99), báo cáo ưu tiên xu hướng nhất quán theo nhiều load hơn là một điểm cải thiện đơn lẻ. Với S2, phase-level summary được dùng để làm rõ hành vi dưới churn thay vì chỉ nhìn giá trị gộp toàn run.
+
+\subsection{Secondary inferential reporting}
+\begin{itemize}
+  \item Welch's t-test ở mức run-level như chỉ báo hỗ trợ.
+  \item Holm-Bonferroni áp dụng cho nhóm so sánh chính đã định trước.
+  \item Hedges' g báo cáo effect size ở mức tham khảo.
+\end{itemize}
+
+Do kích thước mẫu ở mức run-level còn hạn chế, các kiểm định suy luận được dùng để củng cố nhận định xu hướng, không dùng như bằng chứng duy nhất để đưa ra kết luận tuyệt đối.
+
+Trong báo cáo, p-value được đặt cạnh effect size và độ lớn chênh lệch thực tế (delta latency/RPS), nhằm tránh diễn giải nhị phân kiểu ``significant/non-significant'' một cách cơ học.
+
+\subsection{Sensitivity analysis}
+\begin{itemize}
+  \item Mann-Whitney U và bootstrap CI để kiểm tra độ bền của kết luận.
+  \item Trình bày chi tiết ở phần appendix; main text chỉ tóm tắt kết quả.
+  \item Nếu kết luận đảo chiều dưới sensitivity checks, kết luận chính sẽ hạ mức tin cậy.
+\end{itemize}
+
+Ngoài ra, nhóm kiểm tra độ ổn định theo run-order để giảm nguy cơ thiên lệch do hiệu ứng thời điểm (time-of-day) khi chạy tuần tự A rồi B.
+
+\subsection{Cách diễn đạt kết quả}
+\begin{itemize}
+  \item S1 có thể kết luận mạnh hơn nếu kết quả nhất quán qua các load.
+  \item S2 cần thận trọng hơn do variance thường cao.
+  \item S3 kết luận theo mức overhead đo được trong setup này, không suy rộng quá mức.
+\end{itemize}
+
+
+\section{Fairness Controls}
+\label{sec:fairness-controls}
+
+Phần này chuyển hóa các rủi ro thiên lệch thực nghiệm thành biện pháp kiểm soát cụ thể, giúp người đọc đánh giá mức độ tin cậy của phép so sánh A/B.
+
+\begin{table}[H]
+\centering
+\caption{Fairness Controls}
+\label{tab:fairness-controls}
+\small
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.3cm}X}
+\toprule
+\textbf{Mối lo} & \textbf{Kiểm soát} \\
+\midrule
+Config drift & Pin version; lưu Helm values, manifests, commit hash \\
+Resource noise & Fixed node count, same instance type \\
+Autoscaling noise & Autoscaling off trong measurement \\
+State carry-over & Reset benchmark namespace, redeploy workload \\
+Request mismatch & Same payload, same Fortio parameters \\
+Monitoring overhead & Giữ monitoring stack cố định \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Threats to Validity}
+\label{sec:threats-to-validity}
+
+Threats được chia thành hai nhóm: \textit{internal threats} (ảnh hưởng trực tiếp đến độ đúng trong setup hiện tại) và \textit{external threats} (giới hạn khả năng suy rộng sang ngữ cảnh khác).
+
+\begin{table}[H]
+\centering
+\caption{Internal Threats}
+\label{tab:internal-threats}
+\small
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}p{2.2cm} X}
+\toprule
+\textbf{Threat} & \textbf{Ảnh hưởng} & \textbf{Giảm thiểu} \\
+\midrule
+Sequential A $\rightarrow$ B & Time-of-day bias & Ghi rõ limitation; giữ khoảng cách thời gian ngắn \\
+Single cluster & Carry-over state & Reset namespace; re-verify mode trước mỗi block \\
+CPU/scheduling noise & Ảnh hưởng p99 & Fixed resources; lặp lại nhiều run \\
+Monitoring overhead & Ảnh hưởng latency & Giữ stack quan sát cố định \\
+Warm cache/connection state & Làm lệch run đầu & Warm-up + rest giữa các run \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{External Threats}
+\label{tab:external-threats}
+\small
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.1cm}X}
+\toprule
+\textbf{Threat} & \textbf{Hạn chế suy rộng} \\
+\midrule
+Same-node priority & Không đại diện đầy đủ cho cross-node full study \\
+ClusterIP only & Chưa đại diện NodePort/LoadBalancer \\
+HTTP only & Chưa đại diện gRPC/TCP long-lived \\
+Simple policy & Chưa đại diện policy complexity scaling \\
+1 cluster / 1 region & Chưa đại diện đa vùng / đa cluster \\
+\bottomrule
+\end{tabularx}
+\end{table}
