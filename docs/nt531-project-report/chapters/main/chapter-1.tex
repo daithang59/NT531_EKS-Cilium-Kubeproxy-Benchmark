@@ -5,139 +5,153 @@
 % ==========================================
 \chapter{Cơ sở lý thuyết}
 
-Chương này trình bày kiến thức nền và công trình liên quan phục vụ cho phần thiết kế thực nghiệm ở các chương sau. Nội dung chương tập trung vào cơ chế và khái niệm, không đi sâu vào kết quả đo của hệ thống cụ thể.
+% Nếu bạn đang viết file con, có thể bỏ dòng \chapter ở trên đi
 
-\section{Cơ chế xử lý gói tin trong nhân Linux}
-Trong Linux networking stack, gói tin đi qua nhiều tầng xử lý trước khi tới ứng dụng đích. Với bối cảnh Kubernetes Service 
-datapath, các khái niệm nền tảng cần nắm gồm:
-\subsection{Netfilter framework/ iptables và chains} iptables là công cụ cấu hình mạng hoạt động trong nhân Linux, xử lý gói tin bằng cách cho chúng đi qua các chuỗi (chains) cơ bản như PREROUTING, INPUT, OUTPUT, FORWARD, và POSTROUTING. Trong Kubernetes, kube-proxy sẽ tạo ra các chuỗi tùy chỉnh như KUBE-SERVICES (để nhận diện IP của Service) và KUBE-SEP-* (để chọn endpoint cụ thể). Quá trình tra cứu các luật (rules) trong iptables diễn ra tuần tự (linear scan), tạo ra độ phức tạp O(n). Khi có hàng ngàn Service, số lượng luật tăng lên hàng chục nghìn, khiến thời gian duyệt tăng tuyến tính và gây ra thắt cổ chai.
-\subsection{DNAT và SNAT (Network Address Translation)} 
+\section{Lớp mạng trong Kubernetes (Kubernetes Networking Layer)}
+
+\subsection{Mô hình mạng cơ bản (Pod Networking)}
+Trong môi trường Kubernetes, mỗi Pod được cấp phát một địa chỉ IP riêng biệt và không trùng lặp trên toàn bộ cụm (cluster). Để giao tiếp với mạng bên ngoài, mỗi Pod sử dụng một không gian mạng (network namespace) riêng và kết nối với máy chủ vật lý (node) thông qua một cặp giao diện mạng ảo gọi là \texttt{veth} (virtual ethernet pair). Một đầu của \texttt{veth} nằm bên trong Pod, đầu còn lại kết nối với một bridge mạng trên node (ví dụ: \texttt{cni0}), cho phép các Pod trên cùng node giao tiếp với nhau hoặc định tuyến gói tin ra giao diện mạng chính của máy chủ (như \texttt{eth0}).
+
+\subsection{CNI (Container Network Interface) Plugins}
+CNI là một tiêu chuẩn và cơ chế (plugin) chịu trách nhiệm thiết lập mạng cho Pod, quản lý việc cấp phát địa chỉ IP (IPAM) và thực thi các chính sách mạng. Thay vì sử dụng các plugin mặc định như AWS VPC CNI, kiến trúc mạng có thể được thay thế bởi các CNI tiên tiến hơn như Cilium để trực tiếp quản lý IP của Pod và tối ưu hóa đường dẫn dữ liệu.
+
+\subsection{Kubernetes Service và bài toán Cân bằng tải}
+Bởi đặc tính cấp phát động và không cố định của Pod, địa chỉ IP của chúng sẽ thay đổi mỗi khi hệ thống
+ thực hiện khởi động lại hoặc điều phối lại tài nguyên. Để giải quyết vấn đề này, Kubernetes giới thiệu khái niệm
+  Service (\texttt{ClusterIP}), cung cấp một địa chỉ IP ảo cố định (Virtual IP) nhằm trừu tượng hóa một nhóm các Pod backend. Tuy nhiên, dải IP của 
+\texttt{ClusterIP} (ví dụ 10.96.0.0/12) không bao giờ được gán trực tiếp vào bất kỳ giao diện mạng vật lý nào, mà nó 
+chỉ tồn tại dưới dạng các quy tắc logic. Do đó, hệ thống đặt ra bài toán bắt buộc phải có một thành phần đóng vai 
+trò proxy hoặc bộ cân bằng tải trên mỗi node để bắt các gói tin gửi tới IP ảo này và định tuyến chúng tới địa chỉ 
+IP thực của Pod.
+
+\section{Cơ chế xử lý mạng truyền thống với Mode A (kube-proxy \& iptables)}
+
+\subsection{Cơ chế xử lý gói tin trong nhân Linux}
 \begin{itemize}
-	\item \textbf{DNAT (Destination NAT):} Khi một gói tin được gửi đến địa chỉ ảo của Service (ClusterIP), chuỗi PREROUTING sẽ áp dụng DNAT để biến đổi địa chỉ IP đích từ Service IP sang địa chỉ IP thực của một Pod backend.
-	\item SNAT (Source NAT / Masquerade): Khi gói tin đi ra khỏi Pod hoặc Node, chuỗi POSTROUTING sẽ thực hiện SNAT, thay đổi địa chỉ IP nguồn từ IP của Pod thành IP của Node vật lý để che giấu (hide) địa chỉ IP nội bộ của Pod.
-\end{itemize}
-\subsection{Conntrack (Connection Tracking)}
-Đây là một hệ thống con (subsystem) của kernel chuyên theo dõi trạng thái của các kết nối mạng (stateful inspection). Ví dụ, một gói tin TCP SYN tạo ra trạng thái NEW, và gói SYN-ACK cập nhật trạng thái thành ESTABLISHED. Bất kỳ thao tác NAT nào cũng bắt buộc phải có conntrack để ghi nhớ IP/Port gốc, từ đó giúp kernel có thể dịch ngược lại chính xác địa chỉ cho các gói tin phản hồi (reply traffic). Điểm yếu của cơ chế này là dưới mức tải cao, nếu bảng conntrack đạt đến giới hạn tối đa (bị đầy), hệ thống sẽ từ chối (DROP) các kết nối mới làm thông lượng mạng sụt giảm đột ngột.
-
-
-Trong benchmark networking, tail latency thường nhạy với độ phức tạp đường đi gói tin và mức tải của các thành phần xử lý trạng thái như conntrack. Vì vậy, khi phân tích p95/p99 cần đặt kết quả trong ngữ cảnh đường đi datapath thực tế.
-
-\section{Kubernetes networking background}
-Tại mức khái niệm, Service trong Kubernetes cung cấp một virtual IP (ClusterIP) để phân phối traffic tới tập backend endpoints. kube-proxy thường đảm nhiệm phần điều hướng Service bằng cách lập trình luật iptables hoặc cơ chế tương đương.
-
-Trong khi đó, CNI chịu trách nhiệm kết nối mạng cho Pod và thiết lập các thành phần dữ liệu cần thiết cho dataplane. Cilium là một CNI dựa trên eBPF, cho phép đưa một phần logic xử lý gói tin xuống kernel theo hướng lập trình được, đồng thời cung cấp khả năng quan sát luồng mạng (flow observability).
-
-Khái niệm kube-proxy replacement của Cilium trong nghiên cứu này được hiểu là thay thế phần xử lý Service forwarding của kube-proxy bằng datapath eBPF tương ứng.
-
-\section{Datapath comparison at concept level}
-Ở mức ý niệm, hai mode được đối chiếu theo các đường đi điển hình sau:
-
-\textbf{Mode A (kube-proxy baseline)}
-\begin{itemize}
-	\item client $\rightarrow$ veth $\rightarrow$ host netns $\rightarrow$ iptables/kube-proxy path $\rightarrow$ endpoint.
+    \item \textbf{Netfilter framework và iptables:} Hệ điều hành Linux sử dụng \texttt{iptables} để quản lý luồng mạng thông qua các chuỗi (chains) như \texttt{PREROUTING}, \texttt{INPUT}, \texttt{OUTPUT}, và \texttt{POSTROUTING}. Các quy tắc này hoạt động theo cơ chế duyệt tuần tự, tức là gói tin phải đi qua từng luật một, dẫn đến độ phức tạp thuật toán là $O(n)$.
+    \item \textbf{DNAT và SNAT (Network Address Translation):} Khi gói tin đi qua chuỗi \texttt{KUBE-SERVICES}, hệ 
+	thống thực hiện DNAT (Destination NAT) để biến đổi IP đích từ Service IP sang IP thực của Pod. Khi gói tin phản 
+	hồi rời khỏi Pod, chuỗi \texttt{POSTROUTING} thực hiện SNAT (Source NAT/Masquerade) để thay thế IP nguồn của Pod bằng IP của Node.
+    \item \textbf{Conntrack (Connection Tracking):} Để thực hiện NAT thành công, nhân Linux bắt buộc phải sử dụng bảng conntrack nhằm theo dõi trạng thái của mọi kết nối (ví dụ: \texttt{NEW}, \texttt{ESTABLISHED}). Quá trình tra cứu trạng thái này sinh ra hao tổn (overhead) rất lớn đối với đường dẫn dữ liệu.
 \end{itemize}
 
-\textbf{Mode B (Cilium eBPF kube-proxy replacement)}
-\begin{itemize}
-	\item client $\rightarrow$ veth $\rightarrow$ TC eBPF $\rightarrow$ service map $\rightarrow$ endpoint/policy map.
-\end{itemize}
+\subsection{Cơ chế hoạt động của kube-proxy}
+\texttt{kube-proxy} là một thành phần cốt lõi chạy dưới dạng \texttt{DaemonSet} trên mỗi node. Theo mặc định, \texttt{kube-proxy} không trực tiếp chuyển tiếp gói tin ở không gian người dùng (user space) mà nó liên tục lắng nghe (watch) API Server để nhận các thay đổi về Service và \texttt{EndpointSlice}. Sau đó, nó tự động lập trình (program) các tập luật \texttt{iptables} tương ứng vào nhân Linux để hệ điều hành tự thực hiện việc dịch địa chỉ và cân bằng tải.
 
-Trong phạm vi chương này, phần so sánh chỉ nhằm mô tả background mechanism. Nghiên cứu không đưa ra tuyên bố độ phức tạp thuật toán theo dạng chứng minh hình thức.
+\subsection{Hạn chế của kiến trúc truyền thống}
+Kiến trúc dựa trên \texttt{iptables} và \texttt{kube-proxy} bộc lộ điểm nghẽn nghiêm trọng khi hệ thống mở rộng. Nếu cụm có hàng nghìn Service, số lượng luật \texttt{iptables} sẽ tăng lên hàng chục nghìn, khiến thời gian duyệt $O(n)$ tăng tuyến tính và gây ra độ trễ mạng lớn. Đặc biệt dưới tải cao hoặc khi sự thay đổi kết nối diễn ra liên tục (connection churn), bảng conntrack có thể đạt đến giới hạn và bị đầy, dẫn đến việc hệ thống từ chối (\texttt{DROP}) các gói tin mới, làm suy giảm thông lượng đột ngột và gây ra các gai độ trễ phần đuôi (tail latency spike).
+
+\section{Công nghệ eBPF và Cilium Datapath với Mode B}
+
+\subsection{Công nghệ eBPF}
+eBPF (Extended Berkeley Packet Filter) là công nghệ cho phép chạy các chương trình tùy chỉnh trực tiếp bên trong không gian nhân (kernel space) của Linux một cách an toàn mà không cần sửa đổi mã nguồn kernel hay chuyển đổi ngữ cảnh (context switch). Mức độ an toàn được đảm bảo thông qua một bộ xác minh (Verifier) kiểm tra bytecode trước khi tải, cùng cơ chế biên dịch JIT (Just-In-Time) giúp mã thực thi với tốc độ gốc. Thay vì duyệt quy tắc tuần tự, eBPF lưu trữ dữ liệu trong các cấu trúc gọi là BPF Maps (bảng băm key-value), cho phép tra cứu đích đến với thời gian cố định $O(1)$, bất kể quy mô của cluster.
+
+\subsection{Kiến trúc Cilium CNI}
+Cilium là một CNI tiên tiến được xây dựng hoàn toàn dựa trên nền tảng eBPF, giúp tối ưu hóa datapath bằng cách bỏ qua các khung mạng truyền thống như \texttt{iptables}. Cilium đính kèm các chương trình eBPF vào các điểm móc (hooks) sâu trong kernel như \texttt{sockops} (cấp độ socket) hoặc \texttt{tc} (Traffic Control) để xử lý gói tin ngay từ những bước đầu tiên.
+
+\subsection{Cơ chế Cilium eBPF Datapath - KubeProxyReplacement}
+Trong Mode B, tính năng \texttt{kubeProxyReplacement} (KPR) được bật để thay thế hoàn toàn vai trò của \texttt{kube-proxy}. Khi một ứng dụng gọi đến \texttt{ClusterIP}, thay vì để gói tin đi xuống tầng mạng vật lý và chịu sự can thiệp của \texttt{iptables}, chương trình eBPF tại hook \texttt{sockops} sẽ nhận diện IP đích. Nó thực hiện tra cứu trực tiếp trên BPF Map $O(1)$ để tìm ra IP thực của Pod backend, sau đó chuyển hướng gói tin thẳng ở cấp độ socket (socket-level redirect) từ client sang server. Quá trình này bỏ qua hoàn toàn mạng host (host network stack), loại bỏ các phép biến đổi DNAT/SNAT và bỏ qua phần lớn sự phụ thuộc vào bảng conntrack đối với các luồng mạng nội bộ.
+
+\section{So sánh Datapath: Mode A vs. Mode B}
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[x=1cm,y=1cm]
-	% Khung tổng thể
-	\draw[rounded corners=2pt] (-0.2,-0.4) rectangle (14.2,5.8);
-	\draw (7,-0.4) -- (7,5.8);
+\begin{tikzpicture}[
+    % 1. Định nghĩa style chung cho các hộp (box)
+    box/.style={
+        draw, 
+        rounded corners=2pt, 
+        minimum width=2.8cm, 
+        minimum height=0.8cm, 
+        align=center,      % Cho phép xuống dòng trong hộp
+        font=\small
+    },
+    % Định nghĩa style cho tiêu đề
+    title/.style={font=\bfseries}
+]
 
-	% Tieu de hai cot
-	\node[font=\bfseries] at (3.5,5.2) {Mode A: kube-proxy (iptables)};
-	\node[font=\bfseries] at (10.5,5.2) {Mode B: Cilium eBPF KPR};
+    % --- KHUNG VÀ ĐƯỜNG PHÂN CÁCH ---
+    % Khung tổng thể (Tùy chọn: dùng \draw để bọc lại, hoặc bỏ đi cho thoáng)
+    \draw[rounded corners=4pt, draw=gray!50] (-0.5, 0) rectangle (15.5, 6.5);
+    \draw[dashed, thick, gray] (7.5, 0) -- (7.5, 6.5);
 
-	% Mode A
-	\draw[rounded corners=2pt] (0.6,3.7) rectangle (2.8,4.5);
-	\node at (1.7,4.1) {Client Pod};
-	\draw[rounded corners=2pt] (3.4,3.7) rectangle (5.8,4.5);
-	\node at (4.6,4.1) {veth/host netns};
-	\draw[rounded corners=2pt] (0.6,2.2) rectangle (2.8,3.0);
-	\node at (1.7,2.6) {kube-proxy};
-	\draw[rounded corners=2pt] (3.4,2.2) rectangle (5.8,3.0);
-	\node at (4.6,2.6) {DNAT/SNAT};
-	\draw[rounded corners=2pt] (2.0,0.8) rectangle (4.4,1.6);
-	\node at (3.2,1.2) {Server Pod};
+    % --- TIÊU ĐỀ ---
+    \node[title] at (3.5, 6) {Mode A: kube-proxy (iptables)};
+    \node[title] at (11.5, 6) {Mode B: Cilium eBPF KPR};
 
-	\draw[->,thick] (2.8,4.1) -- (3.4,4.1);
-	\draw[->,thick] (1.7,3.7) -- (1.7,3.0);
-	\draw[->,thick] (2.8,2.6) -- (3.4,2.6);
-	\draw[->,thick] (4.6,2.2) -- (3.5,1.6);
+    % ==========================================
+    % MODE A (Bên trái)
+    % ==========================================
+    % 2. Khai báo các Node và đặt tên cho chúng (vd: clientA, vethA)
+    \node[box] (clientA) at (1.5, 4.5) {Client Pod};
+    \node[box] (vethA)   at (5.5, 4.5) {veth/host netns};
+    \node[box] (kubeA)   at (1.5, 2.8) {kube-proxy};
+    \node[box] (dnatA)   at (5.5, 2.8) {DNAT/SNAT};
+    \node[box] (serverA) at (3.5, 1.0) {Server Pod};
 
-	% Mode B
-	\draw[rounded corners=2pt] (7.6,3.7) rectangle (9.8,4.5);
-	\node at (8.7,4.1) {Client Pod};
-	\draw[rounded corners=2pt] (10.4,3.7) rectangle (12.8,4.5);
-	\node at (11.6,4.1) {veth/TC hook};
-	\draw[rounded corners=2pt] (7.6,2.2) rectangle (9.8,3.0);
-	\node at (8.7,2.6) {eBPF prog};
-	\draw[rounded corners=2pt] (10.4,2.2) rectangle (12.8,3.0);
-	\node at (11.6,2.6) {BPF service/policy maps};
-	\draw[rounded corners=2pt] (9.0,0.8) rectangle (11.4,1.6);
-	\node at (10.2,1.2) {Server Pod};
+    % 3. Vẽ mũi tên nối tự động giữa các Node
+    \draw[->, thick] (clientA) -- (vethA);
+    \draw[->, thick] (clientA) -- (kubeA);
+    \draw[->, thick] (kubeA) -- (dnatA);
+    \draw[->, thick] (dnatA) -- (serverA);
 
-	\draw[->,thick] (9.8,4.1) -- (10.4,4.1);
-	\draw[->,thick] (8.7,3.7) -- (8.7,3.0);
-	\draw[->,thick] (9.8,2.6) -- (10.4,2.6);
-	\draw[->,thick] (11.6,2.2) -- (10.5,1.6);
+
+    % ==========================================
+    % MODE B (Bên phải)
+    % ==========================================
+    \node[box] (clientB) at (9.5, 4.5) {Client Pod};
+    \node[box] (vethB)   at (13.5, 4.5) {veth/TC hook};
+    \node[box] (ebpfB)   at (9.5, 2.8) {eBPF prog};
+    
+    % Dùng text width để bắt buộc chữ dài phải xuống dòng cho gọn
+    \node[box, text width=2.6cm] (mapsB) at (13.5, 2.8) {BPF service/\\policy maps};
+    
+    \node[box] (serverB) at (11.5, 1.0) {Server Pod};
+
+    % Vẽ mũi tên Mode B
+    \draw[->, thick] (clientB) -- (vethB);
+    \draw[->, thick] (clientB) -- (ebpfB);
+    \draw[->, thick] (ebpfB) -- (mapsB);
+    \draw[->, thick] (mapsB) -- (serverB);
+
 \end{tikzpicture}
 \caption{Datapath Comparison Diagram (conceptual)}
 \label{fig:datapath-comparison}
 \end{figure}
 
-\section{Hubble and policy observability}
-Hubble cung cấp mặt quan sát flow-level cho môi trường Cilium, bao gồm các thông tin như quan hệ nguồn-đích, metadata ngữ cảnh, và verdict của flow. Trong thesis này, Hubble được sử dụng như nguồn evidence bổ trợ thay vì thay thế số đo hiệu năng từ workload benchmark.
-
-Các trạng thái verdict điển hình gồm \texttt{FORWARDED}/\texttt{DROPPED} và \texttt{ALLOWED}/\texttt{DENIED}. Vai trò chính của Hubble trong nghiên cứu là:
+Tóm tắt sự khác biệt về mặt logic:
 \begin{itemize}
-	\item supporting evidence cho tính đúng đắn của đường đi traffic.
-	\item correctness evidence khi kiểm chứng hành vi policy.
-	\item bằng chứng đặc biệt quan trọng cho kịch bản S3 (policy overhead).
+    \item \textbf{Mode A (kube-proxy baseline):} Việc dịch địa chỉ Service được thực hiện thông qua các chuỗi quy tắc \texttt{iptables} $O(n)$ do \texttt{kube-proxy} lập trình. Gói tin bắt buộc phải đi qua không gian mạng của node, trải qua các phép biến đổi địa chỉ (NAT) và phụ thuộc hoàn toàn vào hệ thống theo dõi trạng thái conntrack.
+    \item \textbf{Mode B (Cilium eBPF KPR):} \texttt{kube-proxy} bị vô hiệu hóa. Việc phân giải Service được chuyển giao cho các bản đồ BPF Maps $O(1)$ và chương trình eBPF. Gói tin được chuyển hướng trực tiếp ở cấp độ socket, vượt qua các bước tra cứu chuỗi \texttt{iptables}, loại bỏ NAT tại tầng L3/L4 và tối thiểu hóa hao tổn từ conntrack.
 \end{itemize}
 
-\section{Related work}
-Tổng quan công trình liên quan được tóm tắt ở Bảng~\ref{tab:related-work-comparison}. Bảng này tập trung vào khoảng trống giữa tài liệu kỹ thuật hiện có và nhu cầu benchmark thực nghiệm có kiểm soát trên EKS.
+\section{Khả năng quan sát mạng với Hubble (Network Observability)}
+Hubble là một lớp quan sát mạng (observability layer) được xây dựng trực tiếp trên nền tảng eBPF của Cilium. Nó cung cấp khả năng hiển thị sâu ở cấp độ từng luồng (per-flow visibility) ngay tại tầng datapath. Bằng cách xuất các phán quyết (verdicts) rõ ràng như \texttt{FORWARDED} (cho phép) hoặc \texttt{DROPPED} (từ chối), Hubble đóng vai trò là bằng chứng trực quan cốt lõi để xác minh tính hiệu quả của các chính sách mạng (NetworkPolicy). Chức năng này cực kỳ quan trọng đối với kịch bản S3 của đồ án để kiểm tra khả năng chặn lọc. Tuy nhiên, việc duy trì một bộ đệm vòng (ring buffer) và xuất nhật ký sự kiện liên tục tạo ra một mức hao tổn tài nguyên nhất định (khoảng 1-5\%), đây là yếu tố nhiễu cần được ghi nhận khi so sánh Mode B so với Mode A vốn không có công cụ tương đương.
+
+\section{Các nghiên cứu liên quan và Khoảng trống nghiên cứu (Related Work \& Research Gap)}
+
+\textbf{Tóm tắt các nghiên cứu trước đây:} Các báo cáo hiệu năng chính thức từ Cilium (Isovalent) và một số nghiên cứu học thuật trước đây đã chứng minh sự ưu việt của công nghệ eBPF so với \texttt{iptables}, đặc biệt trong việc cải thiện thông lượng (throughput) và giảm độ trễ (latency) trung bình. Tuy nhiên, các nghiên cứu này chủ yếu được tiến hành trên môi trường máy chủ vật lý (bare-metal), môi trường giả lập cục bộ (Minikube/Lab), hoặc Google Kubernetes Engine (GKE).
+
+\textbf{Khoảng trống nghiên cứu (Research Gap):} Đa số các nghiên cứu hiện tại còn tồn tại khoảng trống lớn khi thiếu hụt các bằng chứng đo lường thực nghiệm trên các cụm triển khai chuẩn sản xuất (production-grade cluster) thuộc nền tảng AWS EKS, đặc biệt là việc sử dụng các máy ảo cấu hình ổn định (non-burstable instances) để tránh nhiễu hệ thống. Bên cạnh đó, các nghiên cứu cũ thường thiếu đi sự đánh giá thống kê nghiêm ngặt đối với độ trễ phần đuôi (tail latency p99) trong các điều kiện môi trường tải biến động và thay đổi kết nối liên tục (connection churn - Kịch bản S2). Cuối cùng, vẫn còn thiếu các nghiên cứu định lượng rõ mức độ suy hao hiệu năng khi bật kết hợp các chính sách bảo vệ mạng (NetworkPolicy) cùng công cụ quan sát Hubble (Kịch bản S3). Đồ án này được thực hiện nhằm lấp đầy chính những khoảng trống đó, qua đó khẳng định giá trị thực tiễn đối với hệ thống đám mây quản lý (Managed Cloud).
 
 \begin{table}[H]
 \centering
 \caption{Related Work Comparison}
 \label{tab:related-work-comparison}
-\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.5cm}>{\raggedright\arraybackslash}p{1.9cm}X>{\raggedright\arraybackslash}p{2.8cm}>{\raggedright\arraybackslash}p{3.0cm}}
-\toprule
+% Tăng khoảng cách dòng lên một chút để chữ không bị sát vào đường kẻ
+\renewcommand{\arraystretch}{1.3} 
+\begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{2.6cm}|>{\raggedright\arraybackslash}p{2.2cm}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}p{2.8cm}|>{\raggedright\arraybackslash}p{3.2cm}|}
+\hline
 \textbf{Nguồn} & \textbf{Môi trường} & \textbf{Nội dung chính} & \textbf{Điểm còn thiếu} & \textbf{Thesis này bổ sung} \\
-\midrule
-Cilium docs/benchmark notes & self-managed/cloud & Benchmark về Cilium và cơ chế datapath & Thiếu protocol đầy đủ và bộ artifact chuẩn hóa & Protocol benchmark rõ ràng, artifact provenance nhất quán \\
-Kubernetes/kube-proxy docs & docs & Mô tả cơ chế Service handling và kube-proxy & Không có benchmark so sánh A/B đầy đủ trên EKS & Benchmark A/B trực tiếp trên EKS thật \\
+\hline
+Cilium docs/\allowbreak benchmark notes & self-managed/\allowbreak cloud & Benchmark về Cilium và cơ chế datapath & Thiếu protocol đầy đủ và bộ artifact chuẩn hóa & Protocol benchmark rõ ràng, artifact provenance nhất quán \\
+\hline
+Kubernetes/\allowbreak kube-proxy docs & docs & Mô tả cơ chế Service handling và kube-proxy & Không có benchmark so sánh A/B đầy đủ trên EKS & Benchmark A/B trực tiếp trên EKS thật \\
+\hline
 Tài liệu Hubble & docs & Flow observability và policy verdict & Không đo policy overhead dưới workload thực nghiệm & Bổ sung S3 policy overhead kèm evidence theo flow \\
-Các nguồn blog/notes cộng đồng & mixed & Kinh nghiệm thực hành và tuning thực tế & Khó tái lập, thiếu kiểm soát biến & Thiết kế thực nghiệm kiểm soát biến và phạm vi kết luận rõ ràng \\
-\bottomrule
+\hline
+Các nguồn blog/\allowbreak notes cộng đồng & mixed & Kinh nghiệm thực hành và tuning thực tế & Khó tái lập, thiếu kiểm soát biến & Thiết kế thực nghiệm kiểm soát biến và phạm vi kết luận rõ ràng \\
+\hline
 \end{tabularx}
 \end{table}
 
-\section{Scope boundary}
-Để tránh over-claim, thesis xác định rõ biên phạm vi của kết luận như sau.
-
-\textbf{Trong scope}
-\begin{itemize}
-	\item Service kiểu \texttt{ClusterIP}.
-	\item Workload HTTP.
-	\item Ưu tiên same-node theo thiết kế triển khai benchmark.
-	\item Các kịch bản S1, S2, S3 như định nghĩa trong protocol.
-\end{itemize}
-
-\textbf{Ngoài scope}
-\begin{itemize}
-	\item Nghiên cứu đầy đủ cross-node path ở quy mô mở rộng.
-	\item Service kiểu NodePort/LoadBalancer.
-	\item Workload gRPC.
-	\item Policy complexity scaling nhiều cấp độ.
-	\item Môi trường multi-cluster.
-\end{itemize}
