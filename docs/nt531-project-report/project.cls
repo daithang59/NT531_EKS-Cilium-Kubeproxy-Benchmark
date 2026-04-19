@@ -8,7 +8,17 @@
 
 % Require package
 \RequirePackage{anyfontsize}
-\RequirePackage[T5]{fontenc}
+\RequirePackage{iftex}
+\ifPDFTeX
+  \RequirePackage[T5]{fontenc}
+  \RequirePackage[utf8]{inputenc}
+\else
+  \RequirePackage{fontspec}
+  \defaultfontfeatures{Ligatures=TeX}
+  \setmainfont{Times New Roman}
+  \setsansfont{Arial}
+  \setmonofont{Consolas}
+\fi
 \RequirePackage{geometry,graphicx,indentfirst,setspace}
 \RequirePackage{tikz}
 \RequirePackage[center]{caption}
@@ -57,7 +67,7 @@
 \renewcommand{\large}{\fontsize{15}{15}\selectfont}
 \renewcommand{\Large}{\fontsize{20}{20}\selectfont}
 \renewcommand{\arraystretch}{1.2}
-\usetikzlibrary{calc}
+\usetikzlibrary{calc,positioning}
 \geometry{
   paper=a4paper,
   left=3cm,

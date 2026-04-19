@@ -45,6 +45,6 @@ Triển khai 01 cụm Kubernetes trên AWS EKS (phiên bản 1.34) và Cilium (p
 trong quá trình đo đạc để giữ cố định số lượng node.
 \subsection{Ý nghĩa của nghiên cứu} % 
 Cung cấp các bằng chứng thực nghiệm đáng tin cậy và có ý nghĩa thống kê cho các hệ thống chuẩn sản xuất. Nghiên cứu đưa ra hệ quả thực tiễn 
-giúp các kỹ sư ra quyết định chuyển đổi sang eBPF KPR, đặc biệt phù hợp cho các cụm có quy mô lớn (hơn 100+ services), các hệ thống 
-nhạy cảm với độ trễ bị ràng buộc bởi SLA (p99/p999), hoặc khi có nhu cầu giám sát luồng mạng sâu qua Hubble. Đồng thời, nghiên cứu cũng cảnh báo các rủi ro 
+giúp các kỹ sư ra quyết định chuyển đổi sang eBPF KPR, đặc biệt phù hợp cho các cụm có quy mô lớn, các hệ thống 
+nhạy cảm với độ trễ bị ràng buộc bởi SLA (p99/p999), hoặc khi cần quan sát luồng ở mức flow-level và kiểm chứng thực thi NetworkPolicy bằng Hubble. Trong phạm vi đề tài, Hubble đóng vai trò cung cấp evidence về flow và verdict để hỗ trợ đối chiếu hành vi policy, không thay thế các số liệu hiệu năng chính như latency, RPS và error rate. Đồng thời, nghiên cứu cũng cảnh báo các rủi ro 
 vận hành như xung đột bảng NAT nếu không tắt kube-proxy đúng cách trước khi chuyển đổi.

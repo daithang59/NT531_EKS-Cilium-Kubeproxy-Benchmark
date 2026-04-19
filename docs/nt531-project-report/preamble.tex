@@ -1,12 +1,15 @@
 % !TeX root = main.tex
+% !TeX program = xelatex
 \documentclass[12pt, a4paper]{project} % Dùng class tùy chỉnh có định nghĩa \coverpage và các biến trang bìa
 
 % ==========================================
 % 1. CÀI ĐẶT NGÔN NGỮ & FONT CHỮ
 % ==========================================
-\usepackage[T5]{fontenc}      % Hỗ trợ font tiếng Việt
-\usepackage[utf8]{inputenc}   % Hỗ trợ gõ Unicode UTF-8
-\usepackage[vietnamese]{babel} % Định dạng ngày tháng, tự động dịch các tiêu đề (Mục lục, Chương...)
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T5]{fontenc}      % Hỗ trợ font tiếng Việt khi dùng pdfLaTeX
+  \usepackage[utf8]{inputenc}   % Hỗ trợ gõ Unicode UTF-8 khi dùng pdfLaTeX
+\fi
 \AtBeginDocument{\selectlanguage{vietnamese}}
 \addto\captionsvietnamese{\renewcommand{\chaptername}{Chương}}
 

@@ -1,2 +1,266 @@
-% Phương pháp thống kê
-\chapter{Statistical Methods} % 
+% !TeX root = ../main.tex
+% Phụ lục thống kê
+
+\chapter{Phụ lục thống kê}
+\label{app:statistics}
+
+\section{Mục đích của phụ lục thống kê}
+
+Phụ lục này cung cấp phần dữ liệu và diễn giải thống kê hỗ trợ cho Chương 3 và Chương 4. Chương 3 đã trình bày khung phương pháp thống kê ở mức cần thiết cho phương pháp luận; Chương 4 đã áp dụng khung đó để phân tích kết quả theo từng kịch bản. Phụ lục này đóng vai trò bổ sung: trình bày các bảng số liệu quan trọng từ các CSV đầu ra và minh họa cách một số công thức được đối chiếu với số liệu benchmark thật.
+
+Nội dung trong phụ lục không thay thế phần phân tích chính của Chương 4. Các bảng dưới đây được rút gọn và định dạng lại từ các file trong \texttt{results\_analysis/} để dễ đọc trong báo cáo. Các file CSV đầy đủ vẫn được xem là artifact gốc của pipeline.
+
+Trong các biểu đồ chính của Chương 4, các error bars thật sự biểu diễn khoảng tin cậy 95\% quanh giá trị trung bình của metric tương ứng. Chúng không phải độ lệch chuẩn, standard error hay khoảng min--max; riêng biểu đồ hiệu chuẩn dùng đường dọc để đánh dấu L1/L2/L3, còn biểu đồ repeatability dùng vạch ngang ngắn để đánh dấu trung bình nhóm.
+
+\section{Bảng dữ liệu hỗ trợ từ các CSV}
+
+\subsection{Tóm tắt kết quả tổng hợp}
+
+Bảng dưới đây rút từ \texttt{aggregated\_summary.csv}. Bảng chỉ giữ các nhóm và metric cần thiết nhất cho kết luận chính: p99 mean, khoảng tin cậy 95\%, RPS trung bình và error rate. Đây là lớp dữ liệu mô tả giúp kiểm tra các kết luận về S1 và S3 trong Chương 4.
+
+\begin{table}[H]
+\centering
+\caption{Một số nhóm tổng hợp chính từ \texttt{aggregated\_summary.csv}}
+\label{tab:app-aggregated-key}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{4.2cm}>{\raggedleft\arraybackslash}p{1.8cm}>{\raggedleft\arraybackslash}p{3.0cm}>{\raggedleft\arraybackslash}p{2.0cm}>{\raggedleft\arraybackslash}X}
+\toprule
+\textbf{Nhóm} & \textbf{p99 mean} & \textbf{CI 95\% p99} & \textbf{RPS mean} & \textbf{Error} \\
+\midrule
+A, S1, L1 & 1.846 ms & 1.745--1.947 & 99.999 & 0.000\% \\
+B, S1, L1 & 1.667 ms & 1.405--1.929 & 99.999 & 0.000\% \\
+A, S1, L2 & 3.939 ms & 3.875--4.004 & 399.991 & 0.000\% \\
+B, S1, L2 & 3.712 ms & 3.493--3.931 & 399.991 & 0.000\% \\
+A, S1, L3 & 6.899 ms & 6.303--7.494 & 799.968 & 0.000\% \\
+B, S1, L3 & 5.917 ms & 5.886--5.949 & 799.974 & 0.000\% \\
+B, S3, L2, OFF & 3.747 ms & 3.431--4.063 & 399.992 & 0.000\% \\
+B, S3, L2, ON & 3.619 ms & 3.323--3.916 & 399.992 & 0.000\% \\
+B, S3, L3, OFF & 5.857 ms & 5.770--5.944 & 799.974 & 0.000\% \\
+B, S3, L3, ON & 5.928 ms & 5.818--6.037 & 799.965 & 0.000\% \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Các dòng S1 cho thấy Mode B có p99 mean thấp hơn Mode A ở cả ba mức tải, trong đó Chương 4 nhấn mạnh L2 và L3 vì kết quả p99 ở hai mức này có bằng chứng thống kê mạnh hơn. Các dòng S3 cho thấy policy OFF và ON trong Mode B có p99 và RPS gần nhau; đây là cơ sở cho kết luận rằng overhead quan sát được của policy đơn giản là nhỏ trong phạm vi đo.
+
+\subsection{Bảng so sánh Mode A và Mode B}
+
+Hai bảng dưới đây rút từ \texttt{comparison\_AB.csv}, chỉ giữ các dòng p99 vì p99 là metric chính trong Chương 4. Việc tách theo kịch bản giúp bảng dễ đọc hơn so với trình bày một bảng CSV dài.
+
+\begin{table}[H]
+\centering
+\caption{So sánh p99 S1 giữa Mode A và Mode B}
+\label{tab:app-comparison-s1}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{1.3cm}>{\raggedleft\arraybackslash}p{2.0cm}>{\raggedleft\arraybackslash}p{2.0cm}>{\raggedleft\arraybackslash}p{2.0cm}>{\raggedleft\arraybackslash}p{1.5cm}>{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Load} & \textbf{A mean} & \textbf{B mean} & \textbf{Delta} & \textbf{\(p\)} & \textbf{Sig.} \\
+\midrule
+L1 & 1.846 & 1.667 & -9.702\% & 0.0838 & NO \\
+L2 & 3.939 & 3.712 & -5.766\% & 0.0377 & YES \\
+L3 & 6.899 & 5.917 & -14.223\% & 0.0191 & YES \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{So sánh p99 S2 theo pha giữa Mode A và Mode B}
+\label{tab:app-comparison-s2}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{1.0cm}>{\raggedright\arraybackslash}p{2.1cm}>{\raggedleft\arraybackslash}p{1.45cm}>{\raggedleft\arraybackslash}p{1.45cm}>{\raggedleft\arraybackslash}p{1.65cm}>{\raggedleft\arraybackslash}p{1.35cm}>{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Load} & \textbf{Phase} & \textbf{A mean} & \textbf{B mean} & \textbf{Delta} & \textbf{\(p\)} & \textbf{Sig.} \\
+\midrule
+L2 & Ramp-up & 3.998 & 3.721 & -6.934\% & 0.0367 & YES \\
+L2 & Sustained & 7.061 & 6.381 & -9.628\% & 0.1438 & NO \\
+L2 & Burst 1 & 6.593 & 7.389 & +12.081\% & 0.2571 & NO \\
+L2 & Burst 2 & 6.895 & 6.828 & -0.972\% & 0.9191 & NO \\
+L2 & Burst 3 & 6.938 & 6.213 & -10.445\% & 0.1339 & NO \\
+L2 & Cooldown & 3.933 & 3.789 & -3.668\% & 0.1423 & NO \\
+L3 & Ramp-up & 6.431 & 5.934 & -7.724\% & 0.1531 & NO \\
+L3 & Sustained & 13.094 & 11.839 & -9.587\% & 0.2751 & NO \\
+L3 & Burst 1 & 13.750 & 11.237 & -18.271\% & 0.1119 & NO \\
+L3 & Burst 2 & 13.572 & 11.453 & -15.618\% & 0.2029 & NO \\
+L3 & Burst 3 & 13.129 & 11.352 & -13.532\% & 0.1116 & NO \\
+L3 & Cooldown & 7.355 & 6.193 & -15.800\% & 0.2466 & NO \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Các bảng này cho thấy rõ sự khác nhau giữa S1 và S2. Với S1, L2 và L3 có p99 thấp hơn ở Mode B và được đánh dấu significant. Với S2, nhiều delta ở L3 có độ lớn thực tế đáng chú ý nhưng không significant, nên Chương 4 dùng ngôn ngữ ``xu hướng'' thay vì kết luận mạnh.
+
+\subsection{Độ lặp lại giữa các lần chạy}
+
+Hai bảng dưới đây rút từ \texttt{repeatability\_summary.csv}. Thay vì lặp mỗi mode trên một dòng riêng, bảng được gộp theo cặp Mode A/B hoặc OFF/ON để người đọc so sánh CV\% trực tiếp hơn.
+
+\begin{table}[H]
+\centering
+\caption{Độ lặp lại p99 của các nhóm S1 và S3 đại diện}
+\label{tab:app-repeatability-s1s3}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.0cm}>{\raggedleft\arraybackslash}p{2.0cm}>{\raggedleft\arraybackslash}p{1.5cm}>{\raggedleft\arraybackslash}p{2.0cm}>{\raggedleft\arraybackslash}p{1.5cm}>{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Nhóm} & \textbf{Mean 1} & \textbf{CV 1} & \textbf{Mean 2} & \textbf{CV 2} & \textbf{Ghi chú} \\
+\midrule
+S1 L3 & A: 6.899 & 3.477\% & B: 5.917 & 0.212\% & Mode B thấp hơn và ổn định hơn \\
+S3 L3 & OFF: 5.857 & 0.598\% & ON: 5.928 & 0.744\% & OFF/ON gần nhau \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Độ lặp lại p99 trong S2 theo pha}
+\label{tab:app-repeatability-s2}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{1.0cm}>{\raggedright\arraybackslash}p{2.2cm}>{\raggedleft\arraybackslash}p{1.55cm}>{\raggedleft\arraybackslash}p{1.35cm}>{\raggedleft\arraybackslash}p{1.55cm}>{\raggedleft\arraybackslash}p{1.35cm}>{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Load} & \textbf{Phase} & \textbf{A mean} & \textbf{A CV} & \textbf{B mean} & \textbf{B CV} & \textbf{Ghi chú} \\
+\midrule
+L2 & Ramp-up & 3.998 & 2.700\% & 3.721 & 0.937\% & B ổn định hơn \\
+L2 & Sustained & 7.061 & 2.418\% & 6.381 & 8.218\% & B dao động hơn \\
+L2 & Burst 1 & 6.593 & 3.011\% & 7.389 & 11.996\% & Ngoại lệ L2 \\
+L2 & Burst 2 & 6.895 & 6.420\% & 6.828 & 13.896\% & Gần tương đương mean \\
+L2 & Burst 3 & 6.938 & 7.873\% & 6.213 & 4.444\% & B thấp hơn \\
+L2 & Cooldown & 3.933 & 2.723\% & 3.789 & 0.392\% & B ổn định hơn \\
+L3 & Ramp-up & 6.431 & 6.238\% & 5.934 & 2.864\% & B thấp hơn \\
+L3 & Sustained & 13.094 & 11.207\% & 11.839 & 2.064\% & B ổn định hơn \\
+L3 & Burst 1 & 13.750 & 12.089\% & 11.237 & 3.895\% & B thấp hơn \\
+L3 & Burst 2 & 13.572 & 14.702\% & 11.453 & 3.864\% & B thấp hơn \\
+L3 & Burst 3 & 13.129 & 9.038\% & 11.352 & 3.226\% & B thấp hơn \\
+L3 & Cooldown & 7.355 & 17.092\% & 6.193 & 5.499\% & A dao động cao \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Các bảng repeatability cho thấy S1 L3 và S3 L3 tương đối ổn định, trong khi S2 có nhiều pha dao động cao hơn. Điều này giải thích vì sao Chương 4 diễn giải S2 thận trọng hơn S1 và S3.
+
+\subsection{Bảng hiệu chuẩn tải}
+
+Bảng dưới đây rút từ \texttt{calibration\_load\_selection.csv}. Đây là cơ sở để giải thích vì sao benchmark chính dùng L1=100, L2=400 và L3=800 QPS.
+
+\begin{table}[H]
+\centering
+\caption{Hiệu chuẩn tải từ \texttt{calibration\_load\_selection.csv}}
+\label{tab:app-calibration-csv}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{>{\raggedleft\arraybackslash}p{1.1cm}>{\raggedleft\arraybackslash}p{1.1cm}>{\raggedleft\arraybackslash}p{1.2cm}>{\raggedleft\arraybackslash}p{1.2cm}>{\raggedleft\arraybackslash}p{1.5cm}>{\raggedleft\arraybackslash}p{1.8cm}>{\raggedright\arraybackslash}X}
+\toprule
+\textbf{QPS} & \textbf{Conns} & \textbf{p50} & \textbf{p90} & \textbf{p99} & \textbf{Error} & \textbf{Vai trò} \\
+\midrule
+50 & 4 & 0.150 & 0.267 & 0.293 & 0.000\% & Dưới L1, quá nhẹ cho so sánh chính \\
+100 & 8 & 0.208 & 0.353 & 0.385 & 0.000\% & L1: baseline nhẹ \\
+200 & 16 & 1.833 & 2.639 & 2.742 & 0.000\% & Điểm trung gian \\
+400 & 32 & 0.846 & 1.854 & 2.107 & 0.000\% & L2: tải trung bình, tail latency rõ hơn \\
+800 & 64 & 1.709 & 4.411 & 33.006 & 0.000\% & L3: high-stress/tail-spike load \\
+1600 & 64 & 3.085 & 5.746 & 48.135 & 0.000\% & Upper stress point, không chọn làm L3 cuối \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Điểm 800 QPS được chọn làm L3 vì đã làm p99 tăng mạnh nhưng vẫn giữ achieved RPS usable và error rate bằng 0\%. Điểm 1600 QPS vẫn được giữ trong calibration để cho thấy vùng stress cao hơn, nhưng không được dùng làm tải nền cuối vì có thể làm các pha burst trong S2 trở nên quá cực đoan.
+
+\section{Ví dụ đối chiếu công thức với số liệu benchmark}
+
+Phần này minh họa cách các công thức trong Chương 3 được đọc cùng số liệu thật trong pipeline. Các phép tính dưới đây dùng số làm tròn hiển thị trong CSV; vì vậy kết quả tính tay có thể lệch rất nhỏ so với output pipeline sử dụng giá trị đầy đủ.
+
+\subsection{Ví dụ 1: Delta \% từ S1 L3}
+
+Từ \texttt{comparison\_AB.csv}, dòng S1 L3 p99 có:
+
+\[
+A = 6.899 \text{ ms}, \qquad B = 5.917 \text{ ms}.
+\]
+
+Delta \% cho so sánh Mode B so với Mode A được tính theo:
+
+\[
+\Delta\% = \frac{B - A}{A} \times 100\%.
+\]
+
+Thay số làm tròn:
+
+\[
+\Delta\% \approx \frac{5.917 - 6.899}{6.899} \times 100\% \approx -14.2\%.
+\]
+
+Pipeline ghi nhận delta là \(-14.223\%\). Giá trị âm nghĩa là p99 trung bình của Mode B thấp hơn Mode A. Vì dòng này cũng có \(p = 0.0191\) và \texttt{significant = YES}, Chương 4 có cơ sở để xem S1 L3 là một trong các kết quả mạnh nhất ủng hộ lợi thế p99 của Mode B trong steady-state.
+
+\subsection{Ví dụ 2: CV\% từ repeatability}
+
+Từ \texttt{repeatability\_summary.csv}, S1 L3 có:
+
+\[
+\text{Mode A: } \bar{x}=6.899,\ s=0.240, \qquad
+\text{Mode B: } \bar{x}=5.917,\ s=0.013.
+\]
+
+Hệ số biến thiên được tính theo:
+
+\[
+CV\% = \frac{s}{\bar{x}} \times 100\%.
+\]
+
+Với Mode A:
+
+\[
+CV_A \approx \frac{0.240}{6.899} \times 100\% \approx 3.48\%.
+\]
+
+Với Mode B:
+
+\[
+CV_B \approx \frac{0.013}{5.917} \times 100\% \approx 0.22\%.
+\]
+
+CSV ghi nhận CV lần lượt khoảng 3.477\% và 0.212\% khi dùng số đầy đủ trong pipeline. Cách đọc là: trong nhóm S1 L3, Mode B không chỉ có p99 mean thấp hơn, mà còn có độ dao động tương đối nhỏ hơn trong các run được chọn. Điều này hỗ trợ phần repeatability của Chương 4.
+
+\subsection{Ví dụ 3: Diễn giải CI từ S3}
+
+Từ \texttt{aggregated\_summary.csv}, S3 L3 có:
+
+\[
+\text{Policy OFF: } \bar{x}=5.857 \text{ ms},\ CI_{95\%}=[5.770,\ 5.944],
+\]
+
+\[
+\text{Policy ON: } \bar{x}=5.928 \text{ ms},\ CI_{95\%}=[5.818,\ 6.037].
+\]
+
+Công thức tổng quát cho khoảng tin cậy 95\% là:
+
+\[
+CI_{95\%} = \bar{x} \pm t \cdot \frac{s}{\sqrt{n}}.
+\]
+
+Trong phụ lục này không tái tính toàn bộ CI từ raw run, vì pipeline đã xuất sẵn CI trong CSV. Điểm quan trọng là cách đọc: hai khoảng CI của OFF và ON nằm rất gần nhau, mean p99 chỉ khác khoảng 0.071 ms, và RPS trung bình cũng gần như không đổi. Vì vậy, Chương 4 kết luận rằng policy ON không tạo overhead p99/RPS đáng kể trong setup S3 hiện tại, nhưng không nói overhead bằng không.
+
+\subsection{Ví dụ 4: Ý nghĩa thực tế và ý nghĩa thống kê}
+
+Một ví dụ tốt là S2 L3 Burst 1 p99 trong \texttt{comparison\_AB.csv}:
+
+\[
+A = 13.750 \text{ ms}, \qquad B = 11.237 \text{ ms}, \qquad \Delta = -18.271\%.
+\]
+
+Đây là một delta lớn về mặt thực tế: p99 trung bình của Mode B thấp hơn Mode A khoảng 18.3\% trong một pha burst ở tải cao. Tuy nhiên, dòng này có:
+
+\[
+p = 0.1119, \qquad \texttt{significant = NO}.
+\]
+
+Do đó, Chương 4 có thể thảo luận đây là một xu hướng đáng chú ý về mặt vận hành, đặc biệt vì nó xuất hiện trong pha burst ở L3. Tuy nhiên, cách viết phải thận trọng: kết quả này chưa đủ mạnh để khẳng định khác biệt có ý nghĩa thống kê cho riêng pha đó. Đây là ví dụ điển hình cho nguyên tắc diễn giải của luận văn: không đọc riêng p-value, cũng không đọc riêng delta \%; cần kết hợp độ lớn thực tế, significance, repeatability và bối cảnh kịch bản.
+
