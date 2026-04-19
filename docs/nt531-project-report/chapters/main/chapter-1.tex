@@ -45,7 +45,12 @@ Kiến trúc dựa trên \texttt{iptables} và \texttt{kube-proxy} bộc lộ đ
 
 \subsection{Công nghệ eBPF}
 eBPF (Extended Berkeley Packet Filter) là công nghệ cho phép chạy các chương trình tùy chỉnh trực tiếp bên trong không gian nhân (kernel space) của Linux một cách an toàn mà không cần sửa đổi mã nguồn kernel hay chuyển đổi ngữ cảnh (context switch). Mức độ an toàn được đảm bảo thông qua một bộ xác minh (Verifier) kiểm tra bytecode trước khi tải, cùng cơ chế biên dịch JIT (Just-In-Time) giúp mã thực thi với tốc độ gốc. Thay vì duyệt quy tắc tuần tự, eBPF lưu trữ dữ liệu trong các cấu trúc gọi là BPF Maps (bảng băm key-value), cho phép tra cứu đích đến với thời gian cố định $O(1)$, bất kể quy mô của cluster.
-
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{graphics/chapter-1/eBPFMechanics.png}
+    \caption{Ảnh minh họa cơ chế hoạt động của eBPF}
+    \label{fig:calibration-curve}
+\end{figure}
 \subsection{Kiến trúc Cilium CNI}
 Cilium là một CNI tiên tiến được xây dựng hoàn toàn dựa trên nền tảng eBPF, giúp tối ưu hóa datapath bằng cách bỏ qua các khung mạng truyền thống như \texttt{iptables}. Cilium đính kèm các chương trình eBPF vào các điểm móc (hooks) sâu trong kernel như \texttt{sockops} (cấp độ socket) hoặc \texttt{tc} (Traffic Control) để xử lý gói tin ngay từ những bước đầu tiên.
 

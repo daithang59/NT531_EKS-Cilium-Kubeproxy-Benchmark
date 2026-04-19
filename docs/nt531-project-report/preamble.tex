@@ -45,6 +45,14 @@
 \usepackage{graphicx}         % Gói cơ bản để chèn ảnh
 \usepackage{float}            % Ép vị trí ảnh bằng lệnh [H]
 \usepackage{subcaption}       % Cho phép chèn nhiều ảnh nhỏ trong 1 ảnh lớn (VD: Đồ thị so sánh p99)
+\usepackage{tikz}             % Vẽ sơ đồ minh họa trực tiếp bằng LaTeX
+\usetikzlibrary{arrows.meta, positioning, fit, calc}
+\tikzset{
+    ntbox/.style={draw, rounded corners=2pt, align=center, inner sep=5pt, font=\small, fill=gray!8},
+    ntfocus/.style={draw, rounded corners=2pt, align=center, inner sep=5pt, font=\small\bfseries, fill=blue!8},
+    ntwarn/.style={draw, rounded corners=2pt, align=center, inner sep=5pt, font=\small, fill=orange!12},
+    ntarrow/.style={-{Latex[length=2.2mm]}, thick}
+}
 
 % ==========================================
 % 5. CÔNG THỨC TOÁN HỌC & THỐNG KÊ

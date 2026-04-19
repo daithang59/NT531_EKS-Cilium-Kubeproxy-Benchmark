@@ -1,2 +1,100 @@
-% Chi tiết hạ tầng
-\chapter{Infrastructure Details} % 
+% !TeX root = ../main.tex
+% Phụ lục A - Chi tiết hạ tầng
+
+\chapter{Phụ lục: Chi tiết hạ tầng}
+\label{app:infrastructure}
+
+\section{Cấu hình hạ tầng}
+
+Phần này tổng hợp các bằng chứng hạ tầng thực tế từ AWS Console nhằm hỗ trợ tính tái lập thí nghiệm. Tất cả hình dưới đây được trích từ môi trường benchmark đang dùng cho luận văn.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.96\textwidth]{../figures/infra/fig-A1-aws-eks-console-cluster.png}
+\caption{Cụm EKS trên AWS Console (cluster overview).}
+\label{fig:app-infra-a1-cluster-overview}
+\end{figure}
+
+Hình \ref{fig:app-infra-a1-cluster-overview} xác nhận cụm đích được tạo đúng trên AWS EKS và là điểm neo để đối chiếu các thành phần còn lại trong phụ lục.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.96\textwidth]{../figures/infra/fig-A2-aws-eks-nodegroup.png}
+\caption{Cấu hình EKS Node Group dùng trong benchmark.}
+\label{fig:app-infra-a1-nodegroup}
+\end{figure}
+
+Hình \ref{fig:app-infra-a1-nodegroup} thể hiện nhóm worker nodes phục vụ benchmark, giúp kiểm chứng các ràng buộc về số node và loại node khi chạy thực nghiệm.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.96\textwidth]{../figures/infra/fig-A3-aws-ec2-instances.png}
+\caption{Danh sách EC2 worker instances của cụm benchmark.}
+\label{fig:app-infra-a1-ec2-instances}
+\end{figure}
+
+Hình \ref{fig:app-infra-a1-ec2-instances} cung cấp bằng chứng ở mức máy ảo thực thi, hỗ trợ kiểm tra tính nhất quán giữa cấu hình EKS và tài nguyên EC2 thực tế.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.96\textwidth]{../figures/infra/fig-A4-aws-vpc-subnets.png}
+\caption{VPC và subnet mapping của hạ tầng benchmark.}
+\label{fig:app-infra-a1-vpc-subnets}
+\end{figure}
+
+Hình \ref{fig:app-infra-a1-vpc-subnets} mô tả phạm vi mạng dùng cho cụm, làm rõ không gian địa chỉ và cách gán subnet cho workload benchmark.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.96\textwidth]{../figures/infra/fig-A5-aws-security-group-rules.png}
+\caption{Security Group rules áp dụng cho cụm EKS benchmark.}
+\label{fig:app-infra-a1-security-group}
+\end{figure}
+
+Hình \ref{fig:app-infra-a1-security-group} cho thấy tập luật truy cập mạng của cụm, là bằng chứng để kiểm tra khả năng kết nối control-plane/data-plane và giảm rủi ro sai lệch do cấu hình tường lửa.
+
+\section{Helm Values Key Params}
+
+Mục này nêu các tham số quyết định trong cấu hình Cilium Helm Chart khi so sánh Mode A và Mode B. Bảng dưới đây tập trung vào các cờ có tác động trực tiếp đến datapath và observability.
+
+\begin{table}[H]
+\centering
+\caption{Các tham số Helm chính phân biệt Mode A và Mode B}
+\label{tab:app-a2-helm-key-params}
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.0cm}>{\raggedright\arraybackslash}p{3.5cm}>{\raggedright\arraybackslash}p{3.5cm}X}
+\toprule
+\textbf{Tham số} & \textbf{Mode A (Baseline)} & \textbf{Mode B (eBPF KPR)} & \textbf{Ý nghĩa} \\
+\midrule
+\texttt{kubeProxyReplacement} & \texttt{false} & \texttt{strict} & Mode A giữ \texttt{kube-proxy}; Mode B thay thế xử lý service bằng eBPF. \\
+\texttt{eni.enabled} & (không bắt buộc) & \texttt{true} & Bật native routing theo AWS VPC trong Mode B, là điều kiện vận hành quan trọng của KPR. \\
+\texttt{hubble.enabled} & (không bắt buộc) & \texttt{true} & Bật công cụ quan sát flow để thu evidence verdict cho phân tích S3. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Từ góc nhìn thực nghiệm, khác biệt cốt lõi là: Mode A duy trì luồng service qua \texttt{kube-proxy}, còn Mode B buộc dùng eBPF KPR với \texttt{kubeProxyReplacement: strict} kết hợp \texttt{eni.enabled: true}. Cờ \texttt{hubble.enabled: true} được bật trong Mode B để cung cấp dữ liệu quan sát phục vụ diễn giải kết quả.
+
+\section{Cluster Versions Table}
+
+Phần này tổng hợp phiên bản phần mềm đã dùng trong cụm benchmark để phục vụ mục tiêu tái lập thí nghiệm (reproducibility). Bảng này được trình bày như Table A.2.
+
+\begin{table}[H]
+\centering
+\caption{Bảng phiên bản các thành phần cụm (Table A.2)}
+\label{tab:app-a3-cluster-versions}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{5.2cm}>{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Thành phần} & \textbf{Phiên bản} \\
+\midrule
+Kubernetes & 1.34 \\
+Cilium & 1.18.7 \\
+Prometheus (kube-prometheus-stack) & 60.0.0 \\
+Fortio (client tạo tải) & 1.74.0 \\
+HTTP Echo (workload server) & 1.0 \\
+\bottomrule
+\end{tabularx}
+\end{table}

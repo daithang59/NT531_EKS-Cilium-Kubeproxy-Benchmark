@@ -11,6 +11,26 @@ Trọng tâm của chương là làm rõ mỗi kịch bản kiểm tra điều g
 
 Hiệu chuẩn tải được thực hiện trước benchmark chính để chọn các mức tải có khả năng diễn giải được. Tải quá thấp có thể che khác biệt giữa hai mode; tải quá cao có thể làm kết quả bị chi phối bởi stress cực đoan. Vì vậy, L1, L2 và L3 được chọn từ dữ liệu hiệu chuẩn thay vì chọn tùy ý.
 
+Hình~\ref{fig:calibration-process-tikz} minh họa vai trò của bước hiệu chuẩn trong toàn bộ quy trình. Thay vì chọn trực tiếp một mức tải cao nhất, benchmark quét nhiều target QPS, quan sát p99, achieved RPS và error rate, sau đó mới cố định ba mức L1/L2/L3 cho các kịch bản chính.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{0.96\textwidth}{!}{%
+    \begin{tikzpicture}[node distance=1.6cm]
+        \node[ntbox] (sweep) {Quét tải hiệu chuẩn\\100, 400, 800, 1600 QPS};
+        \node[ntbox, right=of sweep] (observe) {Quan sát\\p99, RPS, error rate};
+        \node[ntfocus, right=of observe] (select) {Chọn mức tải cuối\\L1=100, L2=400, L3=800};
+        \node[ntwarn, below=0.9cm of select] (limit) {1600 QPS: stress cao hơn\\không dùng làm L3 cuối};
+        \node[ntbox, right=of select] (scenarios) {Dùng cho S1, S2, S3\\và phân tích lặp lại};
+        \draw[ntarrow] (sweep) -- (observe);
+        \draw[ntarrow] (observe) -- (select);
+        \draw[ntarrow] (select) -- (scenarios);
+        \draw[ntarrow] (observe) |- (limit);
+    \end{tikzpicture}}
+    \caption{Minh họa quy trình hiệu chuẩn tải trước khi chạy benchmark chính}
+    \label{fig:calibration-process-tikz}
+\end{figure}
+
 Hình~\ref{fig:calibration-curve} biểu diễn p99 latency theo target QPS trong lượt quét hiệu chuẩn. P99 được dùng vì nó phản ánh phần đuôi phân phối, nơi queueing, scheduling, connection handling hoặc chi phí xử lý Service thường bộc lộ rõ hơn so với p50. Các đường dọc trong hình chỉ đánh dấu các mức tải L1, L2 và L3 được chọn, không phải error bars.
 
 \begin{figure}[H]
@@ -48,6 +68,44 @@ Hình~\ref{fig:calibration-curve} biểu diễn p99 latency theo target QPS tron
 S1 so sánh Mode A và Mode B trong điều kiện service traffic ổn định. Đây là kịch bản sạch nhất để quan sát khác biệt datapath vì không có burst, không có thay đổi policy OFF/ON và không cố ý tạo connection churn. Metric chính là p99 latency vì benchmark tập trung vào tail latency.
 
 Ba hình chính là Hình~\ref{fig:s1-p99-vs-load}, Hình~\ref{fig:s1-latency-small-multiples} và Hình~\ref{fig:s1-delta-p99}. Hình p99 theo tải trả lời trực tiếp câu hỏi Mode B có giảm tail latency hay không; small multiples kiểm tra p50/p90/p99; delta p99 thể hiện kích thước khác biệt theo phần trăm.
+
+Trước khi đi vào số liệu, Hình~\ref{fig:s1-scenario-tikz} tóm tắt cách S1 được chạy: cùng một workload ổn định đi qua hai mode khác nhau, sau đó so sánh các metric latency và throughput.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{0.96\textwidth}{!}{%
+    \begin{tikzpicture}[
+        box/.style={ntbox, text width=2.35cm, minimum height=1.1cm},
+        focus/.style={ntfocus, text width=2.55cm, minimum height=1.1cm},
+        mainarrow/.style={-{Latex[length=3.2mm,width=2.2mm]}, line width=1.05pt, draw=blue!60!black},
+        splitline/.style={line width=1.05pt, draw=blue!60!black},
+        comparearrow/.style={-{Latex[length=3.2mm,width=2.2mm]}, line width=1.05pt, draw=gray!70!black}
+    ]
+        \node[focus] (load) at (0,0) {Fortio client\\tải ổn định\\L1/L2/L3};
+        \node[box] (modea) at (4.6,1.75) {Mode A\\kube-proxy\\iptables};
+        \node[box] (modeb) at (4.6,-1.75) {Mode B\\Cilium\\eBPF};
+        \node[box] (echoa) at (8.3,1.75) {HTTP echo\\cùng workload};
+        \node[box] (echob) at (8.3,-1.75) {HTTP echo\\cùng workload};
+        \node[focus] (resulta) at (12.1,1.75) {Metric A\\p50, p90\\p99, RPS};
+        \node[focus] (resultb) at (12.1,-1.75) {Metric B\\p50, p90\\p99, RPS};
+        \node[ntwarn, text width=2.7cm, minimum height=0.95cm] (compare) at (16.0,0) {So sánh A/B\\theo load\\và p99};
+
+        \coordinate (split) at (2.05,0);
+        \draw[mainarrow] (load.east) -- (split);
+        \draw[splitline] (split) -- ++(0,1.75);
+        \draw[splitline] (split) -- ++(0,-1.75);
+        \draw[mainarrow] ($(split)+(0,1.75)$) -- (modea.west);
+        \draw[mainarrow] ($(split)+(0,-1.75)$) -- (modeb.west);
+        \draw[mainarrow] (modea) -- (echoa);
+        \draw[mainarrow] (modeb) -- (echob);
+        \draw[mainarrow] (echoa) -- (resulta);
+        \draw[mainarrow] (echob) -- (resultb);
+        \draw[comparearrow] (resulta.east) -- ++(0.5,0) |- (compare.west);
+        \draw[comparearrow] (resultb.east) -- ++(0.5,0) |- (compare.west);
+    \end{tikzpicture}}
+    \caption{Minh họa S1: cùng một workload ổn định được chạy qua hai datapath để so sánh tail latency}
+    \label{fig:s1-scenario-tikz}
+\end{figure}
 
 \begin{figure}[H]
     \centering
@@ -94,6 +152,22 @@ Hình~\ref{fig:s1-delta-p99} trình bày cùng kết quả dưới dạng delta 
 
 Về cơ chế, S1 phù hợp để liên hệ với khác biệt service datapath. Mode A xử lý Service qua kube-proxy/iptables, DNAT và conntrack; Mode B dùng Cilium eBPF kube-proxy replacement với service lookup/backend selection qua BPF maps. Với workload HTTP echo đơn giản, chi phí ứng dụng nhỏ, nên khác biệt p99 có thể phản ánh rõ hơn chi phí datapath, network stack và scheduling. Khi tải tăng, các chi phí nhỏ trên từng request dễ tích lũy ở phần đuôi hơn.
 
+Hình~\ref{fig:s1-grafana-cpu-mem-evidence} được dùng như bằng chứng vận hành hỗ trợ cho S1 L3, là mức tải quan trọng nhất trong S1 vì p99 thể hiện chênh lệch rõ nhất. Hai ảnh được chọn cùng kiểu dashboard CPU/memory theo node/pod, một ảnh cho Mode A và một ảnh cho Mode B. Trong cả hai ảnh, các đường CPU của workload nằm rất thấp so với đường capacity 2 cores, còn memory usage nằm xa ngưỡng dung lượng hiển thị. Vì vậy, ảnh hỗ trợ nhận định rằng không thấy dấu hiệu CPU/memory saturation nghiêm trọng trong cửa sổ S1 L3 được chụp.
+
+Tuy nhiên, đây vẫn chỉ là telemetry screenshot theo cửa sổ thời gian, không phải dataset định lượng đã được đồng bộ theo từng Fortio run. Do đó, Hình~\ref{fig:s1-grafana-cpu-mem-evidence} không được dùng để kết luận Mode B nhanh hơn do CPU thấp hơn. Vai trò phù hợp của nó là sanity check: kết quả p99 ở S1 được đọc cùng bằng chứng rằng các ảnh vận hành đại diện không cho thấy một lỗi tài nguyên hiển nhiên chi phối phép đo. Các ảnh Grafana/Prometheus bổ sung khác được đặt ở Phụ lục~E để tránh làm thân chương quá nặng.
+
+\begin{figure}[H]
+    \centering
+    \textbf{Mode A -- S1 L3}\\[0.25em]
+    \includegraphics[width=0.86\textwidth]{../figures/grafana/modeA/grafana-node-cpu-mem-S1-L3-R1.png}
+    \vspace{0.4em}
+    
+    \textbf{Mode B -- S1 L3}\\[0.25em]
+    \includegraphics[width=0.86\textwidth]{../figures/grafana/modeB/grafana-ns-node-cpu-mem-S1-L3.png}
+    \caption{Bằng chứng Grafana CPU/memory hỗ trợ cho S1 L3 ở Mode A và Mode B; hai ảnh dùng để kiểm tra bối cảnh vận hành và không phải kết quả hiệu năng chính}
+    \label{fig:s1-grafana-cpu-mem-evidence}
+\end{figure}
+
 \textbf{Kết luận.} Trong S1, Mode B cho thấy lợi thế p99 rõ hơn ở L2 và L3; L1 chỉ nên viết như xu hướng. Kết quả phù hợp với kỳ vọng về eBPF service datapath, nhưng không chứng minh Mode B luôn nhanh hơn trong mọi cluster hoặc workload.
 
 \section{Kết quả S2: stress và thay đổi kết nối}
@@ -101,6 +175,41 @@ Về cơ chế, S1 phù hợp để liên hệ với khác biệt service datapa
 S2 kiểm tra hai mode dưới workload có nhiều pha, burst và connection churn. Kịch bản này không nên được rút gọn thành một giá trị trung bình duy nhất: ramp-up là giai đoạn tăng tải, sustained là tải nền ổn định hơn, burst tạo áp lực ngắn hạn, còn cooldown phản ánh hành vi khi tải giảm. Chính cấu trúc theo pha này làm p99 nhạy hơn với trạng thái kết nối, cache, scheduling và dao động hệ thống.
 
 Các hình chính của S2 là Hình~\ref{fig:s2-phase-p99-l2}, Hình~\ref{fig:s2-phase-p99-l3} và Hình~\ref{fig:s2-p99-delta-heatmap}. Hai hình đầu phân tích p99 theo pha ở L2 và L3; heatmap chỉ giúp tóm tắt mẫu hình delta, không thay thế p-value, khoảng tin cậy hoặc độ biến động.
+
+Hình~\ref{fig:s2-scenario-tikz} minh họa lý do S2 cần đọc theo phase: cùng một run có nhiều trạng thái tải khác nhau, nên p99 ở burst hoặc cooldown không nên bị gộp chung với sustained.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{0.98\textwidth}{!}{%
+    \begin{tikzpicture}[node distance=0.75cm]
+        \node[ntfocus] (mode) {Mode A và Mode B\\chạy cùng kịch bản S2};
+        \node[ntbox, below=of mode] (timeline) {
+            \begin{tikzpicture}[node distance=0.35cm]
+                \node[ntbox, minimum width=1.9cm] (ramp) {Ramp-up};
+                \node[ntbox, right=of ramp, minimum width=1.9cm] (sus) {Sustained};
+                \node[ntwarn, right=of sus, minimum width=1.55cm] (b1) {Burst 1};
+                \node[ntwarn, right=of b1, minimum width=1.55cm] (b2) {Burst 2};
+                \node[ntwarn, right=of b2, minimum width=1.55cm] (b3) {Burst 3};
+                \node[ntbox, right=of b3, minimum width=1.9cm] (cool) {Cooldown};
+                \draw[ntarrow] (ramp) -- (sus);
+                \draw[ntarrow] (sus) -- (b1);
+                \draw[ntarrow] (b1) -- (b2);
+                \draw[ntarrow] (b2) -- (b3);
+                \draw[ntarrow] (b3) -- (cool);
+            \end{tikzpicture}
+        };
+        \node[ntbox, below left=0.85cm and 0.35cm of timeline] (churn) {Connection churn\\nhiều kết nối ngắn};
+        \node[ntbox, below right=0.85cm and 0.35cm of timeline] (phase) {Phân tích theo pha\\p99, CI 95\%, delta};
+        \node[ntfocus, below=1.05cm of timeline] (result) {Kết luận S2 không đọc bằng một số trung bình\\mà đọc theo load và từng pha};
+        \draw[ntarrow] (mode) -- (timeline);
+        \draw[ntarrow] (timeline) -- (churn);
+        \draw[ntarrow] (timeline) -- (phase);
+        \draw[ntarrow] (churn) -- (result);
+        \draw[ntarrow] (phase) -- (result);
+    \end{tikzpicture}}
+    \caption{Minh họa S2: workload nhiều pha kết hợp burst và connection churn nên phải phân tích p99 theo từng pha}
+    \label{fig:s2-scenario-tikz}
+\end{figure}
 
 \subsection{S2 tại L2}
 
@@ -187,6 +296,22 @@ Hình~\ref{fig:s2-p99-delta-heatmap} tóm tắt chênh lệch p99 của Mode B s
 
 \textbf{Phân tích.} Heatmap cho thấy hai điểm chính: L3 có delta âm ở toàn bộ pha, còn L2 có ngoại lệ Burst 1 dương. Đây là hình tổng hợp hữu ích để nhận diện mẫu hình phase-aware, vì người đọc có thể thấy ngay hướng thay đổi theo cả load và phase. Tuy nhiên, heatmap chỉ thể hiện chênh lệch trung bình; nó không cho biết trực tiếp độ rộng CI, p-value hoặc độ phân tán giữa các run.
 
+Hình~\ref{fig:s2-grafana-cpu-mem-evidence} bổ sung bối cảnh vận hành cho S2 L3. Đây là lựa chọn phù hợp hơn S2 L2 để đưa vào thân bài vì L3 là mức tải stress cao hơn và cũng là nơi heatmap cho xu hướng có lợi cho Mode B rõ hơn. Hai ảnh Grafana được chọn theo cùng ý nghĩa: mỗi ảnh hiển thị CPU usage, CPU quota và memory usage của các pod liên quan trên node trong cửa sổ S2 L3. Ở Mode A có một số dao động CPU theo thời gian, phù hợp với workload nhiều pha; ở Mode B, CPU cũng duy trì thấp so với capacity. Memory trong cả hai ảnh nằm thấp hơn nhiều so với đường capacity.
+
+Vì vậy, ảnh hỗ trợ kết luận vận hành ở mức thận trọng: trong các cửa sổ S2 L3 được lưu, không thấy dấu hiệu CPU hoặc memory pressure nghiêm trọng đủ rõ để xem đó là nguyên nhân hiển nhiên của các mẫu p99. Dù vậy, vì ảnh Grafana không được xuất thành time series đã căn chỉnh chính xác với từng pha ramp-up, sustained, burst và cooldown, chúng không đủ để quy kết một spike p99 cụ thể cho CPU/memory hoặc để so sánh định lượng mức tiêu thụ tài nguyên giữa hai mode. Các ảnh bổ sung cho L2 và namespace/pod-level được đưa vào Phụ lục~E.
+
+\begin{figure}[H]
+    \centering
+    \textbf{Mode A -- S2 L3}\\[0.25em]
+    \includegraphics[width=0.86\textwidth]{../figures/grafana/modeA/grafana-node-cpu-mem-S2-L3-R1.png}
+    \vspace{0.4em}
+    
+    \textbf{Mode B -- S2 L3}\\[0.25em]
+    \includegraphics[width=0.86\textwidth]{../figures/grafana/modeB/grafana-ns-node-cpu-mem-S2-L3.png}
+    \caption{Bằng chứng Grafana CPU/memory hỗ trợ cho S2 L3 ở Mode A và Mode B; hai ảnh dùng như sanity check về resource pressure, không thay thế phân tích p99 theo pha}
+    \label{fig:s2-grafana-cpu-mem-evidence}
+\end{figure}
+
 \textbf{Kết luận.} Với S2, kết luận an toàn là Mode B có xu hướng p99 tốt hơn rõ hơn ở L3, trong khi L2 vẫn có tính pha trộn. Kết quả này hỗ trợ nhận định về lợi thế datapath dưới tải cao và workload động, nhưng không đủ để khẳng định tuyệt đối cho mọi pha.
 
 \section{Kết quả S3: chi phí NetworkPolicy}
@@ -194,6 +319,49 @@ Hình~\ref{fig:s2-p99-delta-heatmap} tóm tắt chênh lệch p99 của Mode B s
 S3 kiểm tra chi phí khi bật NetworkPolicy trong Mode B. Đây không phải là so sánh Mode A với Mode B; biến được thay đổi chỉ là policy OFF và policy ON trong cùng Mode B. Mục tiêu là xem một chính sách đơn giản có làm tăng p99 latency hoặc làm giảm achieved RPS đáng kể hay không.
 
 Hai hình chính là Hình~\ref{fig:s3-policy-overhead-p99} và Hình~\ref{fig:s3-policy-overhead-rps}. P99 dùng để quan sát tail latency khi bật policy; RPS xác nhận hai trạng thái OFF/ON vẫn được đo ở mức tải tương đương.
+
+Hình~\ref{fig:s3-scenario-tikz} tóm tắt phạm vi của S3: benchmark chỉ thay đổi trạng thái NetworkPolicy trong Mode B, trong khi Hubble được dùng để hỗ trợ kiểm chứng flow/verdict chứ không phải để đo hiệu năng.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{0.98\textwidth}{!}{%
+    \begin{tikzpicture}[
+        box/.style={ntbox, text width=2.35cm, minimum height=1.1cm},
+        focus/.style={ntfocus, text width=2.55cm, minimum height=1.1cm},
+        warn/.style={ntwarn, text width=2.55cm, minimum height=1.1cm},
+        mainarrow/.style={-{Latex[length=3.2mm,width=2.2mm]}, line width=1.05pt, draw=blue!60!black},
+        splitline/.style={line width=1.05pt, draw=blue!60!black},
+        supportarrow/.style={-{Latex[length=3.2mm,width=2.2mm]}, line width=1.05pt, draw=orange!75!black}
+    ]
+        \node[focus] (fortio) at (0,0) {Fortio client\\allowed traffic};
+        \node[box] (off) at (4.5,1.75) {Mode B\\Policy OFF\\đường nền};
+        \node[box] (on) at (4.5,-1.75) {Mode B\\Policy ON\\enforcement};
+        \node[box] (echooff) at (8.2,1.75) {HTTP echo\\allowed};
+        \node[box] (echoon) at (8.2,-1.75) {HTTP echo\\allowed};
+        \node[focus] (metricoff) at (12.0,1.75) {Metric OFF\\p99, RPS\\error rate};
+        \node[focus] (metricon) at (12.0,-1.75) {Metric ON\\p99, RPS\\error rate};
+        \node[ntwarn, text width=2.8cm, minimum height=0.95cm] (compare) at (15.8,0) {Kết luận\\overhead\\OFF/ON};
+
+        \node[warn] (deny) at (4.5,-4.2) {Manual deny-case\\attacker-test\\Policy denied};
+        \node[box] (hubble) at (8.2,-4.2) {Hubble\\flow/verdict\\evidence};
+
+        \coordinate (split) at (2.05,0);
+        \draw[mainarrow] (fortio.east) -- (split);
+        \draw[splitline] (split) -- ++(0,1.75);
+        \draw[splitline] (split) -- ++(0,-1.75);
+        \draw[mainarrow] ($(split)+(0,1.75)$) -- (off.west);
+        \draw[mainarrow] ($(split)+(0,-1.75)$) -- (on.west);
+        \draw[mainarrow] (off) -- (echooff);
+        \draw[mainarrow] (on) -- (echoon);
+        \draw[mainarrow] (echooff) -- (metricoff);
+        \draw[mainarrow] (echoon) -- (metricon);
+        \draw[mainarrow] (metricoff.east) -- ++(0.45,0) |- (compare.west);
+        \draw[mainarrow] (metricon.east) -- ++(0.45,0) |- (compare.west);
+        \draw[supportarrow] (deny) -- (hubble);
+    \end{tikzpicture}}
+    \caption{Minh họa S3: chỉ thay đổi trạng thái NetworkPolicy trong Mode B, còn Hubble được dùng như bằng chứng flow/verdict hỗ trợ}
+    \label{fig:s3-scenario-tikz}
+\end{figure}
 
 \begin{figure}[H]
     \centering
@@ -230,7 +398,21 @@ L3 & ON & 5.928 ms & 5.818--6.037 ms & 799.965 & 0.0\% \\
 
 Hình~\ref{fig:s3-policy-overhead-rps} cho thấy achieved RPS gần như không đổi giữa OFF và ON, còn error rate bằng 0\%. Khi đọc cùng p99, kết quả này làm cho diễn giải ``overhead quan sát được nhỏ'' hợp lý hơn: policy ON không làm tail latency tăng rõ và cũng không làm throughput giảm đáng kể. Tuy nhiên, error rate bằng 0\% chỉ nói rằng request hoàn tất trong phạm vi đo, không chứng minh policy enforcement không bao giờ có chi phí.
 
-Về cơ chế, kết quả OFF/ON gần nhau là hợp lý với policy đơn giản, số endpoint nhỏ và traffic benchmark đều được cho phép. Hubble và các evidence quan sát flow chỉ nên dùng như bằng chứng hỗ trợ observability, không phải kết quả hiệu năng chính; không nên claim mạnh về DROPPED verdict nếu raw artifacts không chứng minh đầy đủ.
+Về cơ chế, kết quả OFF/ON gần nhau là hợp lý với policy đơn giản, số endpoint nhỏ và traffic benchmark đều được cho phép. Hubble và các evidence quan sát flow chỉ nên dùng như bằng chứng hỗ trợ observability, không phải kết quả hiệu năng chính. Hình~\ref{fig:s3-hubble-policy-evidence} bổ sung minh chứng trực quan rằng Hubble hoạt động trong Mode B và có thể quan sát flow/policy verdict ở mức UI. Ảnh phía trên là forward-case, cho thấy các flow được \texttt{forwarded} trong namespace \texttt{benchmark}; ảnh phía dưới minh họa một deny-case thủ công, trong đó traffic từ pod \texttt{attacker-test} đến echo bị \texttt{Policy denied}.
+
+Cách đặt Hubble ở đây phù hợp với vai trò của S3: nó hỗ trợ phần policy enforcement và observability, còn kết luận overhead vẫn dựa trên p99, RPS và error rate từ Fortio. Luận văn không dùng Hubble để chứng minh latency thấp hơn, cũng không claim rằng raw measured-run artifacts đã capture đầy đủ mọi \texttt{DROPPED} verdict. Nói cách khác, Hubble là evidence bổ trợ về tính đúng chức năng của policy, không phải bằng chứng định lượng về hiệu năng. Các ảnh Hubble phụ khác được đặt ở Phụ lục~E.
+
+\begin{figure}[H]
+    \centering
+    \textbf{Forward-case trong namespace benchmark}\\[0.25em]
+    \includegraphics[width=0.86\textwidth]{../figures/hubble/fig-13b-hubble-forwarded-case.png}
+    \vspace{0.4em}
+    
+    \textbf{Manual deny-case với Policy denied}\\[0.25em]
+    \includegraphics[width=0.86\textwidth]{../figures/hubble/fig13-hubble-deny-case-detail.png}
+    \caption{Bằng chứng Hubble hỗ trợ cho S3 trong Mode B: forward-case với các flow được forwarded và manual deny-case với verdict policy denied; đây là evidence observability, không phải metric hiệu năng chính}
+    \label{fig:s3-hubble-policy-evidence}
+\end{figure}
 
 \textbf{Kết luận.} Trong Mode B, với policy đơn giản và workload hiện tại, policy ON không tạo thay đổi p99 hoặc RPS đáng kể so với policy OFF. Kết luận này chỉ áp dụng cho setup đã đo và không nên khái quát cho policy phức tạp hơn.
 

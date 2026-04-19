@@ -343,18 +343,66 @@ Các kết quả benchmark trong đồ án không được diễn giải bằng 
 \subsection{Thống kê mô tả và đơn vị báo cáo}
 Đơn vị phân tích chính là kết quả ở mức từng run Fortio trong một cell benchmark cố định. Một cell được xác định bởi tổ hợp mode, kịch bản và mức tải; riêng S3 thay đổi trạng thái policy OFF/ON trong Mode B. Với mỗi cell, pipeline tổng hợp các chỉ số latency, RPS và error rate từ các lần chạy lặp lại. Các percentile được lấy từ output Fortio và chuẩn hóa về millisecond trước khi tổng hợp.
 
-Báo cáo sử dụng các thống kê mô tả như trung bình, trung vị, độ lệch chuẩn, min, max và khoảng tin cậy 95\% khi phù hợp. Các chỉ số p50, p95, p99, RPS đạt được và error rate được giữ làm đầu ra chính vì chúng phản ánh các khía cạnh khác nhau của hiệu năng: độ trễ thông thường, độ trễ phần đuôi, khả năng duy trì tải và mức lỗi HTTP. Với latency tail, đặc biệt là p99, diễn giải ưu tiên xu hướng nhất quán qua nhiều mức tải hoặc nhiều pha hơn là một điểm cải thiện đơn lẻ.
-
-Khoảng tin cậy 95\% được hiểu là khoảng mô tả độ bất định của trung bình mẫu trong điều kiện số lần lặp hiện có:
+Báo cáo sử dụng các thống kê mô tả như trung bình, trung vị, độ lệch chuẩn, min, max và khoảng tin cậy 95\% khi phù hợp. Nếu ký hiệu \(X_1, X_2, \ldots, X_n\) là các giá trị metric thu được từ \(n\) lần chạy cùng một cell, trung bình mẫu được tính bằng:
 
 \[
-CI_{95\%} = \bar{x} \pm t \cdot \frac{s}{\sqrt{n}}.
+\bar{x} = \frac{1}{n}\sum_{i=1}^{n}X_i.
 \]
 
-Trong đó \(\bar{x}\) là trung bình mẫu, \(s\) là độ lệch chuẩn mẫu, \(n\) là số lần lặp và \(t\) là hệ số tới hạn theo phân phối Student t. Với \(n=3\), khoảng tin cậy thường phải được đọc thận trọng vì chỉ một vài run chậm có thể làm độ rộng khoảng thay đổi đáng kể.
+Độ phân tán giữa các lần chạy được mô tả bằng phương sai mẫu và độ lệch chuẩn mẫu:
+
+\[
+s^2 = \frac{\sum_{i=1}^{n}(X_i-\bar{x})^2}{n-1}, \qquad s=\sqrt{s^2}.
+\]
+
+Trong đó \(\bar{x}\) là ước lượng điểm của trung bình thật \(\mu\), còn \(s\) cho biết các run dao động quanh trung bình mẫu nhiều hay ít. Khi cần mô tả độ bất định của chính trung bình mẫu, sai số chuẩn được dùng:
+
+\[
+SE = \frac{s}{\sqrt{n}}.
+\]
+
+Các chỉ số p50, p95, p99, RPS đạt được và error rate được giữ làm đầu ra chính vì chúng phản ánh các khía cạnh khác nhau của hiệu năng: độ trễ thông thường, độ trễ phần đuôi, khả năng duy trì tải và mức lỗi HTTP. Với latency tail, đặc biệt là p99, diễn giải ưu tiên xu hướng nhất quán qua nhiều mức tải hoặc nhiều pha hơn là một điểm cải thiện đơn lẻ.
+
+\subsection{Khoảng tin cậy 95\% và mẫu nhỏ}
+Khoảng tin cậy 95\% được hiểu là khoảng mô tả độ bất định của trung bình mẫu trong điều kiện số lần lặp hiện có. Vì nhiều cell trong benchmark chỉ có \(n=3\), luận văn dùng phân phối Student \(t\) thay vì xấp xỉ chuẩn. Lý do là với mẫu nhỏ và phương sai tổng thể chưa biết, việc thay \(\sigma\) bằng độ lệch chuẩn mẫu \(s\) làm bất định lớn hơn; phân phối \(t\) có đuôi dày hơn và thận trọng hơn so với normal approximation.
+
+\[
+CI_{95\%} = \bar{x} \pm t_{\alpha/2,\,n-1}\cdot \frac{s}{\sqrt{n}}, \qquad \alpha = 0.05.
+\]
+
+Trong công thức trên, \(t_{\alpha/2,\,n-1}\) là giá trị tới hạn theo phân phối Student \(t\) với \(n-1\) bậc tự do. Khoảng tin cậy không nên được đọc như một bảo đảm tuyệt đối rằng trung bình thật nằm trong khoảng đã tính. Cách hiểu phù hợp cho báo cáo là: nếu lặp lại quy trình lấy mẫu và dựng khoảng nhiều lần trong cùng điều kiện, khoảng 95\% số khoảng được dựng theo cách này sẽ chứa trung bình thật. Với \(n=3\), khoảng tin cậy có thể rộng và nhạy với một run chậm, nên nó được dùng để thể hiện mức bất định chứ không để tạo cảm giác chính xác quá mức.
 
 \subsection{Thống kê suy luận và ý nghĩa thống kê}
-Để hỗ trợ diễn giải, pipeline dùng p-value theo kiểm định kiểu Welch ở mức run-level cho các so sánh phù hợp. Cách tiếp cận này hợp lý hơn việc giả định phương sai hai nhóm bằng nhau, vì các nhóm benchmark có thể có độ biến động khác nhau, đặc biệt trong S2. Cột significant được dùng như chỉ báo hỗ trợ rằng khác biệt quan sát được có đủ mạnh trong dữ liệu hiện tại hay không.
+Để hỗ trợ so sánh hai nhóm, luận văn dùng kiểm định giả thuyết ở mức run-level cho các trường hợp phù hợp. Với so sánh Mode A và Mode B, giả thuyết gốc và giả thuyết đối được viết như sau:
+
+\[
+H_0: \mu_A = \mu_B, \qquad H_1: \mu_A \ne \mu_B.
+\]
+
+Trong đó \(\mu_A\) và \(\mu_B\) là trung bình thật của metric đang xét nếu có thể lặp benchmark rất nhiều lần trong cùng điều kiện. \(H_0\) không có nghĩa là hai mode chắc chắn giống nhau; nó chỉ là giả thuyết xuất phát để kiểm tra liệu dữ liệu hiện có có đủ mạnh để bác bỏ hay không.
+
+Pipeline dùng p-value theo kiểm định kiểu Welch vì không nên tự động giả định phương sai của hai nhóm bằng nhau. Với hai nhóm độc lập A và B, thống kê kiểm định có dạng:
+
+\[
+t =
+\frac{\bar{x}_A-\bar{x}_B}
+{\sqrt{\frac{s_A^2}{n_A}+\frac{s_B^2}{n_B}}}.
+\]
+
+Bậc tự do hiệu dụng của kiểm định Welch được xấp xỉ bằng công thức Welch--Satterthwaite:
+
+\[
+df =
+\frac{
+\left(\frac{s_A^2}{n_A}+\frac{s_B^2}{n_B}\right)^2
+}{
+\frac{\left(\frac{s_A^2}{n_A}\right)^2}{n_A-1}
++
+\frac{\left(\frac{s_B^2}{n_B}\right)^2}{n_B-1}
+}.
+\]
+
+Bản chất của kiểm định là so sánh chênh lệch giữa hai trung bình mẫu với mức nhiễu của chênh lệch đó. Nếu chênh lệch lớn so với mức dao động trong mẫu, p-value sẽ nhỏ hơn. P-value được hiểu là mức độ dữ liệu hiện tại trở nên ``lạ'' nếu \(H_0\) đúng; nó không phải xác suất \(H_0\) đúng. Trong luận văn, ngưỡng diễn giải thông dụng là \(\alpha=0.05\): nếu \(p < 0.05\), kết quả được đánh dấu là có ý nghĩa thống kê; nếu \(p \ge 0.05\), luận văn chỉ nói là chưa đủ bằng chứng thống kê để kết luận khác biệt.
 
 Tuy nhiên, ý nghĩa thống kê không được xem là bằng chứng tuyệt đối. Nhiều nhóm trong benchmark chỉ có \(n=3\) run, nên p-value có độ nhạy cao với nhiễu hệ thống, outlier và độ phân tán giữa các lần chạy. Vì vậy, một kết quả significant không tự động chứng minh quan hệ nhân quả tuyệt đối, và một kết quả non-significant cũng không đồng nghĩa với việc hai mode chắc chắn không khác nhau. Trong đồ án này, p-value được dùng để củng cố hoặc làm yếu mức độ tự tin của diễn giải, không thay thế phân tích cơ chế và bối cảnh kịch bản.
 
@@ -383,6 +431,12 @@ Error rate được đọc như tỷ lệ request lỗi trên tổng số reques
 
 \[
 \text{Error rate} = \frac{\text{số request lỗi}}{\text{tổng số request}} \times 100\%.
+\]
+
+Achieved RPS được đọc như throughput thực tế đạt được trong cửa sổ đo:
+
+\[
+\text{Achieved RPS} = \frac{\text{số request hoàn tất}}{\text{thời lượng đo theo giây}}.
 \]
 
 Với S2, bối cảnh pha như ramp-up, sustained, burst và cooldown phải được xét cùng delta p99. Với S3, chênh lệch p99 cần được đọc song song với RPS và error rate để tránh kết luận quá mức về policy overhead.

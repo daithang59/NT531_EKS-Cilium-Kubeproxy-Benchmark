@@ -142,7 +142,7 @@
     \\
     {\mdseries \@coursecode}
     \vfill
-    {\Large{\parbox[c]{0.8\linewidth}{\centering\@title}}}
+    {\large{\parbox[c]{0.8\linewidth}{\centering\@title}}}
     \vfill
     \uppercase{\@supervisor} \\
     \uppercase{\@supervisorname}
