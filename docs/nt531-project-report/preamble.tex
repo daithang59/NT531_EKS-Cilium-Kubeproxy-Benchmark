@@ -64,11 +64,24 @@
 % ==========================================
 \usepackage{listings}         % Chèn code (hữu ích cho manifests, bash script, hubble.log)
 \usepackage{xcolor}           % Hỗ trợ tô màu cho code snippet
+\usepackage[scaled=0.95]{inconsolata} % Font monospace dễ đọc hơn cho code
+
+% Định nghĩa ngôn ngữ JSON cho listings
+\lstdefinelanguage{json}{
+    basicstyle=\ttfamily\small,
+    showstringspaces=false,
+    breaklines=true,
+    string=[b]",
+    stringstyle=\color{red}
+}
 
 % Cấu hình mặc định cho khối code
 \lstset{
-    basicstyle=\ttfamily\small,
+    basicstyle=\ttfamily\footnotesize,
     breaklines=true,
+    columns=fullflexible,
+    keepspaces=true,
+    showstringspaces=false,
     frame=single,
     backgroundcolor=\color{gray!10},
     keywordstyle=\color{blue},
@@ -83,3 +96,6 @@
 \usepackage{hyperref}         % Class đã load hyperref; load lại không thêm options để tránh clash
 \hypersetup{hidelinks}        % Ẩn viền link trong Mục lục/Danh mục
 \usepackage{cleveref}         % Tham chiếu thông minh (tự động thêm chữ "Bảng", "Hình" trước số)
+\usepackage{csquotes}         % Hỗ trợ trích dẫn cho biblatex
+\usepackage[backend=biber,style=numeric,sorting=none,url=true,doi=false,eprint=false,isbn=false]{biblatex}
+\addbibresource{ref.bib}

@@ -1,2 +1,173 @@
-% Scripts & cấu hình
-\chapter{Scripts \& Configuration} % 
+% !TeX root = ../main.tex
+% Phụ lục F - Scripts va cau hinh thuc nghiem
+
+\chapter{Phụ lục F: Kịch bản và cấu hình thí nghiệm (Scripts \& Configuration)}
+\label{app:scripts-config}
+
+Phụ lục này mô tả các script và manifest cấu hình dùng trong pipeline benchmark. Mục tiêu là minh bạch cách tự động hóa chạy thí nghiệm, thu thập bằng chứng và phân tích dữ liệu, hạn chế tối đa thao tác thủ công dễ sai sót.
+\section{ Liên kết mã nguồn đầy đủ}
+
+Kho mã nguồn gốc của dự án được lưu tại:
+
+\begin{center}
+\url{https://github.com/daithang59/NT531_EKS-Cilium-Kubeproxy-Benchmark/tree/main/scripts}
+\end{center}
+\section{Các kịch bản chạy Benchmark (Benchmark Scripts)}
+
+Phần này liệt kê các script Bash chịu trách nhiệm ép tải và thu thập artifact theo Results Contract.
+
+\begin{itemize}
+		\item \texttt{scripts/calibrate.sh}: chạy calibration sweep để xác định các mốc tải L1, L2, L3 dựa trên dữ liệu thực đo trước khi chạy benchmark chính thức.
+		\item \texttt{scripts/run\_s1.sh}: chạy benchmark steady-state với tải cố định để đo baseline latency/throughput qua ClusterIP Service.
+		\item \texttt{scripts/run\_s2.sh}: chạy benchmark nhiều pha (ramp-up, sustained, burst, cooldown) và tạo connection churn bằng \texttt{keepalive=false}.
+		\item \texttt{scripts/run\_s3.sh}: chạy benchmark theo hai pha policy OFF/ON để đo overhead của NetworkPolicy enforcement.
+		\item \texttt{scripts/collect\_meta.sh} và \texttt{scripts/collect\_hubble.sh}: thu thập metadata cụm, trạng thái datapath, và flow logs từ Hubble làm bằng chứng kiểm chứng.
+\end{itemize}
+
+\textbf{Snippet trọng tâm từ \texttt{scripts/run\_s1.sh}:}
+
+\begin{lstlisting}[language=bash]
+set -euo pipefail
+
+export SCENARIO="S1"
+source "$(dirname "$0")/common.sh"
+
+preflight_checks
+
+for i in $(seq 1 "${REPEAT}"); do
+	execute_run "${i}"
+
+	# Rest between runs (skip after last)
+	if [[ "${i}" -lt "${REPEAT}" ]]; then
+		sleep "${REST_BETWEEN_RUNS}"
+	fi
+done
+\end{lstlisting}
+
+Snippet S1 cho thấy vòng lặp lặp lại \texttt{REPEAT}, gọi \texttt{execute\_run} để chạy Fortio và thu thập artifact cho từng run.
+
+\textbf{Snippet trọng tâm từ \texttt{scripts/run\_s2.sh}:}
+
+\begin{lstlisting}[language=bash]
+set -euo pipefail
+
+export SCENARIO="S2"
+source "$(dirname "$0")/common.sh"
+
+preflight_checks
+
+# Derived QPS levels for phases
+QPS_50PCT=$(( BENCH_QPS / 2 ))
+QPS_150PCT=$(( BENCH_QPS * 3 / 2 ))
+CONNS_HIGH=$(( BENCH_CONNS * 2 ))
+
+# Phase durations
+RAMP_SEC="${S2_RAMP_SEC:-30}"
+SUSTAINED_SEC="${S2_SUSTAINED_SEC:-90}"
+BURST_SEC="${S2_BURST_SEC:-20}"
+BURST_COUNT="${S2_BURST_COUNT:-3}"
+BURST_REST="${S2_BURST_REST:-10}"
+COOLDOWN_SEC="${S2_COOLDOWN_SEC:-30}"
+
+for run_num in $(seq 1 "${REPEAT}"); do
+	outdir="$(make_outdir "${run_num}")"
+	write_metadata "${outdir}" "${run_num}"
+	collect_meta "${outdir}"
+
+	# ---- Phase 1: Ramp-up (50% QPS) ------------------------------------------
+	_fortio_rest "${outdir}" "phase1_rampup" "${QPS_50PCT}" "${BENCH_CONNS}" "${RAMP_SEC}"
+	# ---- Phase 2: Sustained high (100% QPS, 2x connections) ------------------
+	_fortio_rest "${outdir}" "phase2_sustained" "${BENCH_QPS}" "${CONNS_HIGH}" "${SUSTAINED_SEC}"
+
+	# ---- Phase 3: Bursts (150% QPS x N, with rest between) -------------------
+	for b in $(seq 1 "${BURST_COUNT}"); do
+		_fortio_rest "${outdir}" "phase3_burst${b}" "${QPS_150PCT}" "${CONNS_HIGH}" "${BURST_SEC}"
+		if [[ "${b}" -lt "${BURST_COUNT}" ]]; then
+			sleep "${BURST_REST}"
+		fi
+	done
+
+	# ---- Phase 4: Cool-down (50% QPS) ----------------------------------------
+	_fortio_rest "${outdir}" "phase4_cooldown" "${QPS_50PCT}" "${BENCH_CONNS}" "${COOLDOWN_SEC}"
+	# ---- Combine all phase logs into bench.log --------------------------------
+	cat "${outdir}"/bench_phase*.log > "${outdir}/bench.log"
+	# ---- Post-run evidence ----------------------------------------------------
+	collect_cilium_hubble "${outdir}"
+	write_checklist "${outdir}" "${run_num}"
+done
+\end{lstlisting}
+
+Snippet S2 thể hiện rõ logic chạy đa pha và tổng hợp log pha về \texttt{bench.log} để phân tích thống nhất.
+
+\textbf{Snippet trọng tâm từ \texttt{scripts/run\_s3.sh} (giữ comment logic chính):}
+
+\begin{lstlisting}[language=bash]
+set -euo pipefail
+
+# If script exits unexpectedly, always remove policies to avoid side effects.
+cleanup_s3_policies() {
+		kubectl -n "${NS}" delete -f "${REPO_ROOT}/workload/policies/" \
+				--ignore-not-found=true >/dev/null 2>&1 || true
+}
+trap cleanup_s3_policies EXIT INT TERM
+
+export SCENARIO="S3"
+source "$(dirname "$0")/common.sh"
+
+preflight_checks
+
+# ---------- Phase OFF: remove policies ----------------------------------------
+kubectl -n "${NS}" delete -f "${REPO_ROOT}/workload/policies/" --ignore-not-found=true
+sleep 15
+
+for i in $(seq 1 "${REPEAT}"); do
+	export OUTDIR="${REPO_ROOT}/results/mode=${MODE_LABEL}/scenario=${SCENARIO}/load=${LOAD}/phase=off/run=R${i}_$(ts_dir)"
+	# No policy active in phase=off
+	unset POLICY_METADATA
+	execute_run "${i}"
+done
+unset OUTDIR
+
+# ---------- Phase ON: apply policies -----------------------------------------
+kubectl apply -f "${REPO_ROOT}/workload/policies/"
+sleep 20
+
+POLICY_COUNT=$(find "${REPO_ROOT}/workload/policies/" -name "*.yaml" 2>/dev/null | wc -l | tr -d ' ')
+export POLICY_METADATA="enabled=true,type=CiliumNetworkPolicy,complexity_level=simple,rule_count_estimate=${POLICY_COUNT}"
+
+for i in $(seq 1 "${REPEAT}"); do
+	export OUTDIR="${REPO_ROOT}/results/mode=${MODE_LABEL}/scenario=${SCENARIO}/load=${LOAD}/phase=on/run=R${i}_$(ts_dir)"
+	execute_run "${i}"
+done
+unset OUTDIR
+unset POLICY_METADATA
+
+# ---------- Cleanup: remove policies after S3 completes ----------------------
+kubectl -n "${NS}" delete -f "${REPO_ROOT}/workload/policies/" --ignore-not-found=true
+\end{lstlisting}
+
+Snippet S3 minh họa chu trình OFF $\rightarrow$ ON của policy và cơ chế \texttt{trap} để dọn policy khi script thoát bất thường.
+
+\section{Các kịch bản phân tích dữ liệu (Analysis Scripts)}
+
+Đây là các script Python xử lý dữ liệu thô thành kết quả cuối cùng, đảm bảo toàn bộ phép tính được tự động hóa và có thể tái lập.
+
+\begin{itemize}
+		\item \texttt{scripts/analyze\_results.py}: đọc artifact benchmark, parse log Fortio, tổng hợp thống kê theo nhóm (mode/scenario/load/phase), xuất \texttt{aggregated\_summary.csv} và \texttt{comparison\_AB.csv}; đồng thời thực hiện kiểm định Welch's t-test, tính \(p\)-value và \(\Delta\%\).
+		\item \texttt{scripts/generate\_charts.py}: đọc CSV phân tích và tự động sinh toàn bộ biểu đồ phục vụ đồ án (định dạng PNG/PDF), bao gồm nhóm biểu đồ S1/S2/S3, repeatability và calibration.
+\end{itemize}
+
+\section{Các file cấu hình Workload và Policy (Workload Manifests)}
+
+Phần này mô tả các manifest YAML dùng để triển khai workload benchmark trên Kubernetes và policy cho kịch bản S3.
+
+\begin{itemize}
+		\item \texttt{workload/server/01-namespace.yaml}: khởi tạo namespace \texttt{benchmark} cho workload đo đạc.
+		\item \texttt{workload/server/02-echo-deploy.yaml}: triển khai HTTP echo server với cấu hình tài nguyên cố định để giảm nhiễu khi đo.
+		\item \texttt{workload/server/03-echo-svc.yaml}: khai báo ClusterIP Service làm đích truy cập cho Fortio.
+		\item \texttt{workload/client/01-fortio-deploy.yaml}: triển khai pod Fortio chạy chế độ server/runner để phát sinh tải benchmark.
+		\item \texttt{workload/policies/01-cilium-policy-allow-fortio-to-echo.yaml} và \texttt{workload/policies/02-cilium-policy-deny-other.yaml}: định nghĩa CiliumNetworkPolicy dùng cho pha ON của S3 để kiểm tra overhead enforcement và hành vi allow/deny.
+		\item \texttt{helm/cilium/values-baseline.yaml} và \texttt{helm/cilium/values-ebpfkpr.yaml}: hai file Helm values tạo khác biệt datapath giữa Mode A (\texttt{kubeProxyReplacement: false}) và Mode B (\texttt{kubeProxyReplacement: true}).
+\end{itemize}
+
+
