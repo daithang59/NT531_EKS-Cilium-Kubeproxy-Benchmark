@@ -30,8 +30,8 @@ Region & ap-southeast-1 \\
 Số cluster & 1 \\
 Số worker node & 3 \\
 Loại instance & \texttt{m5.large} \\
-Phiên bản Kubernetes & Chốt theo artifact thực tế của benchmark \\
-Phiên bản Cilium & Chốt theo artifact thực tế của benchmark \\
+Phiên bản Kubernetes & v1.34.4 \\
+Phiên bản Cilium & 1.18.7 \\
 Topology & Một AZ \\
 Công cụ benchmark & Fortio \\
 Giám sát metrics & Prometheus + Grafana \\
@@ -241,7 +241,7 @@ Biến độc lập là các yếu tố được chủ động thay đổi có k
 \subsection{Biến phụ thuộc}
 Biến phụ thuộc là các đại lượng đầu ra dùng để trả lời RQ:
 \begin{itemize}
-  \item p50 / p95 / p99.
+  \item p50 / p90 / p99.
   \item Achieved RPS.
   \item Error rate.
   \item Hubble verdict evidence (cho S3).
@@ -267,9 +267,9 @@ Biến kiểm soát là các yếu tố giữ cố định để đảm bảo kh
 \toprule
 \textbf{RQ} & \textbf{Kịch bản} & \textbf{Tải} & \textbf{Chỉ số chính} & \textbf{Bằng chứng hỗ trợ} \\
 \midrule
-RQ1 & S1 & L1/L2/L3 & p95, p99 & RPS, node metrics \\
+RQ1 & S1 & L1/L2/L3 & p50, p90, p99 & RPS, resource metrics \\
 RQ2 & S2 & L2/L3 & p99, error rate & Phase trend, node metrics \\
-RQ3 & S3 & L2/L3 & $\Delta$ p95/p99, $\Delta$ RPS & Hubble verdicts \\
+RQ3 & S3 & L2/L3 & $\Delta$ p99, $\Delta$ RPS & Hubble verdicts \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -315,9 +315,9 @@ Hình~\ref{fig:calibration-process-tikz} minh họa vai trò của bước hiệ
 \toprule
 \textbf{Mức tải} & \textbf{QPS} & \textbf{Concurrency} & \textbf{Mục đích} \\
 \midrule
-L1 & Theo artifact calibration thực tế (tham chiếu: 100) & Theo artifact calibration thực tế (tham chiếu: 8) & Baseline ổn định \\
-L2 & Theo artifact calibration thực tế (tham chiếu: 400) & Theo artifact calibration thực tế (tham chiếu: 32) & Bắt đầu thấy khác biệt \\
-L3 & Theo artifact calibration thực tế (tham chiếu: 800) & Theo artifact calibration thực tế (tham chiếu: 64) & Mức tải cao làm lộ rõ tail latency \\
+L1 & 100 QPS & 8 connections & Baseline ổn định \\
+L2 & 400 QPS & 32 connections & Bắt đầu thấy khác biệt \\
+L3 & 800 QPS & 64 connections & Mức tải cao làm lộ rõ tail latency \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -361,7 +361,7 @@ S1 được chạy ở cả ba mức tải L1, L2 và L3. Với mỗi mức tả
 Load level & L1, L2, L3 theo kết quả hiệu chuẩn tải \\
 Hình thức tải & QPS và số connection cố định trong suốt run \\
 Connection behavior & Không cố ý tạo churn; dùng cấu hình Fortio nền của script chung \\
-Metric chính & p95, p99, achieved RPS, error rate \\
+Metric chính & p99; p50/p90, achieved RPS và error rate là chỉ số bổ trợ \\
 Vai trò & Baseline sạch để quan sát khác biệt datapath khi tải tăng \\
 \bottomrule
 \end{tabularx}
@@ -569,7 +569,7 @@ s^2 = \frac{\sum_{i=1}^{n}(X_i-\bar{x})^2}{n-1}, \qquad s=\sqrt{s^2}.
 
 Cách hiểu trực quan là: nếu \(s\) nhỏ, các run khá gần nhau; nếu \(s\) lớn, kết quả giữa các run dao động mạnh hơn. Báo cáo cũng dùng median, min và max để bổ sung bức tranh mô tả, nhất là khi cần biết dữ liệu có bị kéo bởi một run bất thường hay không.
 
-Các metric chính gồm p50, p95, p99, achieved RPS và error rate. Trong đó, p99 được nhấn mạnh vì nó phản ánh phần đuôi độ trễ, nơi queueing, scheduling, connection handling hoặc khác biệt datapath thường bộc lộ rõ hơn so với độ trễ trung vị.
+Các metric chính gồm p50, p90, p99, achieved RPS và error rate. Trong đó, p99 được nhấn mạnh vì nó phản ánh phần đuôi độ trễ, nơi queueing, scheduling, connection handling hoặc khác biệt datapath thường bộc lộ rõ hơn so với độ trễ trung vị.
 
 \subsection{Khoảng tin cậy 95\%: đọc độ bất định của trung bình}
 Trung bình mẫu \(\bar{x}\) chỉ là một ước lượng từ vài lần chạy, không phải giá trị chắc chắn tuyệt đối. Vì vậy, đồ án dùng khoảng tin cậy 95\% để biểu diễn mức bất định quanh trung bình. Với nhiều cell chỉ có \(n=3\), báo cáo dùng phân phối Student \(t\), vì mẫu nhỏ và độ lệch chuẩn tổng thể chưa biết. Đây là lựa chọn thận trọng hơn so với việc dùng xấp xỉ chuẩn.
@@ -614,7 +614,16 @@ df =
 }.
 \]
 
-P-value được hiểu là mức độ ``lạ'' của dữ liệu nếu \(H_0\) đúng. Nếu \(p < 0.05\), báo cáo gọi kết quả là có ý nghĩa thống kê. Nếu \(p \ge 0.05\), báo cáo chỉ nói rằng chưa đủ bằng chứng thống kê để kết luận khác biệt. Cách nói này quan trọng: non-significant không có nghĩa là hai mode chắc chắn bằng nhau, mà chỉ có nghĩa dữ liệu hiện tại chưa đủ mạnh để kết luận.
+Từ giá trị \(t\) và bậc tự do \(df\), p-value hai phía được lấy từ phân phối Student \(t\):
+
+\[
+p = 2 \times P(T_{df} \ge |t|)
+  = 2 \times \left(1 - F_{t,df}(|t|)\right).
+\]
+
+Trong đó \(T_{df}\) là biến ngẫu nhiên theo phân phối Student \(t\) với \(df\) bậc tự do, còn \(F_{t,df}\) là hàm phân phối tích lũy tương ứng. Hệ số \(2\) xuất hiện vì luận văn dùng kiểm định hai phía: dữ liệu được kiểm tra theo hướng hai mode có khác nhau hay không, thay vì mặc định trước mode nào phải tốt hơn.
+
+P-value được hiểu là mức độ ``lạ'' của dữ liệu nếu \(H_0\) đúng. Nếu \(p < 0.05\), báo cáo xem đây là bằng chứng thống kê đủ mạnh để bác bỏ \(H_0\) ở mức ý nghĩa 5\%. Nếu \(p \ge 0.05\), báo cáo chỉ nói rằng chưa đủ bằng chứng thống kê để kết luận khác biệt. Cách nói này quan trọng: non-significant không có nghĩa là hai mode chắc chắn bằng nhau, mà chỉ có nghĩa dữ liệu hiện tại chưa đủ mạnh để kết luận.
 
 Với \(n=3\), p-value phải được đọc thận trọng. Một kết quả significant không phải là bằng chứng tuyệt đối về nhân quả, và một kết quả non-significant không xóa bỏ hoàn toàn khả năng có khác biệt. Vì vậy, p-value trong đồ án chỉ là bằng chứng hỗ trợ, luôn được đọc cùng độ lớn chênh lệch và bối cảnh kịch bản.
 

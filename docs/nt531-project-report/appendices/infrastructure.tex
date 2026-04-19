@@ -1,7 +1,7 @@
 % !TeX root = ../main.tex
 % Phụ lục A - Chi tiết hạ tầng
 
-\chapter{Phụ lục: Chi tiết hạ tầng}
+\chapter{Phụ lục chi tiết hạ tầng}
 \label{app:infrastructure}
 
 \section{Cấu hình hạ tầng}
@@ -63,12 +63,12 @@ Mục này nêu các tham số quyết định trong cấu hình Cilium Helm Cha
 \label{tab:app-a2-helm-key-params}
 \footnotesize
 \setlength{\tabcolsep}{5pt}
-\renewcommand{\arraystretch}{1.2}
+\renewcommand{\arraystretch}{1.4}
 \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.0cm}>{\raggedright\arraybackslash}p{3.5cm}>{\raggedright\arraybackslash}p{3.5cm}X}
 \toprule
 \textbf{Tham số} & \textbf{Mode A (Baseline)} & \textbf{Mode B (eBPF KPR)} & \textbf{Ý nghĩa} \\
 \midrule
-\texttt{kubeProxyReplacement} & \texttt{false} & \texttt{strict} & Mode A giữ \texttt{kube-proxy}; Mode B thay thế xử lý service bằng eBPF. \\
+\makecell[l]{\texttt{kubeProxy}\\\texttt{Replacement}} & \texttt{false} & \texttt{strict} & Mode A giữ \texttt{kube-proxy}; Mode B thay thế xử lý service bằng eBPF. \\
 \texttt{eni.enabled} & (không bắt buộc) & \texttt{true} & Bật native routing theo AWS VPC trong Mode B, là điều kiện vận hành quan trọng của KPR. \\
 \texttt{hubble.enabled} & (không bắt buộc) & \texttt{true} & Bật công cụ quan sát flow để thu evidence verdict cho phân tích S3. \\
 \bottomrule

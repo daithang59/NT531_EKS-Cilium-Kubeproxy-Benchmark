@@ -35,6 +35,11 @@
 \listoffigures      % Tự động tạo Danh mục hình 
 
 \clearpage
+
+% Bảng từ viết tắt
+\input{chapters/main/glossary}
+
+\clearpage
 \pagenumbering{arabic}
 \setcounter{page}{1}
 
@@ -46,6 +51,14 @@
 \input{chapters/main/conclusion}
 
 % ==========================================
+% TÀI LIỆU THAM KHẢO
+% ==========================================
+\cleardoublepage
+\chapter{Tài liệu tham khảo}
+\nocite{*}
+\printbibliography[heading=none]
+
+% ==========================================
 % PHỤ LỤC (APPENDICES) 
 % ==========================================
 \appendix
@@ -55,12 +68,4 @@
 \input{appendices/raw-data}
 \input{appendices/figures}
 \input{appendices/scripts}
-
-% ==========================================
-% TÀI LIỆU THAM KHẢO
-% ==========================================
-\cleardoublepage
-\addcontentsline{toc}{chapter}{Tài liệu tham khảo}
-\nocite{*}
-\printbibliography[heading=none]
 \end{document}

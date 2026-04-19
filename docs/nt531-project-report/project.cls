@@ -149,7 +149,7 @@
   \end{center}
   \vspace{1.0\baselineskip}
   {\mdseries\normalsize
-    \hspace*{0.8cm}\begin{minipage}{0.88\textwidth}
+    \hspace*{2cm}\begin{minipage}{1\textwidth}
       \noindent\textbf{Nh\'om th\d{\uhorn}c hi\d{\ecircumflex}n: Nh\'om 12}\\
       \@stunamewithid
     \end{minipage}

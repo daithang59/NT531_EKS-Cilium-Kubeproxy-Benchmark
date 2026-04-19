@@ -199,7 +199,65 @@ Thay số làm tròn:
 
 Pipeline ghi nhận delta là \(-14.223\%\). Giá trị âm nghĩa là p99 trung bình của Mode B thấp hơn Mode A. Vì dòng này cũng có \(p = 0.0191\) và \texttt{significant = YES}, Chương 4 có cơ sở để xem S1 L3 là một trong các kết quả mạnh nhất ủng hộ lợi thế p99 của Mode B trong steady-state.
 
-\subsection{Ví dụ 2: CV\% từ repeatability}
+\subsection{Ví dụ 2: P-value theo kiểm định kiểu Welch}
+
+Vẫn với dòng S1 L3 p99 trong \texttt{comparison\_AB.csv}, các giá trị đầu vào chính là:
+
+\[
+\bar{x}_A = 6.899,\quad s_A = 0.240,\quad n_A = 3,
+\]
+
+\[
+\bar{x}_B = 5.917,\quad s_B = 0.013,\quad n_B = 3.
+\]
+
+Theo kiểm định kiểu Welch, thống kê \(t\) được tính như sau:
+
+\[
+t =
+\frac{\bar{x}_A-\bar{x}_B}
+{\sqrt{\frac{s_A^2}{n_A}+\frac{s_B^2}{n_B}}}.
+\]
+
+Thay số làm tròn:
+
+\[
+t \approx
+\frac{6.899-5.917}
+{\sqrt{\frac{0.240^2}{3}+\frac{0.013^2}{3}}}
+\approx 7.08.
+\]
+
+Bậc tự do hiệu dụng được tính theo xấp xỉ Welch--Satterthwaite:
+
+\[
+df =
+\frac{
+\left(\frac{s_A^2}{n_A}+\frac{s_B^2}{n_B}\right)^2
+}{
+\frac{\left(\frac{s_A^2}{n_A}\right)^2}{n_A-1}
++
+\frac{\left(\frac{s_B^2}{n_B}\right)^2}{n_B-1}
+}
+\approx 2.01.
+\]
+
+Vì kiểm định là hai phía, p-value được lấy từ phân phối Student \(t\):
+
+\[
+p = 2 \times P(T_{df} \ge |t|)
+  = 2 \times \left(1 - F_{t,df}(|t|)\right).
+\]
+
+Với \(t \approx 7.08\) và \(df \approx 2.01\), pipeline ghi nhận:
+
+\[
+p = 0.0191.
+\]
+
+Vì \(p < 0.05\), dòng này được đánh dấu \texttt{significant = YES}. Cách diễn giải đúng là: dữ liệu hiện tại đủ mạnh để bác bỏ giả thuyết \(H_0: \mu_A=\mu_B\) ở mức ý nghĩa 5\% cho metric p99 của S1 L3. Tuy nhiên, do mỗi nhóm chỉ có \(n=3\), kết quả này vẫn được đọc cùng delta \%, khoảng tin cậy 95\% và bối cảnh steady-state, thay vì xem p-value là bằng chứng tuyệt đối.
+
+\subsection{Ví dụ 3: CV\% từ repeatability}
 
 Từ \texttt{repeatability\_summary.csv}, S1 L3 có:
 
@@ -228,7 +286,7 @@ CV_B \approx \frac{0.013}{5.917} \times 100\% \approx 0.22\%.
 
 CSV ghi nhận CV lần lượt khoảng 3.477\% và 0.212\% khi dùng số đầy đủ trong pipeline. Cách đọc là: trong nhóm S1 L3, Mode B không chỉ có p99 mean thấp hơn, mà còn có độ dao động tương đối nhỏ hơn trong các run được chọn. Điều này hỗ trợ phần repeatability của Chương 4.
 
-\subsection{Ví dụ 3: Diễn giải CI từ S3}
+\subsection{Ví dụ 4: Diễn giải CI từ S3}
 
 Từ \texttt{aggregated\_summary.csv}, S3 L3 có:
 
@@ -248,7 +306,7 @@ CI_{95\%} = \bar{x} \pm t \cdot \frac{s}{\sqrt{n}}.
 
 Trong phụ lục này không tái tính toàn bộ CI từ raw run, vì pipeline đã xuất sẵn CI trong CSV. Điểm quan trọng là cách đọc: hai khoảng CI của OFF và ON nằm rất gần nhau, mean p99 chỉ khác khoảng 0.071 ms, và RPS trung bình cũng gần như không đổi. Vì vậy, Chương 4 kết luận rằng policy ON không tạo overhead p99/RPS đáng kể trong setup S3 hiện tại, nhưng không nói overhead bằng không.
 
-\subsection{Ví dụ 4: Ý nghĩa thực tế và ý nghĩa thống kê}
+\subsection{Ví dụ 5: Ý nghĩa thực tế và ý nghĩa thống kê}
 
 Một ví dụ tốt là S2 L3 Burst 1 p99 trong \texttt{comparison\_AB.csv}:
 

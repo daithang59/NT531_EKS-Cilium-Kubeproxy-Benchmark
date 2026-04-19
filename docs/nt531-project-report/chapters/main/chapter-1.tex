@@ -35,6 +35,176 @@ IP thực của Pod.
     \item \textbf{Conntrack (Connection Tracking):} Để thực hiện NAT thành công, nhân Linux bắt buộc phải sử dụng bảng conntrack nhằm theo dõi trạng thái của mọi kết nối (ví dụ: \texttt{NEW}, \texttt{ESTABLISHED}). Quá trình tra cứu trạng thái này sinh ra hao tổn (overhead) rất lớn đối với đường dẫn dữ liệu.
 \end{itemize}
 
+Hình~\ref{fig:netfilter-iptables-flow} minh họa cách một gói tin đi qua các hook chính của Netfilter trong Linux kernel. Với traffic đi vào node, gói tin được xử lý ở \texttt{PREROUTING}; với traffic sinh ra từ tiến trình local trên node, gói tin đi qua \texttt{OUTPUT}. Trong Mode A, \texttt{kube-proxy} lập trình các chain như \texttt{KUBE-SERVICES} để bắt Service IP tại các hook này và thực hiện DNAT sang Pod IP. Sau bước xử lý Service, traffic đi vào node có thể được đưa tới \texttt{INPUT} nếu đích là local hoặc qua \texttt{FORWARD}/\texttt{POSTROUTING} nếu là traffic chuyển tiếp. Ngược lại, traffic sinh ra từ tiến trình local sẽ đi qua quyết định định tuyến sau \texttt{OUTPUT} và đi thẳng tới \texttt{POSTROUTING}, không đi qua chain \texttt{FORWARD}.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{0.98\textwidth}{!}{%
+    \begin{tikzpicture}[
+        node distance=1.2cm and 1.8cm,
+        >=Latex,
+        netfilter_chain/.style={
+            rectangle,
+            draw=blue!65!black,
+            fill=blue!10,
+            rounded corners=3pt,
+            thick,
+            align=center,
+            text width=2.95cm,
+            minimum width=2.95cm,
+            minimum height=1.0cm,
+            inner sep=5pt,
+            font=\small
+        },
+        kube_chain/.style={
+            rectangle,
+            draw=orange!75!black,
+            fill=orange!10,
+            rounded corners=3pt,
+            thick,
+            align=center,
+            text width=3.25cm,
+            minimum width=3.25cm,
+            minimum height=1.15cm,
+            inner sep=5pt,
+            font=\small
+        },
+        endpoint/.style={
+            rectangle,
+            draw=gray!70!black,
+            fill=gray!10,
+            rounded corners=3pt,
+            thick,
+            align=center,
+            text width=2.9cm,
+            minimum width=2.9cm,
+            minimum height=1.0cm,
+            inner sep=5pt,
+            font=\small
+        },
+        control_box/.style={
+            rectangle,
+            draw=gray!75!black,
+            dashed,
+            fill=white,
+            rounded corners=3pt,
+            thick,
+            align=center,
+            text width=3.05cm,
+            minimum width=3.05cm,
+            minimum height=0.95cm,
+            inner sep=5pt,
+            font=\small
+        },
+        arrow/.style={
+            -{Latex[scale=1.2]},
+            thick,
+            draw=blue!65!black
+        },
+        control_arrow/.style={
+            -{Latex[scale=1.15]},
+            thick,
+            dashed,
+            draw=gray!70!black
+        },
+        conntrack_arrow/.style={
+            {Latex[scale=1.05]}-{Latex[scale=1.05]},
+            thick,
+            dashed,
+            draw=gray!70!black
+        }
+    ]
+        % Grid layout: col1 input sources, col2 Netfilter hooks,
+        % col3 Kubernetes Service chain, col4 routing decisions,
+        % col5 output chains, col6 egress endpoint.
+        \node[endpoint] (local) at (0,3.4)
+            {Tiến trình local\\tạo gói};
+        \node[endpoint] (ingress) at (0,0)
+            {Gói tin vào\\từ NIC/veth};
+
+        \node[netfilter_chain] (output) at (4.0,3.4)
+            {\textbf{OUTPUT}\\filter / nat};
+        \node[netfilter_chain] (prerouting) at (4.0,0)
+            {\textbf{PREROUTING}\\raw / mangle / nat};
+
+        \node[kube_chain] (kubeservices) at (8.2,1.7)
+            {\textbf{KUBE-SERVICES}\\DNAT Service IP\\$\rightarrow$ Pod IP};
+
+        \node[endpoint] (route2) at (12.4,3.4)
+            {Routing\\decision 2\\Local Out};
+        \node[endpoint] (route1) at (12.4,0)
+            {Routing\\decision 1\\Ingress/Transit};
+
+        \node[netfilter_chain] (input) at (16.6,5.1)
+            {\textbf{INPUT}\\đích local};
+        \node[netfilter_chain] (forward) at (16.6,0)
+            {\textbf{FORWARD}\\chuyển tiếp};
+        \node[netfilter_chain] (postrouting) at (16.6,-3.2)
+            {\textbf{POSTROUTING}\\SNAT / MASQ};
+
+        \node[endpoint] (egress) at (20.8,-3.2)
+            {Gói rời node\\đến Pod/đích};
+
+        \node[control_box] (kubeproxy) at (8.2,-1.45)
+            {\textbf{kube-proxy}\\lập trình luật\\iptables};
+
+        \node[control_box] (conntrack) at (4.0,-3.2)
+            {\textbf{Conntrack}\\theo dõi trạng thái\\NEW / ESTABLISHED};
+
+        \draw[arrow] (ingress) -- (prerouting);
+        \draw[arrow] (local) -- (output);
+
+        \draw[arrow] (output.east) -- ([yshift=0.36cm]kubeservices.west);
+        \draw[arrow] (prerouting.east) -- ([yshift=-0.36cm]kubeservices.west);
+        \draw[arrow] ([yshift=0.36cm]kubeservices.east) -- (route2.west);
+        \draw[arrow] ([yshift=-0.36cm]kubeservices.east) -- (route1.west);
+
+        \coordinate (localLaneTop) at (18.7,3.4);
+        \coordinate (localLaneDown) at (18.7,-2.7);
+        \coordinate (ctbottom) at ($(conntrack.south)+(0,-0.5cm)$);
+
+        \draw[arrow]
+            (route2.east) -- (localLaneTop)
+            -- (localLaneDown)
+            -- (postrouting.north east);
+
+        \draw[arrow] (route1.north east) -- (input.south west);
+        \draw[arrow] (route1.east) -- (forward.west);
+
+        \draw[arrow] (forward.south) -- (postrouting.north);
+        \draw[arrow] (postrouting) -- (egress);
+
+        \draw[control_arrow] (kubeproxy.north) -- (kubeservices.south);
+
+        \draw[conntrack_arrow]
+            (conntrack.north) -- ++(0,0.55)
+            -| (prerouting.south);
+
+        \draw[conntrack_arrow]
+            (conntrack.south) -- (ctbottom)
+            -| (postrouting.south);
+
+        \begin{scope}[on background layer]
+            \node[
+                draw=gray!35,
+                rounded corners=5pt,
+                fill=gray!3,
+                inner sep=10pt,
+                fit=(prerouting) (output) (kubeservices) (route1) (route2) (input) (forward) (postrouting)
+            ] (kernelbox) {};
+        \end{scope}
+
+        \node[
+            font=\small\bfseries,
+            text=gray!70!black,
+            anchor=south west
+        ] at ([xshift=0.1cm,yshift=0.1cm]kernelbox.north west)
+        {Linux kernel: Netfilter / iptables datapath};
+    \end{tikzpicture}}
+    \caption{Cơ chế xử lý gói tin qua các hook Netfilter và iptables trong Linux kernel ở Mode A}
+    \label{fig:netfilter-iptables-flow}
+\end{figure}
+
 \subsection{Cơ chế hoạt động của kube-proxy}
 \texttt{kube-proxy} là một thành phần cốt lõi chạy dưới dạng \texttt{DaemonSet} trên mỗi node. Theo mặc định, \texttt{kube-proxy} không trực tiếp chuyển tiếp gói tin ở không gian người dùng (user space) mà nó liên tục lắng nghe (watch) API Server để nhận các thay đổi về Service và \texttt{EndpointSlice}. Sau đó, nó tự động lập trình (program) các tập luật \texttt{iptables} tương ứng vào nhân Linux để hệ điều hành tự thực hiện việc dịch địa chỉ và cân bằng tải.
 
@@ -56,6 +226,13 @@ Cilium là một CNI tiên tiến được xây dựng hoàn toàn dựa trên n
 
 \subsection{Cơ chế Cilium eBPF Datapath - KubeProxyReplacement}
 Trong Mode B, tính năng \texttt{kubeProxyReplacement} (KPR) được bật để thay thế hoàn toàn vai trò của \texttt{kube-proxy}. Khi một ứng dụng gọi đến \texttt{ClusterIP}, thay vì để gói tin đi xuống tầng mạng vật lý và chịu sự can thiệp của \texttt{iptables}, chương trình eBPF tại hook \texttt{sockops} sẽ nhận diện IP đích. Nó thực hiện tra cứu trực tiếp trên BPF Map $O(1)$ để tìm ra IP thực của Pod backend, sau đó chuyển hướng gói tin thẳng ở cấp độ socket (socket-level redirect) từ client sang server. Quá trình này bỏ qua hoàn toàn mạng host (host network stack), loại bỏ các phép biến đổi DNAT/SNAT và bỏ qua phần lớn sự phụ thuộc vào bảng conntrack đối với các luồng mạng nội bộ.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{graphics/chapter-1/CilliumArchitecture.png}
+    \caption{Kiến trúc Cilium eBPF Datapath với KubeProxyReplacement (Mode B)}
+    \label{fig:cilium-architecture}
+\end{figure}
 
 \section{So sánh Datapath: Mode A vs. Mode B}
 
@@ -207,11 +384,50 @@ Các nguồn blog/\allowbreak notes cộng đồng & mixed & Kinh nghiệm thự
 
 \begin{itemize}
     \item \textbf{Tầng 1 (Network RTT):} Thời gian di chuyển thuần túy của gói tin trên đường truyền vật lý (thường đo bằng ICMP Ping).
-    \item \textbf{Tầng 2 (TCP RTT):} Bao gồm Network RTT cộng thêm thời gian thiết lập bắt tay 3 bước (3-way handshake) của giao thức TCP.
+    \item \textbf{Tầng 2 (TCP RTT):} Bao gồm Network RTT cộng thêm chi phí xử lý TCP ở hai đầu, chẳng hạn xử lý trạng thái kết nối, xác nhận gói và các cơ chế điều khiển truyền.
     \item \textbf{Tầng 3 (Application Latency):} Độ trễ tổng thể bao gồm TCP RTT, thời gian xử lý giao thức lớp ứng dụng (như phân tích cú pháp HTTP), thời gian xử lý logic của máy chủ và thời gian truyền tải nội dung (body).
 \end{itemize}
 
-Trong đồ án này, công cụ Fortio được sử dụng để đo lường độ trễ ở Tầng 3 (Application Latency thông qua HTTP). Việc đo đạc ở tầng ứng dụng (\textit{end-to-end perceived latency}) giúp phản ánh chính xác nhất trải nghiệm thực tế mà người dùng hoặc các microservices nội bộ nhận được khi gọi qua Kubernetes Service.
+Trong đồ án này, công cụ Fortio được sử dụng để đo lường độ trễ ở Tầng 3 (Application Latency thông qua HTTP). Network RTT và TCP RTT được dùng như các lớp diễn giải khái niệm, không phải chỉ số chính được báo cáo trong benchmark. Việc đo đạc ở tầng ứng dụng (\textit{end-to-end perceived latency}) giúp phản ánh trực tiếp hơn trải nghiệm thực tế mà người dùng hoặc các microservices nội bộ nhận được khi gọi qua Kubernetes Service.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=0.8cm,
+        endpoint/.style={draw, rounded corners=2pt, align=center, inner sep=4pt, font=\footnotesize\bfseries, fill=blue!8, text width=2.5cm, minimum height=0.9cm},
+        svcbox/.style={draw, rounded corners=2pt, align=center, inner sep=4pt, font=\footnotesize, fill=gray!8, text width=2.55cm, minimum height=0.9cm},
+        scopebox/.style={draw, rounded corners=3pt, align=center, inner sep=5pt, font=\footnotesize, minimum height=0.72cm},
+        appscope/.style={scopebox, fill=orange!12, draw=orange!70!black, text width=9.7cm, minimum width=10.5cm},
+        tcpscope/.style={scopebox, fill=blue!8, draw=blue!65!black, text width=7.7cm, minimum width=8.4cm},
+        netscope/.style={scopebox, fill=gray!10, draw=gray!70!black, text width=5.7cm, minimum width=6.3cm},
+        flowarrow/.style={-{Latex[length=2.8mm,width=1.8mm]}, line width=0.9pt, draw=blue!65!black},
+        responsearrow/.style={-{Latex[length=2.0mm,width=1.25mm]}, line width=0.55pt, draw=blue!40!black},
+        assoc/.style={line width=0.6pt, draw=gray!55!black, densely dotted},
+        note/.style={font=\footnotesize, align=center}
+    ]
+        \node[endpoint] (client) at (0,0) {Fortio client\\gửi request};
+        \node[svcbox] (svc) at (5.0,0) {Kubernetes\\Service / datapath};
+        \node[endpoint] (server) at (10.0,0) {Echo server\\trả response};
+
+        \draw[flowarrow] (client) -- node[above, note] {HTTP request} (svc);
+        \draw[flowarrow] (svc) -- node[above, note] {datapath} (server);
+        \draw[responsearrow] (server.south) .. controls (8.15,-0.78) and (1.85,-0.78) ..
+            node[below, font=\scriptsize, align=center] {HTTP response} (client.south);
+
+        \node[appscope] (app) at (5.0,-2.40)
+            {\textbf{Application latency (Fortio/HTTP)}: lớp đo chính của benchmark, từ HTTP request đến full response};
+        \node[tcpscope] (tcp) at (5.0,-4.15)
+            {\textbf{TCP RTT (khái niệm)}: gồm truyền gói và chi phí xử lý TCP ở hai đầu};
+        \node[netscope] (network) at (5.0,-5.90)
+            {\textbf{Network RTT}: diễn giải ở mức truyền gói trên đường đi mạng};
+
+        \draw[assoc] (svc.south) -- ++(0,-0.42) -- (app.north);
+        \draw[assoc] ([xshift=-2.7cm]app.south) -- ([xshift=-1.9cm]tcp.north);
+        \draw[assoc] ([xshift=1.9cm]tcp.south) -- ([xshift=1.35cm]network.north);
+    \end{tikzpicture}
+    \caption{Minh họa các tầng diễn giải độ trễ: benchmark dùng Fortio để đo application latency qua HTTP; Network RTT và TCP RTT chỉ là các lớp khái niệm hỗ trợ, không phải phép tách thành phần trực tiếp từ số liệu benchmark}
+    \label{fig:rtt-application-latency}
+\end{figure}
 
 \subsection{Phân phối độ trễ và Tầm quan trọng của Độ trễ phần đuôi (Tail Latency)}
 
