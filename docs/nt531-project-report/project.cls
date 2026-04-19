@@ -33,10 +33,12 @@
 \newcommand{\uniname}[1]{\renewcommand{\@uniname}{#1}}
 \newcommand{\@deptname}{}
 \newcommand{\deptname}[1]{\renewcommand{\@deptname}{#1}}
-\newcommand{\@reporttype}{ĐỒ ÁN MÔN HỌC}
+\newcommand{\@reporttype}{BÁO CÁO ĐỒ ÁN MÔN HỌC}
 \newcommand{\reporttype}[1]{\renewcommand{\@reporttype}{#1}}
 \newcommand{\@coursename}{}
 \newcommand{\coursename}[1]{\renewcommand{\@coursename}{#1}}
+\newcommand{\@coursecode}{}
+\newcommand{\coursecode}[1]{\renewcommand{\@coursecode}{#1}}
 \newcommand{\@stumajor}{}
 \newcommand{\stumajor}[1]{\renewcommand{\@stumajor}{#1}}
 \renewcommand{\@title}{}
@@ -135,17 +137,23 @@
       \includegraphics[width=0.2\textwidth]{logo-uit.png}
     \end{center}
     \vfill
-    \uppercase{\@stunamewithid}
-    \vfill
     \uppercase{\@reporttype}\\
     \uppercase{\@coursename}
+    \\
+    {\mdseries \@coursecode}
     \vfill
     {\Large{\parbox[c]{0.8\linewidth}{\centering\@title}}}
     \vfill
     \uppercase{\@supervisor} \\
     \uppercase{\@supervisorname}
   \end{center}
-  \vfill
+  \vspace{1.0\baselineskip}
+  {\mdseries\normalsize
+    \hspace*{0.8cm}\begin{minipage}{0.88\textwidth}
+      \noindent\textbf{Nh\'om th\d{\uhorn}c hi\d{\ecircumflex}n: Nh\'om 12}\\
+      \@stunamewithid
+    \end{minipage}
+  }
   \vfill
   \mdseries
   \begin{center}
