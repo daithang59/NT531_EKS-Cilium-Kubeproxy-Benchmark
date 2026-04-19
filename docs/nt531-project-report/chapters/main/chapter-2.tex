@@ -150,18 +150,21 @@ Thành phần benchmark:
 \centering
 \caption{Cấu hình workload}
 \label{tab:workload-config}
-\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}p{3.2cm} >{\raggedright\arraybackslash}p{3.2cm} X}
-\toprule
+\renewcommand{\arraystretch}{1.4}
+\begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{2.2cm}|>{\raggedright\arraybackslash}p{4.4cm}|>{\raggedright\arraybackslash}p{3.4cm}|>{\raggedright\arraybackslash}X|}
+\hline
 \textbf{Thành phần} & \textbf{Image/Loại} & \textbf{Requests/Limits} & \textbf{Ghi chú} \\
-\midrule
+\hline
 Server & \texttt{hashicorp/http-echo} & Ghi theo artifact thực tế & Endpoint đơn giản để đo service datapath \\
+\hline
 Client & \texttt{fortio/fortio} & Ghi theo artifact thực tế & Tạo tải benchmark trong cluster \\
+\hline
 Service & \texttt{ClusterIP} & -- & Mục tiêu chính của nghiên cứu \\
+\hline
 Policy object & \texttt{CiliumNetworkPolicy} & -- & Chỉ dùng cho S3 (Mode B) \\
-\bottomrule
+\hline
 \end{tabularx}
 \end{table}
-
 \section{Phân tích cơ chế, truy vết và ghi nhận dữ liệu}
 \label{sec:code-tracing-logging}
 
