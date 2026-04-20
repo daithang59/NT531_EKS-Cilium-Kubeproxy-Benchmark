@@ -1,0 +1,101 @@
+% !TeX root = main.tex
+% !TeX program = xelatex
+\documentclass[12pt, a4paper]{project} % Dùng class tùy chỉnh có định nghĩa \coverpage và các biến trang bìa
+
+% ==========================================
+% 1. CÀI ĐẶT NGÔN NGỮ & FONT CHỮ
+% ==========================================
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T5]{fontenc}      % Hỗ trợ font tiếng Việt khi dùng pdfLaTeX
+  \usepackage[utf8]{inputenc}   % Hỗ trợ gõ Unicode UTF-8 khi dùng pdfLaTeX
+\fi
+\AtBeginDocument{\selectlanguage{vietnamese}}
+\addto\captionsvietnamese{\renewcommand{\chaptername}{Chương}}
+
+% Tăng cỡ chữ cho tiêu đề chương (vd: "Giới thiệu")
+\makechapterstyle{nt531chapter}{
+    \chapterstyle{default}
+    \renewcommand{\chapnamefont}{\normalfont\Large\bfseries}
+    \renewcommand{\chapnumfont}{\normalfont\Huge\bfseries}
+    \renewcommand{\chaptitlefont}{\normalfont\Huge\bfseries}
+}
+\chapterstyle{nt531chapter}
+
+% ==========================================
+% 2. CĂN LỀ & ĐỊNH DẠNG TRANG
+% ==========================================
+\geometry{top=2.5cm, bottom=2.5cm, left=3cm, right=2cm} % Class đã load geometry, chỉ set lại thông số
+\usepackage{fancyhdr}         % Tùy biến header/footer (đánh số trang)
+\setlength{\parskip}{0.5em}   % Khoảng cách giữa các đoạn văn
+\linespread{1.3}              % Dãn dòng 1.3 (tương đương 1.5 lines trong Word)
+
+% ==========================================
+% 3. XỬ LÝ BẢNG BIỂU (TABLES)
+% ==========================================
+\usepackage{tabularx}         % Tự động dàn trang bảng cho vừa chiều rộng
+\usepackage{booktabs}         % Đường kẻ bảng chuyên nghiệp (toprule, midrule, bottomrule)
+\usepackage{multirow}         % Gộp dòng (hữu ích cho bảng RQ/Fairness)
+\usepackage{makecell}         % Cho phép ngắt dòng (enter) ngay trong 1 ô của bảng
+\usepackage{longtable}        % Cho phép bảng tự động ngắt trang nếu quá dài (hữu ích cho Workloads table)
+
+% ==========================================
+% 4. XỬ LÝ HÌNH ẢNH & BIỂU ĐỒ (FIGURES)
+% ==========================================
+\usepackage{graphicx}         % Gói cơ bản để chèn ảnh
+\usepackage{float}            % Ép vị trí ảnh bằng lệnh [H]
+\usepackage{subcaption}       % Cho phép chèn nhiều ảnh nhỏ trong 1 ảnh lớn (VD: Đồ thị so sánh p99)
+\usepackage{tikz}             % Vẽ sơ đồ minh họa trực tiếp bằng LaTeX
+\usetikzlibrary{arrows.meta, positioning, fit, calc, backgrounds, shapes.geometric}
+\tikzset{
+    ntbox/.style={draw, rounded corners=2pt, align=center, inner sep=5pt, font=\small, fill=gray!8},
+    ntfocus/.style={draw, rounded corners=2pt, align=center, inner sep=5pt, font=\small\bfseries, fill=blue!8},
+    ntwarn/.style={draw, rounded corners=2pt, align=center, inner sep=5pt, font=\small, fill=orange!12},
+    ntarrow/.style={-{Latex[length=2.2mm]}, thick}
+}
+
+% ==========================================
+% 5. CÔNG THỨC TOÁN HỌC & THỐNG KÊ
+% ==========================================
+\usepackage{amsmath, amssymb, amsfonts} % Hỗ trợ gõ công thức (p50, p99, O(1), O(n))
+
+% ==========================================
+% 6. MÃ NGUỒN & LOG (CODE & ARTIFACTS)
+% ==========================================
+\usepackage{listings}         % Chèn code (hữu ích cho manifests, bash script, hubble.log)
+\usepackage{xcolor}           % Hỗ trợ tô màu cho code snippet
+\usepackage[scaled=0.95]{inconsolata} % Font monospace dễ đọc hơn cho code
+
+% Định nghĩa ngôn ngữ JSON cho listings
+\lstdefinelanguage{json}{
+    basicstyle=\ttfamily\small,
+    showstringspaces=false,
+    breaklines=true,
+    string=[b]",
+    stringstyle=\color{red}
+}
+
+% Cấu hình mặc định cho khối code
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    columns=fullflexible,
+    keepspaces=true,
+    showstringspaces=false,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!50!black},
+    stringstyle=\color{red}
+}
+
+% ==========================================
+% 7. DANH SÁCH & LIÊN KẾT (LISTS & HYPERLINKS)
+% ==========================================
+\usepackage{enumitem}         % Tùy biến bullet points và numbering
+\usepackage{hyperref}         % Class đã load hyperref; load lại không thêm options để tránh clash
+\hypersetup{hidelinks}        % Ẩn viền link trong Mục lục/Danh mục
+\usepackage{cleveref}         % Tham chiếu thông minh (tự động thêm chữ "Bảng", "Hình" trước số)
+\usepackage{csquotes}         % Hỗ trợ trích dẫn cho biblatex
+\usepackage[backend=biber,style=numeric,sorting=none,url=true,doi=false,eprint=false,isbn=false]{biblatex}
+\addbibresource{ref.bib}

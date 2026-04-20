@@ -1,0 +1,50 @@
+% !TeX root = ../../main.tex
+% Chương 5: Kết luận
+
+\chapter{Kết luận}
+
+\section{Tóm tắt phát hiện chính}
+
+Đồ án này đánh giá sự khác biệt hiệu năng giữa hai cách xử lý Kubernetes Service trong cùng một môi trường EKS: Mode A sử dụng \texttt{kube-proxy}/iptables, còn Mode B sử dụng Cilium eBPF kube-proxy replacement. Phạm vi benchmark tập trung vào service traffic qua \texttt{ClusterIP}, workload Fortio/HTTP echo, ba mức tải đã hiệu chuẩn L1/L2/L3, và ba kịch bản chính: tải ổn định, tải có burst/connection churn, và chi phí NetworkPolicy trong Mode B.
+
+Kết quả tổng hợp cho thấy Mode B có lợi thế p99 rõ nhất trong kịch bản S1 ở L2 và L3. Ở L1, Mode B cũng có p99 trung bình thấp hơn, nhưng kết quả này chỉ nên được xem là xu hướng vì chưa đủ mạnh về ý nghĩa thống kê. Điều này trả lời RQ1 theo hướng có bằng chứng ủng hộ: trong điều kiện steady-state của benchmark hiện tại, Mode B cho thấy tail latency tốt hơn Mode A rõ hơn khi tải tăng.
+
+Với S2, kết quả cho thấy khác biệt giữa hai mode phụ thuộc mạnh vào pha và mức tải. Ở L2, Mode B có xu hướng tốt hơn ở nhiều pha nhưng Burst 1 là ngoại lệ quan trọng. Ở L3, Mode B có p99 trung bình thấp hơn Mode A ở toàn bộ pha, đặc biệt trong các pha burst, nhưng nhiều khác biệt chưa được đánh dấu significant. Vì vậy, RQ2 được trả lời theo hướng thận trọng: Mode B có xu hướng thuận lợi hơn dưới tải cao và workload động, nhưng không thể kết luận Mode B tốt hơn ở mọi pha.
+
+Với S3, kết quả cho thấy trong Mode B, policy ON và policy OFF có p99 và RPS rất gần nhau với policy đơn giản hiện tại. Do đó, RQ3 được trả lời rằng chi phí quan sát được của NetworkPolicy là nhỏ trong phạm vi benchmark này. Tuy nhiên, kết luận này không có nghĩa policy overhead bằng không, và cũng không nên khái quát cho các chính sách phức tạp hơn.
+
+Calibration và repeatability giúp tăng độ tin cậy của cách đọc kết quả. Calibration cho thấy L1/L2/L3 được chọn có cơ sở, trong đó L3 là mức high-stress/tail-spike load chứ không phải saturation point tuyệt đối. Repeatability cho thấy S1 và S3 ổn định hơn, còn S2 biến động hơn do bản chất workload có phase, burst và churn. Nhìn chung, kết luận chính của đồ án là Cilium eBPF kube-proxy replacement là một hướng triển khai có lợi cho tail latency trong phạm vi benchmark được đo, đặc biệt ở tải trung bình/cao, nhưng lợi thế này cần được diễn giải theo bối cảnh kịch bản và giới hạn dữ liệu.
+
+\section{Ý nghĩa thực tiễn}
+
+Về mặt vận hành, kết quả cho thấy Mode B là lựa chọn đáng cân nhắc khi hệ thống quan tâm đến tail latency của service traffic, nhất là trong các workload có tải trung bình đến cao. Trong các hệ thống microservices, p99 thường quan trọng hơn p50 vì một tỷ lệ nhỏ request chậm cũng có thể ảnh hưởng đến trải nghiệm người dùng hoặc lan truyền độ trễ qua nhiều service. Việc Mode B thể hiện lợi thế rõ hơn ở L2/L3 cho thấy eBPF kube-proxy replacement có thể mang lại giá trị thực tế trong các môi trường cần tối ưu đường đi Service.
+
+Kết quả cũng cho thấy benchmark steady-state là cần thiết nhưng chưa đủ. S1 giúp quan sát khác biệt datapath trong điều kiện sạch, nhưng S2 cho thấy workload có burst và connection churn có thể tạo hành vi phức tạp hơn. Vì vậy, khi đánh giá một datapath mạng trong Kubernetes, chỉ đo một mức tải ổn định có thể bỏ sót các tình huống vận hành quan trọng. Phân tích theo pha giúp người vận hành hiểu rõ hơn khi nào lợi thế xuất hiện rõ và khi nào kết quả cần thận trọng.
+
+Đối với NetworkPolicy, kết quả S3 gợi ý rằng trong cấu hình Mode B hiện tại, một policy đơn giản không tạo overhead p99/RPS đáng kể. Điều này có ý nghĩa thực tiễn vì nó cho thấy việc bật policy enforcement cơ bản không nhất thiết phải đánh đổi rõ rệt về hiệu năng trong workload được đo. Tuy nhiên, người vận hành vẫn cần kiểm thử lại với policy thực tế của hệ thống, vì số rule, số namespace, số endpoint và mẫu lưu lượng có thể làm chi phí thay đổi.
+
+Một ý nghĩa khác là dữ liệu observability như Hubble nên được dùng đúng vai trò. Hubble giúp xác nhận và quan sát luồng mạng, nhưng kết quả hiệu năng chính vẫn phải dựa trên benchmark output, latency, RPS, error rate và phân tích lặp lại. Cách kết hợp này giúp đánh giá hệ thống thực tế hơn mà không biến telemetry thành bằng chứng hiệu năng thay thế.
+
+\section{Giới hạn nghiên cứu}
+
+Giới hạn quan trọng nhất của nghiên cứu là số lần lặp còn nhỏ. Nhiều nhóm đo có \(n=3\), đủ để tính mean, stdev, khoảng tin cậy, delta và CV\% ở mức mô tả, nhưng chưa đủ để tạo statistical power mạnh như một nghiên cứu quy mô lớn. Vì vậy, p-value và cột significant trong đồ án chỉ được dùng như bằng chứng hỗ trợ, không phải chứng minh tuyệt đối.
+
+Phạm vi hạ tầng cũng cần được giới hạn rõ. Benchmark được thực hiện trên một cụm AWS EKS cụ thể, với 3 worker nodes loại \texttt{m5.large}, workload Fortio/HTTP echo và Service \texttt{ClusterIP}. Kết quả có thể thay đổi khi chuyển sang instance family khác, cluster lớn hơn, multi-AZ, cấu hình Cilium khác, hoặc workload ứng dụng thực tế có xử lý nghiệp vụ phức tạp hơn.
+
+Workload của đồ án là workload tổng hợp. Fortio và HTTP echo phù hợp để cô lập phần service datapath, nhưng không đại diện đầy đủ cho toàn bộ hành vi của production traffic. Các hệ thống thực tế có thể có payload lớn hơn, kết nối dài hơn, gRPC, TLS, nhiều service hop, hoặc dependency backend phức tạp. Do đó, kết quả của đồ án nên được xem là bằng chứng trong một benchmark có kiểm soát, không phải kết luận phổ quát.
+
+S3 cũng có giới hạn riêng. Chính sách được dùng trong benchmark là policy đơn giản và traffic chính là allowed traffic. Vì vậy, kết luận về overhead nhỏ chỉ áp dụng cho phạm vi đó. Các policy nhiều rule, nhiều selector, nhiều namespace hoặc traffic pattern phức tạp hơn có thể tạo kết quả khác. Ngoài ra, evidence từ Hubble có giá trị hỗ trợ quan sát, nhưng không phải nguồn kết quả hiệu năng chính và không nên được dùng để đưa ra claim vượt quá raw artifacts hiện có.
+
+Cuối cùng, benchmark tập trung vào service datapath trong phạm vi được kiểm soát. Đồ án chưa đánh giá đầy đủ các kịch bản như cross-node phức tạp, multi-AZ, failure case, autoscaling động, hoặc production trace dài hạn. Đây là trade-off có chủ ý: phạm vi hẹp giúp so sánh Mode A và Mode B rõ hơn, nhưng làm giảm khả năng khái quát sang mọi môi trường triển khai.
+
+\section{Hướng phát triển tiếp theo}
+
+Hướng phát triển đầu tiên là tăng số lần lặp và mở rộng pipeline thống kê. Việc chạy nhiều lần hơn cho mỗi nhóm sẽ giúp ước lượng variance tốt hơn, tăng độ tin cậy của khoảng tin cậy và làm cho kiểm định thống kê có ý nghĩa hơn. Pipeline cũng có thể được mở rộng với các phân tích bổ trợ như điều chỉnh multiple comparisons hoặc sensitivity analysis, nhưng chỉ nên đưa vào báo cáo khi đã được triển khai và tái sinh output đầy đủ.
+
+Hướng thứ hai là mở rộng phạm vi hạ tầng. Các benchmark tiếp theo nên kiểm tra thêm nhiều instance type, kích thước cluster, cấu hình node, cross-node traffic và multi-AZ. Điều này giúp đánh giá liệu xu hướng quan sát được trên cụm EKS hiện tại có còn giữ trong các điều kiện cloud khác hay không.
+
+Hướng thứ ba là dùng workload thực tế hơn. Ngoài Fortio/HTTP echo, có thể bổ sung workload có payload lớn hơn, gRPC, TLS, nhiều service hop, hoặc ứng dụng mẫu có xử lý CPU/I/O rõ ràng. Các workload này sẽ giúp đánh giá tác động của datapath trong bối cảnh gần production hơn, nơi độ trễ ứng dụng và độ trễ mạng có thể tương tác với nhau.
+
+Hướng thứ tư là mở rộng S3 với nhiều loại NetworkPolicy. Các policy có nhiều rule, nhiều selector, nhiều namespace, hoặc kết hợp allow/deny phức tạp hơn sẽ giúp đánh giá policy enforcement overhead đầy đủ hơn. Khi đó, Hubble và các telemetry artifact cũng nên được time-align tốt hơn với từng cửa sổ benchmark để đóng vai trò hỗ trợ đáng tin cậy hơn.
+
+Cuối cùng, có thể mở rộng nghiên cứu sang các kịch bản datapath khác ngoài phạm vi hiện tại, chẳng hạn NodePort, LoadBalancer, ingress path, service mesh hoặc các tình huống failure/recovery. Những hướng này sẽ giúp đánh giá toàn diện hơn vai trò của eBPF trong hệ sinh thái Kubernetes, đồng thời giữ được nguyên tắc quan trọng của đồ án: kết luận hiệu năng phải dựa trên dữ liệu đo có kiểm soát, đọc cùng bối cảnh kịch bản và giới hạn thực nghiệm.

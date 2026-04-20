@@ -1,0 +1,73 @@
+% !TeX root = ../main.tex
+% Phụ lục F - Scripts va cau hinh thuc nghiem
+
+\chapter{Phụ lục kịch bản và cấu hình thí nghiệm (Scripts \& Configuration)}
+\label{app:scripts-config}
+
+Phụ lục này mô tả các script và manifest cấu hình dùng trong pipeline benchmark. Mục tiêu là minh bạch cách tự động hóa chạy thí nghiệm, thu thập bằng chứng và phân tích dữ liệu, hạn chế tối đa thao tác thủ công dễ sai sót.
+\section{ Liên kết mã nguồn đầy đủ}
+
+Kho mã nguồn gốc của dự án được lưu tại:
+
+\begin{center}
+\url{https://github.com/daithang59/NT531_EKS-Cilium-Kubeproxy-Benchmark/tree/main/scripts}
+\end{center}
+\section{Các kịch bản chạy Benchmark (Benchmark Scripts)}
+
+Phần này liệt kê các script Bash chịu trách nhiệm ép tải và thu thập artifact theo Results Contract.
+
+\begin{itemize}
+		\item \texttt{scripts/calibrate.sh}: chạy calibration sweep để xác định các mốc tải L1, L2, L3 dựa trên dữ liệu thực đo trước khi chạy benchmark chính thức.
+		\item \texttt{scripts/run\_s1.sh}: chạy benchmark steady-state với tải cố định để đo baseline latency/throughput qua ClusterIP Service.
+		\item \texttt{scripts/run\_s2.sh}: chạy benchmark nhiều pha (ramp-up, sustained, burst, cooldown) và tạo connection churn bằng \texttt{keepalive=false}.
+		\item \texttt{scripts/run\_s3.sh}: chạy benchmark theo hai pha policy OFF/ON để đo overhead của NetworkPolicy enforcement.
+		\item \texttt{scripts/collect\_meta.sh} và \texttt{scripts/collect\_hubble.sh}: thu thập metadata cụm, trạng thái datapath, và flow logs từ Hubble làm bằng chứng kiểm chứng.
+\end{itemize}
+
+Mã nguồn đầy đủ của \texttt{scripts/run\_s1.sh} có sẵn tại:
+
+\begin{center}
+\url{https://github.com/daithang59/NT531_EKS-Cilium-Kubeproxy-Benchmark/blob/main/scripts/run_s1.sh}
+\end{center}
+
+Script này chạy steady-state benchmark với tải cố định, gồm vòng lặp \texttt{REPEAT} lần, mỗi lần gọi \texttt{execute\_run} để chạy Fortio và thu thập artifact.
+
+Mã nguồn đầy đủ của \texttt{scripts/run\_s2.sh} có sẵn tại:
+
+\begin{center}
+\url{https://github.com/daithang59/NT531_EKS-Cilium-Kubeproxy-Benchmark/blob/main/scripts/run_s2.sh}
+\end{center}
+
+Script này chạy benchmark đa pha (ramp-up, sustained, burst, cooldown) để kiểm tra hiệu năng dưới tải stress và connection churn.
+
+Mã nguồn đầy đủ của \texttt{scripts/run\_s3.sh} có sẵn tại:
+
+\begin{center}
+\url{https://github.com/daithang59/NT531_EKS-Cilium-Kubeproxy-Benchmark/blob/main/scripts/run_s3.sh}
+\end{center}
+
+Script này chạy benchmark theo hai pha (OFF/ON) để đo overhead của CiliumNetworkPolicy enforcement. Pha OFF ghi nhận baseline, pha ON áp dụng policy và so sánh overhead enforcement.
+
+\section{Các kịch bản phân tích dữ liệu (Analysis Scripts)}
+
+Đây là các script Python xử lý dữ liệu thô thành kết quả cuối cùng, đảm bảo toàn bộ phép tính được tự động hóa và có thể tái lập.
+
+\begin{itemize}
+		\item \texttt{scripts/analyze\_results.py}: đọc artifact benchmark, parse log Fortio, tổng hợp thống kê theo nhóm (mode/scenario/load/phase), xuất \texttt{aggregated\_summary.csv} và \texttt{comparison\_AB.csv}; đồng thời thực hiện kiểm định Welch's t-test, tính \(p\)-value và \(\Delta\%\).
+		\item \texttt{scripts/generate\_charts.py}: đọc CSV phân tích và tự động sinh toàn bộ biểu đồ phục vụ đồ án (định dạng PNG/PDF), bao gồm nhóm biểu đồ S1/S2/S3, repeatability và calibration.
+\end{itemize}
+
+\section{Các file cấu hình Workload và Policy (Workload Manifests)}
+
+Phần này mô tả các manifest YAML dùng để triển khai workload benchmark trên Kubernetes và policy cho kịch bản S3.
+
+\begin{itemize}
+		\item \texttt{workload/server/01-namespace.yaml}: khởi tạo namespace \texttt{benchmark} cho workload đo đạc.
+		\item \texttt{workload/server/02-echo-deploy.yaml}: triển khai HTTP echo server với cấu hình tài nguyên cố định để giảm nhiễu khi đo.
+		\item \texttt{workload/server/03-echo-svc.yaml}: khai báo ClusterIP Service làm đích truy cập cho Fortio.
+		\item \texttt{workload/client/01-fortio-deploy.yaml}: triển khai pod Fortio chạy chế độ server/runner để phát sinh tải benchmark.
+		\item \texttt{workload/policies/01-cilium-policy-allow-fortio-to-echo.yaml} và \texttt{workload/policies/02-cilium-policy-deny-other.yaml}: định nghĩa CiliumNetworkPolicy dùng cho pha ON của S3 để kiểm tra overhead enforcement và hành vi allow/deny.
+		\item \texttt{helm/cilium/values-baseline.yaml} và \texttt{helm/cilium/values-ebpfkpr.yaml}: hai file Helm values tạo khác biệt datapath giữa Mode A (\texttt{kubeProxyReplacement: false}) và Mode B (\texttt{kubeProxyReplacement: true}).
+\end{itemize}
+
+

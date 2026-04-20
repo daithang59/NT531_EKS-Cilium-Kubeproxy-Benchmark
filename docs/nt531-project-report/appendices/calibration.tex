@@ -1,0 +1,69 @@
+% !TeX root = ../main.tex
+% Phụ lục B - Dữ liệu hiệu chuẩn tải
+
+\chapter{Phụ lục dữ liệu hiệu chuẩn tải}
+\label{app:calibration}
+
+Phụ lục này tổng hợp dữ liệu hiệu chuẩn tải được trích từ artifact gốc ở thư mục \texttt{results/calibration/}. Mục tiêu là minh bạch cơ sở chọn ba mức tải chính thức L1/L2/L3 cho benchmark ở các chương phân tích.
+
+\section{Bảng dữ liệu quét hiệu chuẩn (Calibration Sweep Data)}
+
+Bảng~\ref{tab:app-calibration-sweep-raw} sao chép trực tiếp các điểm quét từ file \texttt{results/calibration/mode=A\_kube-proxy/calibration\_2026-04-12T05-24-25+07-00.csv}. Bảng giữ đầy đủ các cột cần thiết cho việc biện luận mức tải: p50/p90/p99/p999, achieved RPS và error rate.
+
+\begin{table}[H]
+\centering
+\caption{Table B.1 - Dữ liệu quét hiệu chuẩn tải (raw calibration sweep)}
+\label{tab:app-calibration-sweep-raw}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{>{\raggedleft\arraybackslash}p{1.0cm}>{\raggedleft\arraybackslash}p{1.0cm}>{\raggedleft\arraybackslash}p{0.9cm}>{\raggedleft\arraybackslash}p{1.15cm}>{\raggedleft\arraybackslash}p{1.15cm}>{\raggedleft\arraybackslash}p{1.15cm}>{\raggedleft\arraybackslash}p{1.15cm}>{\raggedleft\arraybackslash}p{1.5cm}>{\raggedleft\arraybackslash}p{1.35cm}>{\raggedright\arraybackslash}X}
+\toprule
+\textbf{QPS} & \textbf{Conns} & \textbf{Runs} & \textbf{p50 (ms)} & \textbf{p90 (ms)} & \textbf{p99 (ms)} & \textbf{p999 (ms)} & \textbf{Achieved RPS} & \textbf{Error (\%)} & \textbf{Ghi chú} \\
+\midrule
+50 & 4 & 2 & 0.150 & 0.267 & 0.293 & 0.295 & 50.000 & 0.000 & Dưới L1; quá nhẹ cho benchmark chính \\
+100 & 8 & 2 & 0.208 & 0.353 & 0.385 & 0.388 & 100.000 & 0.000 & Điểm chốt L1 \\
+200 & 16 & 2 & 1.833 & 2.639 & 2.742 & 2.753 & 200.000 & 0.000 & Điểm chuyển tiếp giữa L1 và L2 \\
+400 & 32 & 2 & 0.846 & 1.854 & 2.107 & 2.133 & 400.000 & 0.000 & Điểm chốt L2 \\
+800 & 64 & 2 & 1.709 & 4.411 & 33.006 & 33.420 & 799.900 & 0.000 & Điểm chốt L3 (tail-spike rõ) \\
+1600 & 64 & 2 & 3.085 & 5.746 & 48.135 & 49.152 & 1599.950 & 0.000 & Điểm stress cao hơn, không chọn làm L3 cuối \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Biểu đồ đường cong hiệu chuẩn (Calibration Chart)}
+
+Hình~\ref{fig:app-calibration-curve-b11} trực quan hóa dữ liệu trong Table B.1 theo đúng tinh thần \textit{fig-11 (Calibration Curve)}: trục X là target QPS, trục Y thể hiện mức p99 latency (ms), đồng thời có đường error rate để kiểm tra biên lỗi. Các đường gióng dọc đánh dấu rõ ba mốc tải chính thức L1/L2/L3.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.92\textwidth]{../figures/thesis/fig-calibration-curve.png}
+	\caption{Calibration Curve (fig-11): p99 theo target QPS, kèm đường error rate và các mốc dọc L1/L2/L3}
+	\label{fig:app-calibration-curve-b11}
+\end{figure}
+
+Từ biểu đồ có thể thấy hệ thống dịch chuyển từ trạng thái tải nhẹ (L1) sang vùng bắt đầu bộc lộ tail latency (L2), và đến L3 thì p99 tăng vọt rõ ràng (tail-spike). Đây là cơ sở định lượng để chọn mức tải thay vì chọn cảm tính.
+
+\section{Bảng biện luận chọn mức tải (L1/L2/L3 Justification Table)}
+
+Bảng~\ref{tab:app-calibration-justification} là bảng lõi (Table B.2) giải thích lý do chốt từng mức tải chính thức dựa trên ngưỡng kỹ thuật và dữ liệu thực đo.
+
+\begin{table}[H]
+\centering
+\caption{Table B.2 - Biện luận chọn mức tải chính thức L1/L2/L3}
+\label{tab:app-calibration-justification}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{1.2cm}>{\raggedleft\arraybackslash}p{1.2cm}>{\raggedleft\arraybackslash}p{1.2cm}>{\raggedleft\arraybackslash}p{1.2cm}>{\raggedleft\arraybackslash}p{1.4cm}>{\raggedleft\arraybackslash}p{1.4cm}>{\raggedleft\arraybackslash}p{1.4cm}>{\raggedright\arraybackslash}X}
+\toprule
+\textbf{Mức tải} & \textbf{QPS} & \textbf{Conns} & \textbf{Threads} & \textbf{p99 (ms)} & \textbf{Ach. RPS} & \textbf{Error (\%)} & \textbf{Biện luận chọn mức tải} \\
+\midrule
+L1 & 100 & 8 & 2 & 0.385 & 100.000 & 0.000 & Chọn làm baseline tải nhẹ vì p99 rất thấp (\(<5\) ms), hệ thống ổn định và error rate bằng 0\%. \\
+L2 & 400 & 32 & 4 & 2.107 & 400.000 & 0.000 & Chọn làm tải trung bình vì tạo áp lực đủ để thấy tail latency rõ hơn nhưng chưa bão hòa; đáp ứng tiêu chí vận hành an toàn (error rate \(<1\)\%). \\
+L3 & 800 & 64 & 8 & 33.006 & 799.900 & 0.000 & Chọn làm điểm stress vì p99 tăng vọt, bộc lộ rõ tail-spike của datapath; throughput vẫn bám target và error rate vẫn trong ngưỡng chấp nhận (\(<5\)\%). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Ghi chú mở rộng (tùy chọn):} Nếu bổ sung được ảnh \texttt{fig-calibration-node-cpu.png} từ Grafana theo đúng cửa sổ quét calibration, có thể chèn tại đây làm bằng chứng rằng tail-spike ở L3 không phải do CPU node bị bão hòa tuyệt đối, mà phản ánh nút thắt ở datapath/network path trong điều kiện thử nghiệm hiện tại.

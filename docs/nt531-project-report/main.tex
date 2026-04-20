@@ -1,0 +1,71 @@
+% ==========================================
+% IMPORT PREAMBLE - Cấu hình gói và định dạng
+% ==========================================
+\input{preamble}
+% ==========================================
+% Chỉnh các biến cho phần trang bìa (cover page)
+% Các biến này được định nghĩa trong file class project.cls
+% ==========================================
+\upperuniname{ĐẠI HỌC QUỐC GIA THÀNH PHỐ HỒ CHÍ MINH}
+\uniname{TRƯỜNG ĐẠI HỌC CÔNG NGHỆ THÔNG TIN}
+\deptname{KHOA MẠNG MÁY TÍNH VÀ TRUYỀN THÔNG}
+\stumajor{KỸ SƯ NGÀNH MẠNG MÁY TÍNH VÀ TRUYỀN THÔNG DỮ LIỆU}
+\coursename{ĐÁNH GIÁ HIỆU NĂNG\\HỆ THỐNG MẠNG MÁY TÍNH}
+\coursecode{Mã môn: NT531.Q21}
+\title{Đánh giá hiệu năng Kubernetes Service datapath giữa kube-proxy và Cilium eBPF kube-proxy replacement trên AWS EKS}
+\titleen{TITLE FOR THE SPECIALIZED PROJECT IN ENGLISH}
+\supervisor{GIẢNG VIÊN HƯỚNG DẪN}
+\supervisorname{ThS. Đặng Lê Bảo Chương}
+\stunamewithid{Huỳnh Lê Đại Thắng - 23521422\\Bùi Ngọc Thái - 23521412\\Nguyễn Trường Duy - 23520380}
+\reporttime{NĂM 2026}
+\begin{document}
+% ==========================================
+% TRANG TIÊU ĐỀ & DANH MỤC
+% ==========================================
+\pagenumbering{gobble}
+\coverpage
+
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+\tableofcontents    % Tự động tạo Mục lục 
+\clearpage
+\listoftables       % Tự động tạo Danh mục bảng 
+\clearpage
+\listoffigures      % Tự động tạo Danh mục hình 
+
+\clearpage
+
+% Bảng từ viết tắt
+\input{chapters/main/glossary}
+
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+% Include các chương chính
+\input{chapters/main/intro}
+\input{chapters/main/chapter-1}
+\input{chapters/main/chapter-2}
+\input{chapters/main/chapter-3}
+\input{chapters/main/conclusion}
+
+% ==========================================
+% TÀI LIỆU THAM KHẢO
+% ==========================================
+\cleardoublepage
+\chapter{Tài liệu tham khảo}
+\nocite{*}
+\printbibliography[heading=none]
+
+% ==========================================
+% PHỤ LỤC (APPENDICES) 
+% ==========================================
+\appendix
+\input{appendices/infrastructure}
+\input{appendices/calibration}
+\input{appendices/statistics}
+\input{appendices/raw-data}
+\input{appendices/figures}
+\input{appendices/scripts}
+\end{document}

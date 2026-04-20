@@ -1,0 +1,462 @@
+% Chương 2: Background & Related Work
+
+% ==========================================
+% CHƯƠNG 2: BACKGROUND & RELATED WORK
+% ==========================================
+\chapter{Cơ sở lý thuyết}
+
+% Nếu bạn đang viết file con, có thể bỏ dòng \chapter ở trên đi
+
+\section{Lớp mạng trong Kubernetes (Kubernetes Networking Layer)}
+
+\subsection{Mô hình mạng cơ bản (Pod Networking)}
+Trong môi trường Kubernetes, mỗi Pod được cấp phát một địa chỉ IP riêng biệt và không trùng lặp trên toàn bộ cụm (cluster). Để giao tiếp với mạng bên ngoài, mỗi Pod sử dụng một không gian mạng (network namespace) riêng và kết nối với máy chủ vật lý (node) thông qua một cặp giao diện mạng ảo gọi là \texttt{veth} (virtual ethernet pair). Một đầu của \texttt{veth} nằm bên trong Pod, đầu còn lại kết nối với một bridge mạng trên node (ví dụ: \texttt{cni0}), cho phép các Pod trên cùng node giao tiếp với nhau hoặc định tuyến gói tin ra giao diện mạng chính của máy chủ (như \texttt{eth0}).
+
+\subsection{CNI (Container Network Interface) Plugins}
+CNI là một tiêu chuẩn và cơ chế (plugin) chịu trách nhiệm thiết lập mạng cho Pod, quản lý việc cấp phát địa chỉ IP (IPAM) và thực thi các chính sách mạng. Thay vì sử dụng các plugin mặc định như AWS VPC CNI, kiến trúc mạng có thể được thay thế bởi các CNI tiên tiến hơn như Cilium để trực tiếp quản lý IP của Pod và tối ưu hóa đường dẫn dữ liệu.
+
+\subsection{Kubernetes Service và bài toán Cân bằng tải}
+Bởi đặc tính cấp phát động và không cố định của Pod, địa chỉ IP của chúng sẽ thay đổi mỗi khi hệ thống
+ thực hiện khởi động lại hoặc điều phối lại tài nguyên. Để giải quyết vấn đề này, Kubernetes giới thiệu khái niệm
+  Service (\texttt{ClusterIP}), cung cấp một địa chỉ IP ảo cố định (Virtual IP) nhằm trừu tượng hóa một nhóm các Pod backend. Tuy nhiên, dải IP của 
+\texttt{ClusterIP} (ví dụ 10.96.0.0/12) không bao giờ được gán trực tiếp vào bất kỳ giao diện mạng vật lý nào, mà nó 
+chỉ tồn tại dưới dạng các quy tắc logic. Do đó, hệ thống đặt ra bài toán bắt buộc phải có một thành phần đóng vai 
+trò proxy hoặc bộ cân bằng tải trên mỗi node để bắt các gói tin gửi tới IP ảo này và định tuyến chúng tới địa chỉ 
+IP thực của Pod.
+
+\section{Cơ chế xử lý mạng truyền thống với Mode A (kube-proxy \& iptables)}
+
+\subsection{Cơ chế xử lý gói tin trong nhân Linux}
+\begin{itemize}
+    \item \textbf{Netfilter framework và iptables:} Hệ điều hành Linux sử dụng \texttt{iptables} để quản lý luồng mạng thông qua các chuỗi (chains) như \texttt{PREROUTING}, \texttt{INPUT}, \texttt{OUTPUT}, và \texttt{POSTROUTING}. Các quy tắc này hoạt động theo cơ chế duyệt tuần tự, tức là gói tin phải đi qua từng luật một, dẫn đến độ phức tạp thuật toán là $O(n)$.
+    \item \textbf{DNAT và SNAT (Network Address Translation):} Khi gói tin đi qua chuỗi \texttt{KUBE-SERVICES}, hệ 
+	thống thực hiện DNAT (Destination NAT) để biến đổi IP đích từ Service IP sang IP thực của Pod. Khi gói tin phản 
+	hồi rời khỏi Pod, chuỗi \texttt{POSTROUTING} thực hiện SNAT (Source NAT/Masquerade) để thay thế IP nguồn của Pod bằng IP của Node.
+    \item \textbf{Conntrack (Connection Tracking):} Để thực hiện NAT thành công, nhân Linux bắt buộc phải sử dụng bảng conntrack nhằm theo dõi trạng thái của mọi kết nối (ví dụ: \texttt{NEW}, \texttt{ESTABLISHED}). Quá trình tra cứu trạng thái này sinh ra hao tổn (overhead) rất lớn đối với đường dẫn dữ liệu.
+\end{itemize}
+
+Hình~\ref{fig:netfilter-iptables-flow} minh họa cách một gói tin đi qua các hook chính của Netfilter trong Linux kernel. Với traffic đi vào node, gói tin được xử lý ở \texttt{PREROUTING}; với traffic sinh ra từ tiến trình local trên node, gói tin đi qua \texttt{OUTPUT}. Trong Mode A, \texttt{kube-proxy} lập trình các chain như \texttt{KUBE-SERVICES} để bắt Service IP tại các hook này và thực hiện DNAT sang Pod IP. Sau bước xử lý Service, traffic đi vào node có thể được đưa tới \texttt{INPUT} nếu đích là local hoặc qua \texttt{FORWARD}/\texttt{POSTROUTING} nếu là traffic chuyển tiếp. Ngược lại, traffic sinh ra từ tiến trình local sẽ đi qua quyết định định tuyến sau \texttt{OUTPUT} và đi thẳng tới \texttt{POSTROUTING}, không đi qua chain \texttt{FORWARD}.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{0.98\textwidth}{!}{%
+    \begin{tikzpicture}[
+        node distance=1.2cm and 1.8cm,
+        >=Latex,
+        netfilter_chain/.style={
+            rectangle,
+            draw=blue!65!black,
+            fill=blue!10,
+            rounded corners=3pt,
+            thick,
+            align=center,
+            text width=2.95cm,
+            minimum width=2.95cm,
+            minimum height=1.0cm,
+            inner sep=5pt,
+            font=\small
+        },
+        kube_chain/.style={
+            rectangle,
+            draw=orange!75!black,
+            fill=orange!10,
+            rounded corners=3pt,
+            thick,
+            align=center,
+            text width=3.25cm,
+            minimum width=3.25cm,
+            minimum height=1.15cm,
+            inner sep=5pt,
+            font=\small
+        },
+        endpoint/.style={
+            rectangle,
+            draw=gray!70!black,
+            fill=gray!10,
+            rounded corners=3pt,
+            thick,
+            align=center,
+            text width=2.9cm,
+            minimum width=2.9cm,
+            minimum height=1.0cm,
+            inner sep=5pt,
+            font=\small
+        },
+        control_box/.style={
+            rectangle,
+            draw=gray!75!black,
+            dashed,
+            fill=white,
+            rounded corners=3pt,
+            thick,
+            align=center,
+            text width=3.05cm,
+            minimum width=3.05cm,
+            minimum height=0.95cm,
+            inner sep=5pt,
+            font=\small
+        },
+        arrow/.style={
+            -{Latex[scale=1.2]},
+            thick,
+            draw=blue!65!black
+        },
+        control_arrow/.style={
+            -{Latex[scale=1.15]},
+            thick,
+            dashed,
+            draw=gray!70!black
+        },
+        conntrack_arrow/.style={
+            {Latex[scale=1.05]}-{Latex[scale=1.05]},
+            thick,
+            dashed,
+            draw=gray!70!black
+        }
+    ]
+        % Grid layout: col1 input sources, col2 Netfilter hooks,
+        % col3 Kubernetes Service chain, col4 routing decisions,
+        % col5 output chains, col6 egress endpoint.
+        \node[endpoint] (local) at (0,3.4)
+            {Tiến trình local\\tạo gói};
+        \node[endpoint] (ingress) at (0,0)
+            {Gói tin vào\\từ NIC/veth};
+
+        \node[netfilter_chain] (output) at (4.0,3.4)
+            {\textbf{OUTPUT}\\filter / nat};
+        \node[netfilter_chain] (prerouting) at (4.0,0)
+            {\textbf{PREROUTING}\\raw / mangle / nat};
+
+        \node[kube_chain] (kubeservices) at (8.2,1.7)
+            {\textbf{KUBE-SERVICES}\\DNAT Service IP\\$\rightarrow$ Pod IP};
+
+        \node[endpoint] (route2) at (12.4,3.4)
+            {Routing\\decision 2\\Local Out};
+        \node[endpoint] (route1) at (12.4,0)
+            {Routing\\decision 1\\Ingress/Transit};
+
+        \node[netfilter_chain] (input) at (16.6,5.1)
+            {\textbf{INPUT}\\đích local};
+        \node[netfilter_chain] (forward) at (16.6,0)
+            {\textbf{FORWARD}\\chuyển tiếp};
+        \node[netfilter_chain] (postrouting) at (16.6,-3.2)
+            {\textbf{POSTROUTING}\\SNAT / MASQ};
+
+        \node[endpoint] (egress) at (20.8,-3.2)
+            {Gói rời node\\đến Pod/đích};
+
+        \node[control_box] (kubeproxy) at (8.2,-1.45)
+            {\textbf{kube-proxy}\\lập trình luật\\iptables};
+
+        \node[control_box] (conntrack) at (4.0,-3.2)
+            {\textbf{Conntrack}\\theo dõi trạng thái\\NEW / ESTABLISHED};
+
+        \draw[arrow] (ingress) -- (prerouting);
+        \draw[arrow] (local) -- (output);
+
+        \draw[arrow] (output.east) -- ([yshift=0.36cm]kubeservices.west);
+        \draw[arrow] (prerouting.east) -- ([yshift=-0.36cm]kubeservices.west);
+        \draw[arrow] ([yshift=0.36cm]kubeservices.east) -- (route2.west);
+        \draw[arrow] ([yshift=-0.36cm]kubeservices.east) -- (route1.west);
+
+        \coordinate (localLaneTop) at (18.7,3.4);
+        \coordinate (localLaneDown) at (18.7,-2.7);
+        \coordinate (ctbottom) at ($(conntrack.south)+(0,-0.5cm)$);
+
+        \draw[arrow]
+            (route2.east) -- (localLaneTop)
+            -- (localLaneDown)
+            -- (postrouting.north east);
+
+        \draw[arrow] (route1.north east) -- (input.south west);
+        \draw[arrow] (route1.east) -- (forward.west);
+
+        \draw[arrow] (forward.south) -- (postrouting.north);
+        \draw[arrow] (postrouting) -- (egress);
+
+        \draw[control_arrow] (kubeproxy.north) -- (kubeservices.south);
+
+        \draw[conntrack_arrow]
+            (conntrack.north) -- ++(0,0.55)
+            -| (prerouting.south);
+
+        \draw[conntrack_arrow]
+            (conntrack.south) -- (ctbottom)
+            -| (postrouting.south);
+
+        \begin{scope}[on background layer]
+            \node[
+                draw=gray!35,
+                rounded corners=5pt,
+                fill=gray!3,
+                inner sep=10pt,
+                fit=(prerouting) (output) (kubeservices) (route1) (route2) (input) (forward) (postrouting)
+            ] (kernelbox) {};
+        \end{scope}
+
+        \node[
+            font=\small\bfseries,
+            text=gray!70!black,
+            anchor=south west
+        ] at ([xshift=0.1cm,yshift=0.1cm]kernelbox.north west)
+        {Linux kernel: Netfilter / iptables datapath};
+    \end{tikzpicture}}
+    \caption{Cơ chế xử lý gói tin qua các hook Netfilter và iptables trong Linux kernel ở Mode A}
+    \label{fig:netfilter-iptables-flow}
+\end{figure}
+
+\subsection{Cơ chế hoạt động của kube-proxy}
+\texttt{kube-proxy} là một thành phần cốt lõi chạy dưới dạng \texttt{DaemonSet} trên mỗi node. Theo mặc định, \texttt{kube-proxy} không trực tiếp chuyển tiếp gói tin ở không gian người dùng (user space) mà nó liên tục lắng nghe (watch) API Server để nhận các thay đổi về Service và \texttt{EndpointSlice}. Sau đó, nó tự động lập trình (program) các tập luật \texttt{iptables} tương ứng vào nhân Linux để hệ điều hành tự thực hiện việc dịch địa chỉ và cân bằng tải.
+
+\subsection{Hạn chế của kiến trúc truyền thống}
+Kiến trúc dựa trên \texttt{iptables} và \texttt{kube-proxy} bộc lộ điểm nghẽn nghiêm trọng khi hệ thống mở rộng. Nếu cụm có hàng nghìn Service, số lượng luật \texttt{iptables} sẽ tăng lên hàng chục nghìn, khiến thời gian duyệt $O(n)$ tăng tuyến tính và gây ra độ trễ mạng lớn. Đặc biệt dưới tải cao hoặc khi sự thay đổi kết nối diễn ra liên tục (connection churn), bảng conntrack có thể đạt đến giới hạn và bị đầy, dẫn đến việc hệ thống từ chối (\texttt{DROP}) các gói tin mới, làm suy giảm thông lượng đột ngột và gây ra các gai độ trễ phần đuôi (tail latency spike).
+
+\section{Công nghệ eBPF và Cilium Datapath với Mode B}
+
+\subsection{Công nghệ eBPF}
+eBPF (Extended Berkeley Packet Filter) là công nghệ cho phép chạy các chương trình tùy chỉnh trực tiếp bên trong không gian nhân (kernel space) của Linux một cách an toàn mà không cần sửa đổi mã nguồn kernel hay chuyển đổi ngữ cảnh (context switch). Mức độ an toàn được đảm bảo thông qua một bộ xác minh (Verifier) kiểm tra bytecode trước khi tải, cùng cơ chế biên dịch JIT (Just-In-Time) giúp mã thực thi với tốc độ gốc. Thay vì duyệt quy tắc tuần tự, eBPF lưu trữ dữ liệu trong các cấu trúc gọi là BPF Maps (bảng băm key-value), cho phép tra cứu đích đến với thời gian cố định $O(1)$, bất kể quy mô của cluster.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{graphics/chapter-1/eBPFMechanics.png}
+    \caption{Ảnh minh họa cơ chế hoạt động của eBPF}
+    \label{fig:calibration-curve}
+\end{figure}
+\subsection{Kiến trúc Cilium CNI}
+Cilium là một CNI tiên tiến được xây dựng hoàn toàn dựa trên nền tảng eBPF, giúp tối ưu hóa datapath bằng cách bỏ qua các khung mạng truyền thống như \texttt{iptables}. Cilium đính kèm các chương trình eBPF vào các điểm móc (hooks) sâu trong kernel như \texttt{sockops} (cấp độ socket) hoặc \texttt{tc} (Traffic Control) để xử lý gói tin ngay từ những bước đầu tiên.
+
+\subsection{Cơ chế Cilium eBPF Datapath - KubeProxyReplacement}
+Trong Mode B, tính năng \texttt{kubeProxyReplacement} (KPR) được bật để thay thế hoàn toàn vai trò của \texttt{kube-proxy}. Khi một ứng dụng gọi đến \texttt{ClusterIP}, thay vì để gói tin đi xuống tầng mạng vật lý và chịu sự can thiệp của \texttt{iptables}, chương trình eBPF tại hook \texttt{sockops} sẽ nhận diện IP đích. Nó thực hiện tra cứu trực tiếp trên BPF Map $O(1)$ để tìm ra IP thực của Pod backend, sau đó chuyển hướng gói tin thẳng ở cấp độ socket (socket-level redirect) từ client sang server. Quá trình này bỏ qua hoàn toàn mạng host (host network stack), loại bỏ các phép biến đổi DNAT/SNAT và bỏ qua phần lớn sự phụ thuộc vào bảng conntrack đối với các luồng mạng nội bộ.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{graphics/chapter-1/CilliumArchitecture.png}
+    \caption{Kiến trúc Cilium eBPF Datapath với KubeProxyReplacement (Mode B)}
+    \label{fig:cilium-architecture}
+\end{figure}
+
+\section{So sánh Datapath: Mode A vs. Mode B}
+
+
+Để hiểu rõ tại sao eBPF mang lại ưu thế về độ trễ (latency) so với iptables, cần phân tích chi tiết đường đi của một gói tin (datapath) khi một Client Pod gửi request tới một Kubernetes Service (\texttt{ClusterIP}) để đến Server Pod.
+
+\textbf{Đường đi của gói tin trong Mode A (kube-proxy \& iptables):}
+\begin{enumerate}
+    \item \textbf{Khởi tạo kết nối:} Ứng dụng trong Client Pod gọi hàm \texttt{connect()} để gửi gói tin đến địa chỉ Virtual IP của Service (VD: 10.96.0.1).
+    \item \textbf{Rời Pod:} Gói tin đi qua giao diện mạng ảo \texttt{veth} của Pod để đi xuống không gian mạng của máy chủ (Host Network Namespace).
+    \item \textbf{Xử lý tại Netfilter/iptables:} Gói tin bị bắt lại tại các điểm móc (hooks) của Netfilter trong nhân Linux (cụ thể là chuỗi \texttt{PREROUTING} hoặc \texttt{OUTPUT}).
+    \item \textbf{Dịch địa chỉ (DNAT) và Conntrack:} Gói tin phải duyệt qua danh sách các quy tắc iptables $O(n)$ do \texttt{kube-proxy} tạo ra. Khi tìm thấy quy tắc khớp với Service VIP, hệ thống thực hiện DNAT để đổi IP đích từ Service VIP sang IP thực của một Server Pod (VD: 10.0.2.10). Đồng thời, thông tin này được ghi vào bảng \texttt{conntrack} để duy trì trạng thái kết nối.
+    \item \textbf{Định tuyến (Routing):} Kernel tra cứu bảng định tuyến để biết cách gửi gói tin đến IP của Server Pod.
+    \item \textbf{Đích đến:} Gói tin đi qua \texttt{veth} của Server Pod và đến ứng dụng đích.
+\end{enumerate}
+\textit{Hệ quả:} Đường đi này dài, phải chuyển đổi ngữ cảnh (context switch) liên tục qua các tầng mạng của Linux và phụ thuộc nặng nề vào \texttt{conntrack}.
+
+\textbf{Đường đi của gói tin trong Mode B (Cilium eBPF KPR - eBPF Socket-level Redirect):}
+\begin{enumerate}
+    \item \textbf{Đánh chặn tại Socket:} Ngay khi ứng dụng trong Client Pod gọi \texttt{connect()} tới Service VIP, chương trình eBPF được đính kèm tại điểm móc \texttt{cgroup/sockops} sẽ lập tức chặn (intercept) lời gọi này ngay tại tầng socket, trước khi gói tin thực sự được tạo ra và đẩy xuống TCP/IP stack.
+    \item \textbf{Tra cứu BPF Map:} Chương trình eBPF tra cứu trực tiếp địa chỉ Service VIP trong BPF Service Map ($O(1)$) để chọn ra IP của Server Pod đích.
+    \item \textbf{Chuyển hướng trực tiếp (Socket-level Redirect):} Thay vì đẩy gói tin xuống các tầng mạng thấp hơn của Node (bỏ qua toàn bộ host routing, Netfilter, iptables), eBPF thực hiện chuyển hướng gói tin (redirect) thẳng từ socket của Client Pod sang socket của Server Pod.
+    \item \textbf{Đích đến:} Ứng dụng tại Server Pod nhận được dữ liệu gần như ngay lập tức.
+\end{enumerate}
+\textit{Hệ quả:} Cơ chế bypass toàn bộ host network stack (Fast Path) giúp Mode B loại bỏ hoàn toàn chi phí duyệt luật iptables và chi phí duy trì trạng thái conntrack, từ đó giải thích trực tiếp cho việc giảm thiểu độ trễ phần đuôi (tail latency) trong các kịch bản benchmark S1 và S2.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{ % Tự động co giãn vừa trang giấy
+\begin{tikzpicture}[
+    % 1. Định nghĩa style chung
+    box/.style={
+        draw, rounded corners=2pt, minimum width=3.2cm, minimum height=0.8cm, 
+        align=center, font=\small, fill=blue!5
+    },
+    sidebox/.style={
+        draw, dashed, rounded corners=2pt, minimum width=2.5cm, minimum height=0.8cm, 
+        align=center, font=\footnotesize, fill=gray!5
+    },
+    title/.style={font=\bfseries\large}
+]
+
+    % --- TIÊU ĐỀ ---
+    % Chia nhỏ tiêu đề để tránh lỗi chèn chữ
+    \node[title, align=center] (titleA1) at (3, 0.4) {Mode A};
+    \node[font=\bfseries, align=center] (titleA2) [below=0cm of titleA1] {kube-proxy (iptables)};
+
+    \node[title, align=center] (titleB1) at (10, 0.4) {Mode B};
+    \node[font=\bfseries, align=center] (titleB2) [below=0cm of titleB1] {Cilium eBPF KPR};
+
+    % --- ĐƯỜNG PHÂN CÁCH TRUNG TÂM ---
+    \draw[dashed, thick, gray] (6.5, 0.9) -- (6.5, -10.5);
+
+
+    % ==========================================
+    % MODE A (Bên trái)
+    % ==========================================
+    % Khai báo các Node nối tiếp nhau từ trên xuống dưới
+    \node[box] (clientA) [below=0.6cm of titleA2] {Client Pod};
+    \node[box] (vethA)   [below=0.6cm of clientA] {veth};
+    \node[box] (cni0A)   [below=0.6cm of vethA] {node bridge cni0};
+    \node[box] (eth0A)   [below=0.6cm of cni0A] {eth0 node};
+    
+    % Khối xử lý
+    \node[box] (iptablesA) [below=0.6cm of eth0A] {iptables\\(DNAT/SNAT)};
+    \node[sidebox] (kubeA) [left=0.6cm of iptablesA] {kube-proxy};
+    
+    \node[box] (serverA) [below=0.8cm of iptablesA] {Server Pod};
+
+    % Vẽ mũi tên Datapath (Đường đi gói tin)
+    \draw[->, thick] (clientA) -- (vethA);
+    \draw[->, thick] (vethA) -- (cni0A);
+    \draw[->, thick] (cni0A) -- (eth0A);
+    \draw[->, thick] (eth0A) -- (iptablesA);
+    \draw[->, thick] (iptablesA) -- (serverA);
+    
+    % Vẽ mũi tên Control plane (Lập trình luật)
+    \draw[->, thick, dashed, gray] (kubeA) -- node[above, font=\scriptsize, text=black] {programs} (iptablesA);
+
+
+    % ==========================================
+    % MODE B (Bên phải)
+    % ==========================================
+    \node[box] (clientB) [below=0.6cm of titleB2] {Client Pod};
+    \node[box] (vethB)   [below=0.6cm of clientB] {veth};
+    \node[box] (cni0B)   [below=0.6cm of vethB] {node bridge cni0};
+    \node[box] (eth0B)   [below=0.6cm of cni0B] {eth0 node};
+    
+    % Khối xử lý
+    \node[box] (ebpfB)   [below=0.6cm of eth0B] {eBPF prog};
+    \node[sidebox, text width=2.4cm] (mapsB) [right=0.6cm of ebpfB] {BPF service/\\policy maps};
+    
+    \node[box] (serverB) [below=0.8cm of ebpfB] {Server Pod};
+
+    % Vẽ mũi tên Datapath (Đường đi gói tin)
+    \draw[->, thick] (clientB) -- (vethB);
+    \draw[->, thick] (vethB) -- (cni0B);
+    \draw[->, thick] (cni0B) -- (eth0B);
+    \draw[->, thick] (eth0B) -- (ebpfB);
+    \draw[->, thick] (ebpfB) -- (serverB);
+    
+    % Vẽ mũi tên Lookup (Tra cứu map)
+    \draw[<->, thick, dashed, gray] (ebpfB) -- node[above, font=\scriptsize, text=black] {lookup} (mapsB);
+
+\end{tikzpicture}
+}
+\caption{Datapath Comparison: Từ Client Pod qua các interface node vật lý/ảo để đến Server Pod.}
+\label{fig:datapath-comparison-detailed}
+\end{figure}
+
+
+\section{Khả năng quan sát mạng với Hubble (Network Observability)}
+Hubble là một lớp quan sát mạng (observability layer) được xây dựng trực tiếp trên nền tảng eBPF của Cilium. Nó cung cấp khả năng hiển thị sâu ở cấp độ từng luồng (per-flow visibility) ngay tại tầng datapath. Bằng cách xuất các phán quyết (verdicts) rõ ràng như \texttt{FORWARDED} (cho phép) hoặc \texttt{DROPPED} (từ chối), Hubble đóng vai trò là bằng chứng trực quan cốt lõi để xác minh tính hiệu quả của các chính sách mạng (NetworkPolicy). Chức năng này cực kỳ quan trọng đối với kịch bản S3 của đồ án để kiểm tra khả năng chặn lọc. Tuy nhiên, việc duy trì một bộ đệm vòng (ring buffer) và xuất nhật ký sự kiện liên tục tạo ra một mức hao tổn tài nguyên nhất định (khoảng 1-5\%), đây là yếu tố nhiễu cần được ghi nhận khi so sánh Mode B so với Mode A vốn không có công cụ tương đương.
+
+\section{Các nghiên cứu liên quan và Khoảng trống nghiên cứu (Related Work \& Research Gap)}
+
+\textbf{Tóm tắt các nghiên cứu trước đây:} Các báo cáo hiệu năng chính thức từ Cilium (Isovalent) và một số nghiên cứu học thuật trước đây đã chứng minh sự ưu việt của công nghệ eBPF so với \texttt{iptables}, đặc biệt trong việc cải thiện thông lượng (throughput) và giảm độ trễ (latency) trung bình. Tuy nhiên, các nghiên cứu này chủ yếu được tiến hành trên môi trường máy chủ vật lý (bare-metal), môi trường giả lập cục bộ (Minikube/Lab), hoặc Google Kubernetes Engine (GKE).
+
+\textbf{Khoảng trống nghiên cứu (Research Gap):} Đa số các nghiên cứu hiện tại còn tồn tại khoảng trống lớn khi thiếu hụt các bằng chứng đo lường thực nghiệm trên các cụm triển khai chuẩn sản xuất (production-grade cluster) thuộc nền tảng AWS EKS, đặc biệt là việc sử dụng các máy ảo cấu hình ổn định (non-burstable instances) để tránh nhiễu hệ thống. Bên cạnh đó, các nghiên cứu cũ thường thiếu đi sự đánh giá thống kê nghiêm ngặt đối với độ trễ phần đuôi (tail latency p99) trong các điều kiện môi trường tải biến động và thay đổi kết nối liên tục (connection churn - Kịch bản S2). Cuối cùng, vẫn còn thiếu các nghiên cứu định lượng rõ mức độ suy hao hiệu năng khi bật kết hợp các chính sách bảo vệ mạng (NetworkPolicy) cùng công cụ quan sát Hubble (Kịch bản S3). Đồ án này được thực hiện nhằm lấp đầy chính những khoảng trống đó, qua đó khẳng định giá trị thực tiễn đối với hệ thống đám mây quản lý (Managed Cloud).
+
+\begin{table}[H]
+\centering
+\caption{Related Work Comparison}
+\label{tab:related-work-comparison}
+% Tăng khoảng cách dòng lên một chút để chữ không bị sát vào đường kẻ
+\renewcommand{\arraystretch}{1.3} 
+\begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{2.6cm}|>{\raggedright\arraybackslash}p{2.2cm}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}p{2.8cm}|>{\raggedright\arraybackslash}p{3.2cm}|}
+\hline
+\textbf{Nguồn} & \textbf{Môi trường} & \textbf{Nội dung chính} & \textbf{Điểm còn thiếu} & \textbf{Thesis này bổ sung} \\
+\hline
+Cilium docs/\allowbreak benchmark notes & self-managed/\allowbreak cloud & Benchmark về Cilium và cơ chế datapath & Thiếu protocol đầy đủ và bộ artifact chuẩn hóa & Protocol benchmark rõ ràng, artifact provenance nhất quán \\
+\hline
+Kubernetes/\allowbreak kube-proxy docs & docs & Mô tả cơ chế Service handling và kube-proxy & Không có benchmark so sánh A/B đầy đủ trên EKS & Benchmark A/B trực tiếp trên EKS thật \\
+\hline
+Tài liệu Hubble & docs & Flow observability và policy verdict & Không đo policy overhead dưới workload thực nghiệm & Bổ sung S3 policy overhead kèm evidence theo flow \\
+\hline
+Các nguồn blog/\allowbreak notes cộng đồng & mixed & Kinh nghiệm thực hành và tuning thực tế & Khó tái lập, thiếu kiểm soát biến & Thiết kế thực nghiệm kiểm soát biến và phạm vi kết luận rõ ràng \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Các chỉ số đo lường hiệu năng mạng (Network Performance Metrics)}
+
+Để đánh giá và so sánh chính xác hiệu năng của đường dẫn dữ liệu (datapath) trong Kubernetes, nghiên cứu này sử dụng một tập hợp các chỉ số đo lường chuẩn xác, bao gồm độ trễ, thông lượng, tỉ lệ lỗi và mức tiêu thụ tài nguyên.
+
+\subsection{Độ trễ vòng (Round Trip Time - RTT) ở Tầng Ứng dụng}
+
+Độ trễ vòng (RTT) là thời gian tính từ lúc máy khách (client) gửi gói tin đầu tiên cho đến khi nhận được toàn bộ phản hồi hoàn chỉnh từ máy chủ (server). Trong các bài kiểm tra hiệu năng mạng, RTT có thể được đo ở nhiều tầng khác nhau:
+
+\begin{itemize}
+    \item \textbf{Tầng 1 (Network RTT):} Thời gian di chuyển thuần túy của gói tin trên đường truyền vật lý (thường đo bằng ICMP Ping).
+    \item \textbf{Tầng 2 (TCP RTT):} Bao gồm Network RTT cộng thêm chi phí xử lý TCP ở hai đầu, chẳng hạn xử lý trạng thái kết nối, xác nhận gói và các cơ chế điều khiển truyền.
+    \item \textbf{Tầng 3 (Application Latency):} Độ trễ tổng thể bao gồm TCP RTT, thời gian xử lý giao thức lớp ứng dụng (như phân tích cú pháp HTTP), thời gian xử lý logic của máy chủ và thời gian truyền tải nội dung (body).
+\end{itemize}
+
+Trong đồ án này, công cụ Fortio được sử dụng để đo lường độ trễ ở Tầng 3 (Application Latency thông qua HTTP). Network RTT và TCP RTT được dùng như các lớp diễn giải khái niệm, không phải chỉ số chính được báo cáo trong benchmark. Việc đo đạc ở tầng ứng dụng (\textit{end-to-end perceived latency}) giúp phản ánh trực tiếp hơn trải nghiệm thực tế mà người dùng hoặc các microservices nội bộ nhận được khi gọi qua Kubernetes Service.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        node distance=0.8cm,
+        endpoint/.style={draw, rounded corners=2pt, align=center, inner sep=4pt, font=\footnotesize\bfseries, fill=blue!8, text width=2.5cm, minimum height=0.9cm},
+        svcbox/.style={draw, rounded corners=2pt, align=center, inner sep=4pt, font=\footnotesize, fill=gray!8, text width=2.55cm, minimum height=0.9cm},
+        scopebox/.style={draw, rounded corners=3pt, align=center, inner sep=5pt, font=\footnotesize, minimum height=0.72cm},
+        appscope/.style={scopebox, fill=orange!12, draw=orange!70!black, text width=9.7cm, minimum width=10.5cm},
+        tcpscope/.style={scopebox, fill=blue!8, draw=blue!65!black, text width=7.7cm, minimum width=8.4cm},
+        netscope/.style={scopebox, fill=gray!10, draw=gray!70!black, text width=5.7cm, minimum width=6.3cm},
+        flowarrow/.style={-{Latex[length=2.8mm,width=1.8mm]}, line width=0.9pt, draw=blue!65!black},
+        responsearrow/.style={-{Latex[length=2.0mm,width=1.25mm]}, line width=0.55pt, draw=blue!40!black},
+        assoc/.style={line width=0.6pt, draw=gray!55!black, densely dotted},
+        note/.style={font=\footnotesize, align=center}
+    ]
+        \node[endpoint] (client) at (0,0) {Fortio client\\gửi request};
+        \node[svcbox] (svc) at (5.0,0) {Kubernetes\\Service / datapath};
+        \node[endpoint] (server) at (10.0,0) {Echo server\\trả response};
+
+        \draw[flowarrow] (client) -- node[above, note] {HTTP request} (svc);
+        \draw[flowarrow] (svc) -- node[above, note] {datapath} (server);
+        \draw[responsearrow] (server.south) .. controls (8.15,-0.78) and (1.85,-0.78) ..
+            node[below, font=\scriptsize, align=center] {HTTP response} (client.south);
+
+        \node[appscope] (app) at (5.0,-2.40)
+            {\textbf{Application latency (Fortio/HTTP)}: lớp đo chính của benchmark, từ HTTP request đến full response};
+        \node[tcpscope] (tcp) at (5.0,-4.15)
+            {\textbf{TCP RTT (khái niệm)}: gồm truyền gói và chi phí xử lý TCP ở hai đầu};
+        \node[netscope] (network) at (5.0,-5.90)
+            {\textbf{Network RTT}: diễn giải ở mức truyền gói trên đường đi mạng};
+
+        \draw[assoc] (svc.south) -- ++(0,-0.42) -- (app.north);
+        \draw[assoc] ([xshift=-2.7cm]app.south) -- ([xshift=-1.9cm]tcp.north);
+        \draw[assoc] ([xshift=1.9cm]tcp.south) -- ([xshift=1.35cm]network.north);
+    \end{tikzpicture}
+    \caption{Minh họa các tầng diễn giải độ trễ: benchmark dùng Fortio để đo application latency qua HTTP; Network RTT và TCP RTT chỉ là các lớp khái niệm hỗ trợ, không phải phép tách thành phần trực tiếp từ số liệu benchmark}
+    \label{fig:rtt-application-latency}
+\end{figure}
+
+\subsection{Phân phối độ trễ và Tầm quan trọng của Độ trễ phần đuôi (Tail Latency)}
+
+Do sự biến động nội tại của môi trường mạng đám mây, độ trễ không phải là một hằng số mà là một phân phối thống kê. Thay vì sử dụng giá trị trung bình cộng (\textit{mean}) vốn dễ bị sai lệch bởi các giá trị ngoại lệ, đồ án sử dụng các phân vị (\textit{percentiles}):
+
+\begin{itemize}
+    \item \textbf{p50 (Median - Độ trễ trung vị):} Giá trị mà tại đó 50\% số yêu cầu có độ trễ nhỏ hơn hoặc bằng. Nó đại diện cho hiệu năng ở ``trường hợp điển hình'' (\textit{typical case}) của hệ thống.
+    \item \textbf{p90, p95:} Các phân vị cao, đại diện cho 10\% và 5\% các yêu cầu chậm nhất.
+    \item \textbf{p99 và p99.9 (Tail Latency - Độ trễ phần đuôi):} Giá trị mà 99\% (và 99.9\%) số yêu cầu có độ trễ nhỏ hơn hoặc bằng. Đại diện cho nhóm 1\% hoặc 0.1\% các yêu cầu bị xử lý chậm nhất do các sự cố ngẫu nhiên hoặc thắt cổ chai hệ thống.
+\end{itemize}
+
+\noindent \textbf{Tầm quan trọng của p99 đối với Datapath:} 
+
+Nghiên cứu này chọn p99 làm thước đo trung tâm (\textit{primary metric}) thay vì p50. Trong môi trường production thực tế, trải nghiệm người dùng bị ảnh hưởng nghiêm trọng bởi \textit{tail latency}. Chỉ cần 1\% yêu cầu xử lý chậm cũng có thể gây ra hiện tượng tràn hàng đợi (\textit{queue overflow}) ở các bộ cân bằng tải, dẫn đến hiệu ứng lỗi dây chuyền (\textit{cascading failure}). 
+
+Hơn nữa, p99 cực kỳ nhạy cảm với các chi phí hao tổn (\textit{overhead}) của \textit{datapath}. Khi tải cao, chi phí duyệt tuyến tính của chuỗi luật iptables $O(n)$ và việc tra cứu bảng conntrack ở Mode A sẽ tích tụ lại thành hiện tượng xếp hàng cục bộ (\textit{local queueing}), làm độ trễ p99 tăng vọt. Trong khi đó, Mode B với bảng băm BPF Map $O(1)$ hứa hẹn giữ cho p99 ổn định hơn nhiều nhờ loại bỏ được các bước xử lý dư thừa này.
+\subsection{Thông lượng (Throughput) và Tỷ lệ lỗi (Error Rate)}
+\begin{itemize}
+    \item \textbf{Thông lượng đạt được (Achieved QPS/RPS):} Queries Per Second hoặc Requests Per Second là số lượng yêu cầu HTTP hoàn chỉnh mà 
+máy chủ xử lý thành công trong một giây. Cần phân biệt giữa Target QPS (mức tải mục tiêu công cụ tạo ra) và Achieved QPS 
+(mức tải hệ thống thực sự đáp ứng được). Nếu cơ chế mạng bị thắt cổ chai (saturation), Achieved QPS sẽ sụt giảm thấp hơn 
+Target QPS.
+    \item \textbf{Tỉ lệ lỗi (Error Rate):} Là phần trăm các yêu cầu trả về mã lỗi HTTP không phải 2xx, bị rớt kết nối (drop) hoặc hết hạn thời gian chờ (timeout). Tỉ lệ lỗi gia tăng thường là hệ quả trực tiếp của việc bảng theo dõi kết nối conntrack bị đầy dưới mức tải cao (burst/churn), buộc nhân Linux phải loại bỏ các kết nối mới.
+
+
+\end{itemize}
+
+\subsection{Mức tiêu thụ tài nguyên (Resource Utilization)}
+Khác biệt về mặt kiến trúc giữa iptables và eBPF phản ánh trực tiếp lên mức tiêu thụ CPU của các worker node.
+Ở Mode A: Nhân Linux phải tiêu tốn một lượng lớn chu kỳ CPU (thể hiện qua chỉ số system CPU hoặc softirq) để duyệt qua danh sách
+ dài các quy tắc iptables và duy trì trạng thái NAT/conntrack cho mỗi gói tin. Nếu thành phần kube-proxy chiếm quá nhiều CPU, hệ thống sẽ còn ít tài nguyên cho các ứng dụng nghiệp vụ.
+Ở Mode B: Các chương trình eBPF được thực thi cực kỳ hiệu quả (efficient) ngay trong không gian nhân với chi phí cố định (constant time). Đánh giá hiệu năng mạng không chỉ là việc hệ thống phản hồi nhanh bao nhiêu, mà còn là việc nó tiết kiệm được bao nhiêu tài nguyên (overhead) để duy trì tốc độ đó. Dữ liệu này được thu thập thông qua các công cụ giám sát như Prometheus và Grafana.

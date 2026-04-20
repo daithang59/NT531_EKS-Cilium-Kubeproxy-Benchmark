@@ -1,0 +1,86 @@
+% Chương 0: Phạm vi thực nghiệm + Chương 1: Introduction
+
+% ==========================================
+% CHƯƠNG 0: PHẠM VI THỰC NGHIỆM 
+% ==========================================
+\chapter*{Tóm tắt nội dung}
+
+Đồ án \textit{``Đánh giá hiệu năng Kubernetes Service datapath giữa kube-proxy và Cilium eBPF kube-proxy replacement trên AWS EKS''} tập trung so sánh định lượng hiệu năng mạng giữa hai cơ chế: kiến trúc truyền thống dùng kube-proxy/iptables (duyệt luật tuần tự $O(n)$, phụ thuộc conntrack) và kiến trúc mới dùng Cilium eBPF (chuyển hướng trực tiếp ở cấp độ socket, tra cứu $O(1)$).
+
+Các nội dung cốt lõi của đồ án được tóm tắt như sau:
+
+\begin{enumerate}
+\item \textbf{Mục tiêu và câu hỏi nghiên cứu.} Đồ án đặt ra ba câu hỏi chính nhằm lấp đầy khoảng trống nghiên cứu trên môi trường đám mây thực tế:
+\begin{itemize}
+	\item  \textbf{RQ1: }Ở trạng thái tải ổn định (steady-state), eBPF có cải thiện độ trễ phần đuôi (tail latency, đặc biệt là p99) so với kube-proxy hay không?
+	\item  \textbf{RQ2: }Dưới mức tải cao đột biến (burst) và thay đổi kết nối liên tục (connection churn), hai chế độ xử lý khác nhau như thế nào?
+	\item  \textbf{RQ3: }Mức hao tổn hiệu năng (overhead) là bao nhiêu khi bật NetworkPolicy kết hợp giám sát bằng Hubble trên eBPF?
+\end{itemize}
+
+\item \textbf{Thiết kế thực nghiệm (Methodology).}
+\begin{itemize}
+	\item \textbf{Môi trường:} Triển khai trên AWS EKS với 3 worker node loại m5.large. Client và Server được ép chạy cùng node để loại bỏ độ trễ mạng vật lý bên ngoài, tập trung vào lớp datapath.
+	\item \textbf{Mức tải:} Sau hiệu chuẩn thực tế, chọn ba mức tải: L1 (100 QPS), L2 (400 QPS), L3 (800 QPS) -- trong đó L3 đủ tạo tail-spike nhưng chưa làm hệ thống sập.
+	\item \textbf{Kịch bản:} S1 (tải tĩnh), S2 (tải biến động 4 pha: ramp-up, sustained, burst $\times 3$, cooldown với keep-alive tắt), S3 (so sánh policy OFF/ON trên mode eBPF).
+	\item \textbf{Phân tích thống kê:} sử dụng Welch's t-test, p-value, khoảng tin cậy và phân tích độ lặp lại để tăng độ tin cậy cho kết luận.
+\end{itemize}
+
+\item \textbf{Kết quả nổi bật (Results \& Analysis).}
+\begin{itemize}
+	\item \textbf{S1 -- trả lời RQ1:} Mode B (eBPF) cải thiện p99 rõ ở tải trung bình và cao. Ở L3, p99 giảm khoảng 14.2\% so với kube-proxy, có ý nghĩa thống kê mạnh ($p=0.0191$).
+	\item \textbf{S2 -- trả lời RQ2:} Kết quả phụ thuộc theo pha. Ở L3, Mode B có p99 trung bình thấp hơn ở tất cả các pha (có pha giảm đến 18.3\% ở Burst 1). Tuy nhiên, do variance cao của tải đột biến, kết luận phù hợp là ``xu hướng mạnh'' hơn là khẳng định ý nghĩa thống kê tuyệt đối cho từng pha đơn lẻ.
+	\item \textbf{S3 -- trả lời RQ3:} Bật NetworkPolicy cơ bản trên eBPF tạo overhead rất nhỏ: p99 ở L3 chỉ chênh khoảng +1.2\%, RPS gần như không đổi và error rate giữ 0\%. Điều này cho thấy cơ chế policy enforcement trên eBPF hiệu quả và ít ảnh hưởng hiệu năng trong setup hiện tại.
+\end{itemize}
+
+\item \textbf{Kết luận và giới hạn.}
+\begin{itemize}
+	\item \textbf{Kết luận:} eBPF là lựa chọn hiệu quả để giảm tail latency, phù hợp với các hệ thống microservices có tải trung bình đến cao và nhạy cảm SLA.
+	\item \textbf{Giới hạn:} Nghiên cứu tập trung vào ClusterIP nội node, workload tổng hợp HTTP (Fortio), và policy tương đối đơn giản; do đó kết quả chưa đại diện cho mọi kịch bản traffic phức tạp ngoài thực tế.
+\end{itemize}
+\end{enumerate}
+
+\clearpage
+
+% ==========================================
+% CHƯƠNG 1: INTRODUCTION 
+% ==========================================
+\chapter{Giới thiệu}
+\section{Bối cảnh nghiên cứu} %
+ Kubernetes hiện đang là tiêu chuẩn thực tế trong việc điều phối container, nơi mà lớp mạng đóng vai trò quyết định đối với độ trễ của các dịch vụ. 
+ Theo mặc định, thành phần kube-proxy trong Kubernetes chịu trách nhiệm hiện thực hóa cơ chế định tuyến dịch vụ (như ClusterIP) bằng cách sử dụng iptables 
+ hoặc ipvs. Tuy nhiên, iptables bộc lộ một điểm nghẽn lớn: nó sử dụng cơ chế duyệt tuần tự các chuỗi luật với độ phức tạp O(n), khiến thời gian tra cứu 
+ tăng tuyến tính khi số lượng service trong cụm ngày càng nhiều. Để giải quyết vấn đề này, công nghệ Cilium cung cấp một giải pháp thay thế hoàn toàn 
+ kube-proxy bằng cách sử dụng eBPF (kube-proxy replacement), nhằm giảm suy hao hệ thống và cải thiện độ trễ phần đuôi nhờ cơ chế tra cứu bảng băm (BPF maps) 
+ với thời gian cố định O(1).
+\section{Vấn đề nghiên cứu} % 
+Mặc dù giải pháp Cilium eBPF có lợi thế rõ ràng về mặt lý thuyết, bối cảnh nghiên cứu hiện tại đang tồn tại một khoảng trống nghiên cứu lớn. 
+Các bài đánh giá hiệu năng hiện có chủ yếu được thực hiện trong môi trường giả lập (Minikube/local), máy chủ vật lý (bare-metal) hoặc GKE, thiếu đi những bằng chứng thực nghiệm trên các cụm triển khai chuẩn sản xuất (production-grade cluster) như AWS EKS. 
+Bên cạnh đó, các nghiên cứu này cũng thiếu sự đánh giá định lượng có kiểm soát về mặt thống kê, chẳng hạn khoảng tin cậy, kiểm định kiểu Welch và phân tích độ lặp lại; thiếu các phân tích ở cấp độ 
+từng giai đoạn (phase-level) khi hệ thống chịu tải đột biến; và chưa đánh giá đầy đủ mức hao tổn khi áp dụng các chính sách mạng (NetworkPolicy) kèm bằng chứng quan sát phù hợp.
+\section{Mục tiêu nghiên cứu} % 
+\subsection{Mục tiêu chính}
+Đánh giá định lượng và so sánh hiệu năng của đường dẫn mạng Kubernetes Service (datapath) giữa hai cơ chế: Mode A (kube-proxy baseline) và Mode B 
+(Cilium eBPF kube-proxy replacement) trên nền tảng điện toán đám mây AWS EKS thực tế.
+
+\subsection{Mục tiêu cụ thể}
+\begin{enumerate}
+\item Đo lường xem Mode B có giúp cải thiện độ trễ phần đuôi (tail latency - đặc biệt là p99, với p50/p90 làm chỉ số bổ trợ) so với Mode A ở điều kiện tải ổn định (steady-state) hay không.
+\item Đánh giá tính ổn định của luồng mạng (tỷ lệ lỗi, độ trễ gai) dưới mức tải cao và sự thay đổi kết nối liên tục (connection churn).
+\item Đo lường mức độ hao tổn hiệu năng (overhead) tác động lên thông lượng và độ trễ khi bật các quy tắc mạng (NetworkPolicy) kết hợp với công cụ quan sát Hubble.
+Các mục tiêu cụ thể này cũng sẽ là 3 câu hỏi nghiên cứu (Research questions - RQ). Mỗi kịch bản đo lường được đặt ra để thu thập các dữ liệu phục vụ cho việc trả lời các câu hỏi đó.
+\end{enumerate}
+% Chèn Table 3.3 RQ to Metric Traceability tại đây 
+\section{Phạm vi nghiên cứu} % 
+\subsection{Phạm vi đo lường} % 
+Tập trung đo lường luồng traffic nội bộ (east-west) qua Service kiểu ClusterIP. Các Pod client và server được ép chạy trên cùng một node (same-node placement) 
+để giảm nhiễu độ trễ từ mạng vật lý liên node/liên vùng, qua đó tập trung hơn vào khác biệt của service datapath. Benchmark không bao gồm traffic kết nối ra Internet, 
+traffic liên cụm (multi-cluster), hay streaming dữ liệu lớn.
+\subsection{Cấu hình phần cứng thực nghiệm}
+Triển khai 01 cụm Kubernetes trên AWS EKS (phiên bản 1.34) và Cilium (phiên bản 1.18.7) tại region ap-southeast-1. Cụm sử dụng 3 worker nodes loại m5.large 
+(non-burstable CPU để tránh cạn kiệt CPU credit làm nhiễu kết quả) và được ghim vào một Availability Zone (AZ) duy nhất. Chức năng autoscaling bị tắt 
+trong quá trình đo đạc để giữ cố định số lượng node.
+\subsection{Ý nghĩa của nghiên cứu} % 
+Cung cấp các bằng chứng thực nghiệm đáng tin cậy và có ý nghĩa thống kê cho các hệ thống chuẩn sản xuất. Nghiên cứu đưa ra hệ quả thực tiễn 
+giúp các kỹ sư ra quyết định chuyển đổi sang eBPF KPR, đặc biệt phù hợp cho các cụm có quy mô lớn, các hệ thống 
+nhạy cảm với độ trễ bị ràng buộc bởi SLA (p99/p999), hoặc khi cần quan sát luồng ở mức flow-level và kiểm chứng thực thi NetworkPolicy bằng Hubble. Trong phạm vi đề tài, Hubble đóng vai trò cung cấp evidence về flow và verdict để hỗ trợ đối chiếu hành vi policy, không thay thế các số liệu hiệu năng chính như latency, RPS và error rate. Đồng thời, nghiên cứu cũng cảnh báo các rủi ro 
+vận hành như xung đột bảng NAT nếu không tắt kube-proxy đúng cách trước khi chuyển đổi.

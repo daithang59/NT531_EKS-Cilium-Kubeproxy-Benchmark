@@ -1,0 +1,134 @@
+% !TeX root = ../main.tex
+% Phụ lục D - Danh mục dữ liệu thô và bằng chứng kiểm chứng
+
+\chapter{Phụ lục danh mục dữ liệu thô và bằng chứng kiểm chứng}
+\label{app:raw-data}
+
+Phụ lục này mô tả các artifact được lưu sau mỗi run benchmark để phục vụ truy vết, đối chiếu kết quả và kiểm chứng độc lập (audit). Các file được chia thành ba nhóm chính theo vai trò bằng chứng.
+
+\section{Cấu trúc thư mục artifact}
+
+Để dễ hình dung toàn cảnh trước khi đi vào từng nhóm dữ liệu, thư mục \texttt{results/} được tổ chức theo mô hình \texttt{mode/scenario/load/run} như sau:
+
+\begin{lstlisting}
+results/
+	mode=A_kube-proxy/
+	mode=B_cilium-ebpfkpr/
+		scenario=S1/
+		scenario=S2/
+		scenario=S3/
+			load=L1|L2|L3/
+				[phase=off|on/]      # chi co o S3
+					run=R#_<timestamp>/
+
+	pilot/
+		mode=A_kube-proxy/
+		mode=B_cilium-ebpfkpr/
+
+	calibration/
+		mode=A_kube-proxy/
+
+	ops/
+	test_run/
+	test_py/
+\end{lstlisting}
+
+Ý nghĩa và mục đích các thư mục chính:
+
+\begin{itemize}
+	\item \texttt{mode=A\_kube-proxy/}: chứa kết quả benchmark chính thức của Mode A (baseline dùng kube-proxy). Bên trong chia theo \texttt{scenario} $\rightarrow$ \texttt{load} $\rightarrow$ \texttt{run}.
+	\item \texttt{mode=B\_cilium-ebpfkpr/}: chứa kết quả benchmark chính thức của Mode B (Cilium eBPF KPR). Cấu trúc tương tự Mode A; riêng S3 có thêm \texttt{phase=off/on} để tách hai trạng thái policy.
+	\item \texttt{pilot/}: chứa các lần chạy thử/pilot trước benchmark chính thức, dùng để kiểm tra pipeline, xác nhận script hoạt động và rà soát rủi ro vận hành.
+	\item \texttt{calibration/}: chứa dữ liệu calibration để chọn mức tải L1/L2/L3 dựa trên dữ liệu thực nghiệm trước khi chạy full benchmark.
+	\item \texttt{ops/}: chứa artifact phục vụ vận hành/hỗ trợ chạy benchmark (thu thập bổ sung theo nhu cầu vận hành).
+	\item \texttt{test\_run/}, \texttt{test\_py/}: dữ liệu thử nghiệm kỹ thuật cho script hoặc parser, không dùng làm kết quả chính thức trong phần phân tích đồ án.
+\end{itemize}
+
+Với mỗi thư mục \texttt{run=...}, các artifact chi tiết (log, metadata, snapshot hệ thống, flow logs...) được lưu đầy đủ để phục vụ truy vết và kiểm chứng. Danh sách file cụ thể có thể tra trực tiếp tại kho mã nguồn:
+
+\begin{center}
+\url{https://github.com/daithang59/NT531_EKS-Cilium-Kubeproxy-Benchmark/tree/main/results}
+\end{center}
+
+\section{Nhóm dữ liệu hiệu năng (Performance Data)}
+
+Nhóm file này chứng minh trực tiếp các chỉ số độ trễ và thông lượng:
+
+\begin{itemize}
+	\item \texttt{bench.log}: log terminal đầy đủ của Fortio trong các kịch bản S1/S2/S3.
+	\item \texttt{fortio.json}: dữ liệu gốc của Fortio, chứa phân vị độ trễ (p50, p90, p99, p999), achieved QPS và error rate.
+	\item \texttt{bench\_phase*.log}: log theo từng pha cho S2 (ramp-up, sustained, burst, cooldown).
+	\item \texttt{fortio\_phase*.json}: dữ liệu JSON theo từng pha của S2.
+\end{itemize}
+
+\textbf{Ví dụ snippet từ \texttt{fortio.json}:}
+
+\begin{lstlisting}[language=json]
+{
+	"RunType": "HTTP",
+	"RequestedQPS": "800",
+	"ActualQPS": 799.9637889724556,
+	"NumThreads": 64,
+	"Version": "1.74.0"
+}
+\end{lstlisting}
+
+Snippet trên minh họa cách đối chiếu giữa tải mục tiêu (RequestedQPS), tải đạt được (ActualQPS) và tham số chạy thực tế của tool.
+
+\section{Nhóm siêu dữ liệu và trạng thái hệ thống (Metadata \& Cluster State)}
+
+Nhóm file này chứng minh môi trường đo đạc hợp lệ và công bằng:
+
+\begin{itemize}
+	\item \texttt{metadata.json}: file quan trọng nhất, ghi cấu hình run (mode/scenario/load), phiên bản thành phần, mốc thời gian.
+	\item \texttt{checklist.txt}: checklist hợp lệ của run (pod health, điều kiện fail-fast, lỗi OOM/restart).
+	\item \texttt{kubectl\_get\_all.txt}: snapshot tài nguyên Kubernetes tại thời điểm đo.
+	\item \texttt{kubectl\_top\_nodes.txt}: mức sử dụng CPU/Memory của worker nodes.
+	\item \texttt{events.txt}: nhật ký sự kiện cụm để đối chiếu bất thường.
+\end{itemize}
+
+\textbf{Ví dụ snippet từ \texttt{metadata.json}:}
+
+\begin{lstlisting}[language=json]
+{
+	"mode": {"id": "B", "name": "B_cilium-ebpfkpr"},
+	"scenario": {"id": "S3", "name": "NetworkPolicy Overhead"},
+	"load_level": {
+		"id": "L3",
+		"params": {"qps": 800, "concurrency": 64, "duration_seconds": 180}
+	},
+	"cluster": {
+		"region": "ap-southeast-1",
+		"eks": {"kubernetes_version": "v1.34.4-eks-f69f56f"}
+	},
+	"datapath": {
+		"cilium": {"version": "1.18.7", "kube_proxy_replacement": "true"}
+	}
+}
+\end{lstlisting}
+
+Snippet này thể hiện trực tiếp các thông tin nền để chứng minh tính tái lập và fairness của mỗi run.
+
+\section{Nhóm bằng chứng Datapath và khả năng quan sát (Datapath \& Observability Evidence)}
+
+Nhóm file này đặc biệt quan trọng cho Mode B và kịch bản S3:
+
+\begin{itemize}
+	\item \texttt{cilium\_status.txt}: trạng thái Cilium tại thời điểm đo (bao gồm KPR/IPAM/routing).
+	\item \texttt{hubble\_status.txt}: trạng thái Hubble collector/relay.
+	\item \texttt{hubble\_flows.jsonl}: raw flow logs ở định dạng JSONL, chứa verdict như \texttt{FORWARDED}, \texttt{DROPPED}, \texttt{TRACED}.
+	\item \texttt{deny\_case\_hubble.log}: log chuyên biệt cho deny case khi kiểm chứng NetworkPolicy.
+	\item Thư mục \texttt{grafana/} và \texttt{manifests/}: ảnh dashboard CPU/Memory và YAML thực tế đã apply (nếu được thu cùng run).
+\end{itemize}
+
+\textbf{Ví dụ snippet từ \texttt{hubble\_flows.jsonl}:}
+
+\begin{lstlisting}[language=json]
+{"flow":{"time":"2026-04-13T14:44:55.723373552Z","verdict":"FORWARDED",
+"IP":{"source":"10.0.10.122","destination":"10.0.10.61","ipVersion":"IPv4"},
+"l4":{"UDP":{"source_port":49103,"destination_port":53}},
+"source":{"namespace":"benchmark","pod_name":"fortio-..."},
+"destination":{"namespace":"kube-system","pod_name":"coredns-..."}}}
+\end{lstlisting}
+
+Snippet này cho thấy dữ liệu flow-level thực tế để đối chiếu verdict trong phân tích policy/datapath.

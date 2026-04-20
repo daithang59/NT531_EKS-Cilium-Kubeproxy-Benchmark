@@ -1,0 +1,7 @@
+qps,conns,runs,p50_ms,p90_ms,p99_ms,p999_ms,achieved_rps,error_rate_pct,final_load,note
+50,4,2,0.150,0.267,0.293,0.295,50.000,0.000,,"Below final L1; too light for main benchmark comparison"
+100,8,2,0.208,0.353,0.385,0.388,100.000,0.000,L1,"Final L1: light baseline, stable low-tail point"
+200,16,2,1.833,2.639,2.742,2.753,200.000,0.000,,"Intermediate point; helps show transition toward L2"
+400,32,2,0.846,1.854,2.107,2.133,400.000,0.000,L2,"Final L2: medium load with visible tail latency and zero errors"
+800,64,2,1.709,4.411,33.006,33.420,799.900,0.000,L3,"Final L3: high stress point; p99 jumps sharply while achieved RPS and error rate remain usable"
+1600,64,2,3.085,5.746,48.135,49.152,1599.950,0.000,,"Calibration upper stress point; higher p99 but not used as final L3"
